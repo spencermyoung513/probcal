@@ -9,8 +9,10 @@ from probcal.enums import DatasetType
 from probcal.enums import HeadType
 from probcal.enums import LRSchedulerType
 from probcal.enums import OptimizerType
+from probcal.enums import ImageDatasetName
 from probcal.utils.generic_utils import get_yaml
 from probcal.utils.generic_utils import to_snake_case
+
 
 
 class TrainingConfig:
@@ -52,7 +54,7 @@ class TrainingConfig:
         lr_scheduler_type: LRSchedulerType | None,
         lr_scheduler_kwargs: dict | None,
         dataset_type: DatasetType,
-        dataset_path: Path,
+        dataset_path_or_spec: Path | ImageDatasetName,
         num_trials: int,
         log_dir: Path,
         source_dict: dict,
@@ -73,7 +75,7 @@ class TrainingConfig:
         self.lr_scheduler_type = lr_scheduler_type
         self.lr_scheduler_kwargs = lr_scheduler_kwargs
         self.dataset_type = dataset_type
-        self.dataset_path = dataset_path
+        self.dataset_path_or_spec = dataset_path_or_spec
         self.num_trials = num_trials
         self.log_dir = log_dir
         self.source_dict = source_dict
@@ -116,7 +118,9 @@ class TrainingConfig:
 
         dataset_type = DatasetType(config_dict["dataset"]["type"])
         if dataset_type == DatasetType.TABULAR:
-            dataset_path = Path(config_dict["dataset"]["path"])
+            dataset_path_or_spec = Path(config_dict["dataset"]["path"])
+        elif dataset_type == DatasetType.IMAGE:
+            dataset_path_or_spec = ImageDatasetName(config_dict["dataset"]["spec"])
 
         num_trials = eval_dict["num_trials"]
         log_dir = Path(eval_dict["log_dir"])
@@ -137,7 +141,7 @@ class TrainingConfig:
             lr_scheduler_type=lr_scheduler_type,
             lr_scheduler_kwargs=lr_scheduler_kwargs,
             dataset_type=dataset_type,
-            dataset_path=dataset_path,
+            dataset_path_or_spec=dataset_path_or_spec,
             num_trials=num_trials,
             log_dir=log_dir,
             source_dict=config_dict,

@@ -7,12 +7,17 @@ import numpy as np
 import torch
 from lightning.pytorch.callbacks import ModelCheckpoint
 
-from probcal.data_modules import TabularDataModule
+from probcal.data_modules import TabularDataModule, MNISTDataModule, COCOPeopleDataModule
 from probcal.enums import DatasetType
+from probcal.enums import ImageDatasetName
 from probcal.enums import HeadType
 from probcal.models import GaussianNN
 from probcal.models import NegBinomNN
 from probcal.models import PoissonNN
+from probcal.models.backbones import MNISTCNN
+from probcal.models.backbones import MobileNetV3
+from probcal.models.backbones import SmallCNN
+from probcal.models.backbones import ViT
 from probcal.models.backbones import MLP
 from probcal.models.discrete_regression_nn import DiscreteRegressionNN
 from probcal.utils.configs import TrainingConfig
@@ -32,6 +37,19 @@ def get_model(config: TrainingConfig, return_initializer: bool = False) -> Discr
     if config.dataset_type == DatasetType.TABULAR:
         backbone_type = MLP
         backbone_kwargs = {"input_dim": config.input_dim}
+    elif config.dataset_type == DatasetType.IMAGE:
+        if config.dataset_path_or_spec == ImageDatasetName.MNIST:
+            backbone_type = MNISTCNN
+        elif config.dataset_path_or_spec == ImageDatasetName.COINS:
+            backbone_type = SmallCNN
+        elif config.dataset_path_or_spec == ImageDatasetName.COCO_PEOPLE:
+            backbone_type = ViT
+        else:
+            backbone_type = MobileNetV3
+        backbone_kwargs = {}
+    else:
+        raise NotImplementedError(f"Dataset type {config.dataset_type} not supported.")
+
     backbone_kwargs["output_dim"] = config.hidden_dim
 
     model = initializer(
@@ -49,15 +67,30 @@ def get_model(config: TrainingConfig, return_initializer: bool = False) -> Discr
 
 
 def get_datamodule(
-    dataset_type: DatasetType, dataset_path: Path, batch_size: int
+    dataset_type: DatasetType, dataset_path_or_spec: Path | ImageDatasetName, batch_size: int
 ) -> L.LightningDataModule:
     if dataset_type == DatasetType.TABULAR:
         return TabularDataModule(
-            dataset_path=dataset_path,
+            dataset_path=dataset_path_or_spec,
             batch_size=batch_size,
-            num_workers=9,
+            num_workers=0,
             persistent_workers=True,
         )
+    elif dataset_type == DatasetType.IMAGE:
+        if dataset_path_or_spec == ImageDatasetName.MNIST:
+            return MNISTDataModule(
+                root_dir="../../data/mnist",
+                batch_size=batch_size,
+                num_workers=0,
+                persistent_workers=False,
+            )
+        elif dataset_path_or_spec == ImageDatasetName.COCO_PEOPLE:
+            return COCOPeopleDataModule(
+                root_dir="../../data/coco_people",
+                batch_size=batch_size,
+                num_workers=16,
+                persistent_workers=True,
+            )
 
 
 def fix_random_seed(random_seed: int | None):

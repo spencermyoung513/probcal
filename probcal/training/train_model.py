@@ -12,6 +12,7 @@ from probcal.utils.experiment_utils import get_datamodule
 from probcal.utils.experiment_utils import get_model
 
 
+
 def main(config: TrainingConfig):
 
     fix_random_seed(config.random_seed)

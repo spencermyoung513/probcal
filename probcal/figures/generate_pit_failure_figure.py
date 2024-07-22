@@ -12,7 +12,6 @@ from sklearn.metrics.pairwise import rbf_kernel
 from probcal.evaluation.metrics import compute_regression_ece
 from probcal.evaluation.metrics import compute_mcmd
 
-
 def plot_posterior_predictive(
     x: np.ndarray,
     y: np.ndarray,
