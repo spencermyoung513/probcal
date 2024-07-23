@@ -94,6 +94,7 @@ def main(model_type: str, num_samples: int):
     )
 
 if __name__ == "__main__":
+    # TODO: consider adding experiment config instead of cli args
     parser = argparse.ArgumentParser(description="Run the MCMD experiment on MNIST")
     parser.add_argument("--model", type=str, choices=MODELS, help=f"must be in {MODELS}")
     parser.add_argument("--num-samples", type=int, default=10, help=f"number of predictive draws")
