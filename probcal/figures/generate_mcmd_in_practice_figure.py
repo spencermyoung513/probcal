@@ -107,12 +107,17 @@ def produce_figure(
         posterior_ax.set_xlabel(None)
         posterior_ax.set_ylabel(None)
 
+        # reshape predictive distribution
+        x_prime = np.tile(X.reshape(-1, 1), (num_posterior_samples, 1))
+        y_prime = dist.rvs((num_posterior_samples, len(X)))
+        y_prime = y_prime.reshape(-1, 1)
+
         mcmd_vals = compute_mcmd(
             grid=X.reshape(-1, 1),
             x=X.reshape(-1, 1),
             y=y.reshape(-1, 1),
-            x_prime=np.tile(X.reshape(-1, 1), (num_posterior_samples, 1)),
-            y_prime=dist.rvs((num_posterior_samples, len(X))).reshape(-1, 1),
+            x_prime=x_prime,
+            y_prime=y_prime,
             x_kernel=x_kernel,
             y_kernel=y_kernel,
         )
