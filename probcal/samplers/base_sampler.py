@@ -27,9 +27,9 @@ class BaseSampler(ABC):
         Args:
             m: (int) number of samples to draw
 
-        Returns: (np.ndarray) samples of shape (n, m) where n is the number of model predictions (y_hat) and m is the
+        Returns: (np.ndarray) samples of shape (m, n) where n is the number of model predictions (y_hat) and m is the
         number of somples for each model output
 
         """
-        draws = self.dist.rvs(size=(m, self.n)).transpose()
+        draws = self.dist.rvs(size=(m, self.n))
         return draws

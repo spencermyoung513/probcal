@@ -11,7 +11,7 @@ from probcal.utils.configs import TrainingConfig
 
 from probcal.samplers import SAMPLERS
 from probcal.evaluation.metrics import compute_mcmd
-from probcal.evaluation.plotting import plot_hex_bin_mcmd
+from probcal.evaluation.plotting import plot_hex_bin_mcmd, get_scatter_plot_by_cls
 
 from probcal.enums import DatasetType, ImageDatasetName, HeadType
 
@@ -67,6 +67,14 @@ def main(model_type: str, num_samples: int):
     print("Computing TSNE")
     X_reduced = TSNE(n_components=2, random_state=1990).fit_transform(X)
 
+    get_scatter_plot_by_cls(
+        x=X_reduced[:, 0],
+        y=X_reduced[:, 1],
+        c=Y.flatten(),
+        fpath="../figures/artifacts/mnist_tsne.png",
+        title="MNIST TSNE"
+    )
+
     print('Computing MCMD')
     mcmd_vals = compute_mcmd(
                 grid=X_reduced,
@@ -77,8 +85,12 @@ def main(model_type: str, num_samples: int):
                 x_kernel=x_kernel,
                 y_kernel=y_kernel,
             )
-
-    print(mcmd_vals)
+    print("Y Prime:")
+    print(y_prime.flatten().round(1))
+    print("Y True:")
+    print(Y.flatten())
+    print("MCMD Values:")
+    print(mcmd_vals.round(3))
     mean_mcmd = np.mean(mcmd_vals)
     print(mean_mcmd)
     total_mcmd = np.sum(mcmd_vals)

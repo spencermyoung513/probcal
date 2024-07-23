@@ -132,9 +132,13 @@ def plot_hex_bin_mcmd(
     else:
         plt.show()
 
-if __name__ == "__main__":
-    np.random.seed(0)
-    x = np.random.rand(1000)
-    y = np.random.rand(1000)
-    c = np.random.rand(1000)
-    plot_hex_bin_mcmd(x, y, c)
+def get_scatter_plot_by_cls(x: np.ndarray, y: np.ndarray, c: np.ndarray, title:str, fpath: Optional[str] = None):
+
+    plt.figure(figsize=(8, 6))
+    scatter = plt.scatter(x, y, c=c, cmap='tab10', alpha=0.6)
+    plt.colorbar(scatter, ticks=range(10))
+    plt.title(title)
+    if fpath is not None:
+        plt.savefig(fpath)
+    else:
+        plt.show()
