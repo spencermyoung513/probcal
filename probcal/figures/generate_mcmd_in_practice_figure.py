@@ -112,7 +112,7 @@ def produce_figure(
             x=X.reshape(-1, 1),
             y=y.reshape(-1, 1),
             x_prime=np.tile(X.reshape(-1, 1), (num_posterior_samples, 1)),
-            y_prime=dist.rvs((num_posterior_samples, len(X))),
+            y_prime=dist.rvs((num_posterior_samples, len(X))).reshape(-1, 1),
             x_kernel=x_kernel,
             y_kernel=y_kernel,
         )
