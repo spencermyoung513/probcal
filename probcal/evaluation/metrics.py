@@ -64,10 +64,15 @@ def compute_mcmd(
 
     Args:
         grid (np.ndarray): Grid of values (assumed to be drawn from X) to compute MCMD across.
+            - Shape (n, p): n is the number of samples in the grid, p is the number of dimensions.
         x (np.ndarray): The conditioning values that produced y.
+            - Shape (n, p): n is the number of samples, p is the number of dimensions.
         y (np.ndarray): Ground truth samples from the conditional distribution.
+            - Shape (n, 1). n is the number of samples, 1 is a single target dimension
         x_prime (np.ndarray): The conditioning values that produced y_prime.
+            - Shape (m, p): m is the number of samples, typically m = n x num_draws from target distribution. p is the number of dimensions.
         y_prime (np.ndarray): Samples from a model's approximation of the ground truth conditional distribution.
+            - Shape (m, 1). m is the number of samples, typically m = n x num_draws from target distribution. 1 is a single target dimension
         x_kernel (Callable[[np.ndarray, np.ndarray], np.ndarray]): Kernel function to use for the conditioning variable (x).
         y_kernel (Callable[[np.ndarray, np.ndarray], np.ndarray]): Kernel function to use for the output variable (y).
         lmbda (float, optional): Regularization parameter. Defaults to 0.01.
@@ -78,18 +83,18 @@ def compute_mcmd(
     n = len(x)
     m = len(x_prime)
 
-    K_X = x_kernel(x.reshape(-1, 1), x.reshape(-1, 1))
-    K_X_prime = x_kernel(x_prime.reshape(-1, 1), x_prime.reshape(-1, 1))
+    K_X = x_kernel(x, x)
+    K_X_prime = x_kernel(x_prime, x_prime)
 
     W_X = np.linalg.inv(K_X + n * lmbda * np.eye(n))
     W_X_prime = np.linalg.inv(K_X_prime + m * lmbda * np.eye(m))
 
-    K_Y = y_kernel(y.reshape(-1, 1), y.reshape(-1, 1))
-    K_Y_prime = y_kernel(y_prime.reshape(-1, 1), y_prime.reshape(-1, 1))
-    K_Y_Y_prime = y_kernel(y.reshape(-1, 1), y_prime.reshape(-1, 1))
+    K_Y = y_kernel(y, y)
+    K_Y_prime = y_kernel(y_prime, y_prime)
+    K_Y_Y_prime = y_kernel(y, y_prime)
 
-    k_X = x_kernel(x.reshape(-1, 1), grid.reshape(-1, 1))
-    k_X_prime = x_kernel(x_prime.reshape(-1, 1), grid.reshape(-1, 1))
+    k_X = x_kernel(x, grid)
+    k_X_prime = x_kernel(x_prime, grid)
 
     first_term = np.diag(k_X.T @ W_X @ K_Y @ W_X.T @ k_X)
     second_term = np.diag(2 * k_X.T @ W_X @ K_Y_Y_prime @ W_X_prime.T @ k_X_prime)

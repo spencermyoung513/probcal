@@ -2,6 +2,7 @@ from functools import partial
 from pathlib import Path
 
 import matplotlib.pyplot as plt
+
 import numpy as np
 import torch
 from matplotlib.ticker import FuncFormatter
@@ -34,8 +35,8 @@ def produce_figure(
         save_path (Path | str): Path to save figure to.
         dataset_path (Path | str): Path with dataset models were fit on.
     """
-    plt.rc("text", usetex=True)
-    plt.rc("font", family="serif")
+    #plt.rc("text", usetex=True)
+    #plt.rc("font", family="serif")
 
     fig, axs = plt.subplots(
         2,
@@ -107,10 +108,10 @@ def produce_figure(
         posterior_ax.set_ylabel(None)
 
         mcmd_vals = compute_mcmd(
-            grid=X,
-            x=X,
-            y=y,
-            x_prime=np.tile(X, num_posterior_samples),
+            grid=X.reshape(-1, 1),
+            x=X.reshape(-1, 1),
+            y=y.reshape(-1, 1),
+            x_prime=np.tile(X.reshape(-1, 1), (num_posterior_samples, 1)),
             y_prime=dist.rvs((num_posterior_samples, len(X))),
             x_kernel=x_kernel,
             y_kernel=y_kernel,
