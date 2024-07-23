@@ -2,6 +2,7 @@ from typing import Union
 
 from abc import ABC, abstractmethod
 
+import numpy as np
 import scipy
 import torch
 
@@ -20,5 +21,15 @@ class BaseSampler(ABC):
     def get_nll(self, samples):
         pass
 
-    def sample(self, m: int):
-        return self.dist.rvs(size=(m, self.n))
+    def sample(self, m: int) -> np.ndarray:
+        """
+        Draw samples from the underlying scipy rvs object.
+        Args:
+            m: (int) number of samples to draw
+
+        Returns: (np.ndarray) samples of shape (n, m) where n is the number of model predictions (y_hat) and m is the
+        number of somples for each model output
+
+        """
+        draws = self.dist.rvs(size=(m, self.n)).transpose()
+        return draws

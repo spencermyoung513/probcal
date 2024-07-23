@@ -11,7 +11,7 @@ class AcceleratorType(Enum):
 class HeadType(Enum):
     GAUSSIAN = "gaussian"
     POISSON = "poisson"
-    NEGATIVE_BINOMIAL = "negative_binomial"
+    NEGATIVE_BINOMIAL = "nbinom"
 
 
 class OptimizerType(Enum):

@@ -1,4 +1,7 @@
+from typing import Optional
+
 import numpy as np
+
 from matplotlib import pyplot as plt
 from scipy.stats import rv_continuous
 
@@ -101,3 +104,37 @@ def plot_regression_calibration_curve(
 
     if show:
         plt.show()
+
+
+def plot_hex_bin_mcmd(
+        x: np.ndarray,
+        y: np.ndarray,
+        c: np.ndarray,
+        grid_size: Optional[int] = 25,
+        title: Optional[str] = "Hexbin plot",
+        fpath: Optional[str] = None
+):
+    # Create the hexbin plot
+    plt.figure(figsize=(8, 6))
+    hb = plt.hexbin(x, y, C=c, gridsize=grid_size, reduce_C_function=np.mean, cmap='viridis')
+
+    # Add a color bar
+    cb = plt.colorbar(hb)
+    cb.set_label('Average MCMD')
+
+    # Add labels and title
+    plt.xlabel('X axis')
+    plt.ylabel('Y axis')
+    plt.title(title)
+
+    if fpath is not None:
+        plt.savefig(fpath)
+    else:
+        plt.show()
+
+if __name__ == "__main__":
+    np.random.seed(0)
+    x = np.random.rand(1000)
+    y = np.random.rand(1000)
+    c = np.random.rand(1000)
+    plot_hex_bin_mcmd(x, y, c)
