@@ -1,6 +1,8 @@
 import torch
 import numpy as np
 from functools import partial
+import yaml
+import pprint
 
 import argparse
 from sklearn.manifold import TSNE
@@ -15,6 +17,7 @@ from probcal.evaluation.plotting import plot_hex_bin_mcmd, get_scatter_plot_by_c
 
 from probcal.enums import DatasetType, ImageDatasetName, HeadType
 
+
 MODELS = [member.value for member in HeadType]
 
 def init_y_hat_array(model: str, n: int) -> torch.Tensor:
@@ -25,8 +28,10 @@ def init_y_hat_array(model: str, n: int) -> torch.Tensor:
     return y_hat_init
 
 
-def main(model_type: str, num_samples: int):
-    print(f"Executing MNIST Experiment: {model_type}")
+def main(cfg: dict):
+    print(f"Executing MNIST Experiment:")
+    pprint.pprint(cfg)
+
     datamodule = get_datamodule(
         DatasetType.IMAGE,
         ImageDatasetName.MNIST,
@@ -35,19 +40,19 @@ def main(model_type: str, num_samples: int):
     datamodule.setup("predict")
     test_loader = datamodule.test_dataloader()
 
-    cfg = TrainingConfig.from_yaml(f"../../configs/mnist_{model_type}_cfg.yaml")
-    model = get_model(cfg)
+    model_cfg = TrainingConfig.from_yaml(f"configs/mnist_{cfg['model_type']}_cfg.yaml")
+    model = get_model(model_cfg)
 
     state_dict = torch.load(
-        f"/Users/porterjenkins/code/probcal/weights/mnist_{model_type}/best_mae_{model_type}.pt",
+        f"weights/mnist_{cfg['model_type']}/best_mae_{cfg['model_type']}.pt",
         map_location='cpu'
     )
     model.load_state_dict(state_dict)
 
-    num_examples = 1000
+    num_examples = cfg['data']['test_examples']
     X = np.zeros((num_examples, 28*28))
     Y = np.zeros((num_examples, 1))
-    Y_hat = init_y_hat_array(model_type, num_examples)
+    Y_hat = init_y_hat_array(cfg['model_type'], num_examples)
 
     for i, (x, y) in enumerate(test_loader):
         if i == num_examples:
@@ -58,60 +63,55 @@ def main(model_type: str, num_samples: int):
             y_hat = model._predict_impl(x).squeeze()
         Y_hat[i] = y_hat
 
-    sampler = SAMPLERS[model_type](Y_hat)
+    sampler = SAMPLERS[cfg['model_type']](Y_hat)
 
-    y_prime = sampler.sample(m=num_samples).reshape(-1, 1)
-    print(np.mean(y_prime), np.std(y_prime))
-    x_kernel = partial(rbf_kernel, gamma=5.0)
-    y_kernel = partial(rbf_kernel, gamma=0.5)
+    y_prime = sampler.sample(m=cfg['data']['n_draws']).reshape(-1, 1)
+    x_kernel = partial(rbf_kernel, gamma=cfg['hyperparams']['x_kernel_gamma'])
+    y_kernel = partial(rbf_kernel, gamma=cfg['hyperparams']['y_kernel_gamma'])
     print("Computing TSNE")
-    X_reduced = TSNE(n_components=2, random_state=1990).fit_transform(X)
 
-    get_scatter_plot_by_cls(
-        x=X_reduced[:, 0],
-        y=X_reduced[:, 1],
-        c=Y.flatten(),
-        fpath="../figures/artifacts/mnist_tsne.png",
-        title="MNIST TSNE"
-    )
+    X_reduced = TSNE(
+        n_components=cfg['embedding']['n_components'],
+        random_state=1990).fit_transform(X)
 
     print('Computing MCMD')
     mcmd_vals = compute_mcmd(
                 grid=X_reduced,
                 x=X_reduced,
                 y=Y,
-                x_prime=np.tile(X_reduced, (num_samples, 1)),
+                x_prime=np.tile(X_reduced, (cfg['data']['n_draws'], 1)),
                 y_prime=y_prime,
                 x_kernel=x_kernel,
                 y_kernel=y_kernel,
             )
-    print("Y Prime:")
-    print(y_prime.flatten().round(1))
-    print("Y True:")
-    print(Y.flatten())
-    print("MCMD Values:")
-    print(mcmd_vals.round(3))
     mean_mcmd = np.mean(mcmd_vals)
-    print(mean_mcmd)
     total_mcmd = np.sum(mcmd_vals)
-    print(total_mcmd)
+    print("Average MCMD: {:.4f}".format(mean_mcmd))
+    print("Total MCMD: {:.4f}".format(total_mcmd))
 
-    plot_hex_bin_mcmd(
-        x=X_reduced[:, 0],
-        y=X_reduced[:, 1],
-        c=mcmd_vals,
-        title="MCMD on MNIST: {} DNN ({:.3f})".format(model_type, mean_mcmd),
-        grid_size=20,
-        fpath=f"../figures/artifacts/mnist_{model_type}_mcmd.png"
-    )
+    if cfg['plot']['gen_fig']:
+
+        if cfg['embedding']['n_components'] != 2:
+            raise ValueError("Can only plot 2D embeddings.")
+
+        get_scatter_plot_by_cls(
+            x=X_reduced[:, 0],
+            y=X_reduced[:, 1],
+            c=Y.flatten(),
+            fpath="probcal/figures/artifacts/mnist_tsne.png",
+            title="MNIST TSNE"
+        )
+
+        plot_hex_bin_mcmd(
+            x=X_reduced[:, 0],
+            y=X_reduced[:, 1],
+            c=mcmd_vals,
+            title="MCMD on MNIST: {} DNN ({:.3f})".format(cfg['model_type'], total_mcmd),
+            grid_size=cfg['plot']['grid_size'],
+            fpath=f"probcal/figures/artifacts/mnist_{cfg['model_type']}_mcmd.png",
+            crange=(cfg['plot']['color_min'], cfg['plot']['color_max'])
+        )
 
 if __name__ == "__main__":
-    # TODO: consider adding experiment config instead of cli args
-    parser = argparse.ArgumentParser(description="Run the MCMD experiment on MNIST")
-    parser.add_argument("--model", type=str, choices=MODELS, help=f"must be in {MODELS}")
-    parser.add_argument("--num-samples", type=int, default=10, help=f"number of predictive draws")
-    args = parser.parse_args()
-    main(
-        model_type=args.model,
-        num_samples=args.num_samples
-    )
+    cfg = yaml.safe_load(open("probcal/experiments/mnist_calib_cfg.yaml", "r"))
+    main(cfg)

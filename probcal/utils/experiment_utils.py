@@ -79,14 +79,14 @@ def get_datamodule(
     elif dataset_type == DatasetType.IMAGE:
         if dataset_path_or_spec == ImageDatasetName.MNIST:
             return MNISTDataModule(
-                root_dir="../../data/mnist",
+                root_dir="data/mnist",
                 batch_size=batch_size,
                 num_workers=0,
                 persistent_workers=False,
             )
         elif dataset_path_or_spec == ImageDatasetName.COCO_PEOPLE:
             return COCOPeopleDataModule(
-                root_dir="../../data/coco_people",
+                root_dir="data/coco_people",
                 batch_size=batch_size,
                 num_workers=16,
                 persistent_workers=True,

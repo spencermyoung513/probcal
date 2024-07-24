@@ -1,0 +1,17 @@
+model_type: gaussian # {gaussian, poisson, nbimon}
+data:
+  test_examples: 1000
+  n_draws: 5
+  rotation_angle: 0.0
+embedding:
+  method: tsne # {tsne}
+  n_components: 2
+hyperparams:
+  lmbda: 0.01
+  x_kernel_gamma: 5.0
+  y_kernel_gamma: 0.5
+plot:
+  gen_fig: True
+  grid_size: 20
+  color_min: 0.0
+  color_max: 0.01

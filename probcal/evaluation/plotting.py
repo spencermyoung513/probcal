@@ -112,11 +112,31 @@ def plot_hex_bin_mcmd(
         c: np.ndarray,
         grid_size: Optional[int] = 25,
         title: Optional[str] = "Hexbin plot",
-        fpath: Optional[str] = None
+        fpath: Optional[str] = None,
+        crange: Optional[tuple[float, float]] = None
 ):
+    """
+        Generates a hexbin plot, which is a two-dimensional histogram with hexagonal bins, from three numpy arrays representing x and y coordinates and a value to aggregate.
+
+        Args:
+            x (np.ndarray): The x coordinates for each point.
+            y (np.ndarray): The y coordinates for each point.
+            c (np.ndarray): The values to aggregate over the hexagonal bins. The color of each hexagon is determined by the average value of `c` in that bin.
+            grid_size (Optional[int], optional): The number of hexagons across the x-axis of the plot. Defaults to 25.
+            title (Optional[str], optional): The title of the plot. Defaults to "Hexbin plot".
+            fpath (Optional[str], optional): The file path to save the plot to. If None, the plot is displayed using plt.show(). Defaults to None.
+            crange (Optional[tuple[float, float]], optional): The range of values to normalize the colors of the hexagons. Defaults to None, which automatically scales to the min and max of `c`.
+
+        Returns:
+            None: This function does not return a value but generates and displays or saves a hexbin plot.
+        """
+
     # Create the hexbin plot
     plt.figure(figsize=(8, 6))
-    hb = plt.hexbin(x, y, C=c, gridsize=grid_size, reduce_C_function=np.mean, cmap='viridis')
+    if crange is not None:
+        hb = plt.hexbin(x, y, C=c, gridsize=grid_size, reduce_C_function=np.mean, cmap='viridis', vmin=crange[0], vmax=crange[1])
+    else:
+        hb = plt.hexbin(x, y, C=c, gridsize=grid_size, reduce_C_function=np.mean, cmap='viridis')
 
     # Add a color bar
     cb = plt.colorbar(hb)
