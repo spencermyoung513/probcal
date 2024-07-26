@@ -12,7 +12,7 @@ from scipy.stats import norm
 from scipy.stats import poisson
 from sklearn.metrics.pairwise import rbf_kernel
 
-from probcal.evaluation.metrics import compute_mcmd
+from probcal.mcmd import MCMD
 from probcal.evaluation.plotting import plot_posterior_predictive
 from probcal.models import GaussianNN
 from probcal.models import NegBinomNN
@@ -112,15 +112,19 @@ def produce_figure(
         y_prime = dist.rvs((num_posterior_samples, len(X)))
         y_prime = y_prime.reshape(-1, 1)
 
-        mcmd_vals = compute_mcmd(
+        mcmd = MCMD(
+            num_x=len(X),
+            num_x_prime=len(X) * num_posterior_samples,
             grid=X.reshape(-1, 1),
             x=X.reshape(-1, 1),
             y=y.reshape(-1, 1),
             x_prime=x_prime,
             y_prime=y_prime,
             x_kernel=x_kernel,
-            y_kernel=y_kernel,
+            y_kernel=y_kernel
         )
+
+        mcmd_vals = mcmd.compute_mcmd()
         sorted_indices = np.argsort(X)
         mcmd_ax.plot(X[sorted_indices], mcmd_vals[sorted_indices])
         mcmd_ax.set_ylim(-0.01, 0.75)
