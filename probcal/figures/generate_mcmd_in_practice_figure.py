@@ -12,7 +12,7 @@ from scipy.stats import norm
 from scipy.stats import poisson
 from sklearn.metrics.pairwise import rbf_kernel
 
-from probcal.mcmd import MCMD
+from probcal.evaluation.metrics import compute_mcmd_numpy
 from probcal.evaluation.plotting import plot_posterior_predictive
 from probcal.models import GaussianNN
 from probcal.models import NegBinomNN
@@ -107,19 +107,12 @@ def produce_figure(
         posterior_ax.set_xlabel(None)
         posterior_ax.set_ylabel(None)
 
-        # reshape predictive distribution
-        x_prime = np.tile(X.reshape(-1, 1), (num_posterior_samples, 1))
-        y_prime = dist.rvs((num_posterior_samples, len(X)))
-        y_prime = y_prime.reshape(-1, 1)
-
-        mcmd = MCMD(
-            num_x=len(X),
-            num_x_prime=len(X) * num_posterior_samples,
-            grid=X.reshape(-1, 1),
-            x=X.reshape(-1, 1),
-            y=y.reshape(-1, 1),
-            x_prime=x_prime,
-            y_prime=y_prime,
+        mcmd_vals = compute_mcmd_numpy(
+            grid=X,
+            x=X,
+            y=y,
+            x_prime=np.tile(X, num_posterior_samples),
+            y_prime=dist.rvs((num_posterior_samples, len(X))),
             x_kernel=x_kernel,
             y_kernel=y_kernel
         )

@@ -86,8 +86,8 @@ def main(cfg: dict):
             )
     mean_mcmd = np.mean(mcmd_vals)
     total_mcmd = np.sum(mcmd_vals)
-    print("Average MCMD: {:.4f}".format(mean_mcmd))
-    print("Total MCMD: {:.4f}".format(total_mcmd))
+    print("Average MCMD: {:.8f}".format(mean_mcmd))
+    print("Total MCMD: {:.8f}".format(total_mcmd))
 
     if cfg['plot']['gen_fig']:
 
