@@ -1,7 +1,7 @@
-model_type: gaussian # {gaussian, poisson, nbimon}
+model_type: poisson # {gaussian, poisson, nbinom}
 data:
-  test_examples: 10000
-  n_draws: 1
+  test_examples: 1000
+  n_draws: 3
   rotation_angle: 0.0
 embedding:
   method: tsne # {tsne}

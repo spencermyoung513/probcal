@@ -4,6 +4,13 @@ import numpy as np
 import torch
 from scipy.linalg import cho_factor, cho_solve
 from scipy.stats import rv_continuous
+from sklearn.metrics.pairwise import rbf_kernel
+
+
+def rbf_kernel_torch(X: torch.Tensor, Y: torch.Tensor, gamma: torch.Tensor) -> torch.Tensor:
+   kernel_numpy = rbf_kernel(X.detach().cpu().numpy(), Y.detach().cpu().numpy(),gamma=gamma)
+   kernel_torch = torch.tensor(kernel_numpy).to(torch.float32) 
+   return kernel_torch
 
 
 def compute_regression_ece(

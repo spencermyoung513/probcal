@@ -12,7 +12,7 @@ from probcal.utils.experiment_utils import get_model, get_datamodule
 from probcal.utils.configs import TrainingConfig
 
 from probcal.samplers import SAMPLERS
-from probcal.evaluation.metrics import compute_mcmd
+from probcal.evaluation.metrics import compute_mcmd_torch, rbf_kernel_torch
 from probcal.evaluation.plotting import plot_hex_bin_mcmd, get_scatter_plot_by_cls
 
 from probcal.enums import DatasetType, ImageDatasetName, HeadType
@@ -45,7 +45,8 @@ def main(cfg: dict):
 
     state_dict = torch.load(
         f"weights/mnist_{cfg['model_type']}/best_mae_{cfg['model_type']}.pt",
-        map_location='cpu'
+        map_location='cpu',
+        weights_only=True # Added to remove deprication warnings
     )
     model.load_state_dict(state_dict)
 
@@ -66,26 +67,26 @@ def main(cfg: dict):
     sampler = SAMPLERS[cfg['model_type']](Y_hat)
 
     y_prime = sampler.sample(m=cfg['data']['n_draws']).reshape(-1, 1)
-    x_kernel = partial(rbf_kernel, gamma=cfg['hyperparams']['x_kernel_gamma'])
-    y_kernel = partial(rbf_kernel, gamma=cfg['hyperparams']['y_kernel_gamma'])
+    x_kernel = partial(rbf_kernel_torch, gamma=cfg['hyperparams']['x_kernel_gamma'])
+    y_kernel = partial(rbf_kernel_torch, gamma=cfg['hyperparams']['y_kernel_gamma'])
     print("Computing TSNE")
 
     X_reduced = TSNE(
         n_components=cfg['embedding']['n_components'],
         random_state=1990).fit_transform(X)
 
-    print('Computing MCMD')
-    mcmd_vals = compute_mcmd(
-                grid=X_reduced,
-                x=X_reduced,
-                y=Y,
-                x_prime=np.tile(X_reduced, (cfg['data']['n_draws'], 1)),
-                y_prime=y_prime,
+    print(f'Computing MCMD {cfg['model_type']}')
+    mcmd_vals = compute_mcmd_torch(
+                grid=torch.from_numpy(X_reduced),
+                x=torch.from_numpy(X_reduced),
+                y=torch.from_numpy(Y),
+                x_prime=torch.from_numpy(np.tile(X_reduced, (cfg['data']['n_draws'], 1))),
+                y_prime=torch.from_numpy(y_prime),
                 x_kernel=x_kernel,
                 y_kernel=y_kernel,
             )
-    mean_mcmd = np.mean(mcmd_vals)
-    total_mcmd = np.sum(mcmd_vals)
+    mean_mcmd = torch.mean(mcmd_vals)
+    total_mcmd = torch.sum(mcmd_vals)
     print("Average MCMD: {:.8f}".format(mean_mcmd))
     print("Total MCMD: {:.8f}".format(total_mcmd))
 
