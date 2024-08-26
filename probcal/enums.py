@@ -12,6 +12,7 @@ class HeadType(Enum):
     GAUSSIAN = "gaussian"
     POISSON = "poisson"
     NEGATIVE_BINOMIAL = "negative_binomial"
+    MULTI_CLASS = "multi_class"
 
 
 class OptimizerType(Enum):
@@ -26,3 +27,4 @@ class LRSchedulerType(Enum):
 
 class DatasetType(Enum):
     TABULAR = "tabular"
+    MNIST = "mnist"

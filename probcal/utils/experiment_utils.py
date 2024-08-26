@@ -7,20 +7,21 @@ import numpy as np
 import torch
 from lightning.pytorch.callbacks import ModelCheckpoint
 
-from probcal.data_modules import TabularDataModule
+from probcal.data_modules import MNISTDataModule, TabularDataModule
 from probcal.enums import DatasetType
 from probcal.enums import HeadType
 from probcal.models import GaussianNN
+from probcal.models import MultiClassNN
 from probcal.models import NegBinomNN
 from probcal.models import PoissonNN
-from probcal.models.backbones import MLP
-from probcal.models.discrete_regression_nn import DiscreteRegressionNN
+from probcal.models.backbones import MLP, MNISTCNN
 from probcal.utils.configs import TrainingConfig
+from probcal.utils.generic_utils import partialclass
 
 
-def get_model(config: TrainingConfig, return_initializer: bool = False) -> DiscreteRegressionNN:
+def get_model(config: TrainingConfig, return_initializer: bool = False) -> L.LightningModule:
 
-    initializer: Type[DiscreteRegressionNN]
+    initializer: Type[L.LightningModule]
 
     if config.head_type == HeadType.GAUSSIAN:
         initializer = GaussianNN
@@ -28,10 +29,18 @@ def get_model(config: TrainingConfig, return_initializer: bool = False) -> Discr
         initializer = PoissonNN
     elif config.head_type == HeadType.NEGATIVE_BINOMIAL:
         initializer = NegBinomNN
+    elif config.head_type == HeadType.MULTI_CLASS:
+        initializer = MultiClassNN
+    else:
+        raise ValueError("Invalid head type specified.")
 
+    backbone_kwargs = {}
     if config.dataset_type == DatasetType.TABULAR:
         backbone_type = MLP
-        backbone_kwargs = {"input_dim": config.input_dim}
+        backbone_kwargs["input_dim"] = config.input_dim
+    elif config.dataset_type == DatasetType.MNIST:
+        backbone_type = MNISTCNN
+        initializer = partialclass(MultiClassNN, classes=[str(x) for x in range(10)])
     backbone_kwargs["output_dim"] = config.hidden_dim
 
     model = initializer(
@@ -49,11 +58,22 @@ def get_model(config: TrainingConfig, return_initializer: bool = False) -> Discr
 
 
 def get_datamodule(
-    dataset_type: DatasetType, dataset_path: Path, batch_size: int
+    dataset_type: DatasetType,
+    dataset_path: Path | None = None,
+    batch_size: int = 4,
 ) -> L.LightningDataModule:
     if dataset_type == DatasetType.TABULAR:
+        if dataset_path is None:
+            raise ValueError("Must specify path to tabular dataset.")
         return TabularDataModule(
             dataset_path=dataset_path,
+            batch_size=batch_size,
+            num_workers=9,
+            persistent_workers=True,
+        )
+    elif dataset_type == DatasetType.MNIST:
+        return MNISTDataModule(
+            root_dir="data/mnist",
             batch_size=batch_size,
             num_workers=9,
             persistent_workers=True,

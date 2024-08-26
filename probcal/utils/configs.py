@@ -32,7 +32,7 @@ class TrainingConfig:
         num_trials (int): Number of trials to run for this experiment.
         log_dir (Path): Directory to log results to.
         source_dict (dict): Dictionary from which config was constructed.
-        input_dim (int): The input dim of the data (used to construct the MLP). Defaults to 1.
+        input_dim (int): The input dim of the data (used to construct MLP for tabular datasets). Defaults to 1.
         hidden_dim (int, optional): Feature dimension used in the model (before feeding the representation to the output head). Defaults to 64.
         precision (str | None, optional): String specifying desired floating point precision for training. Defaults to None.
         random_seed (int | None, optional): If specified, the random seed to use for reproducibility. Defaults to None.
@@ -52,11 +52,11 @@ class TrainingConfig:
         lr_scheduler_type: LRSchedulerType | None,
         lr_scheduler_kwargs: dict | None,
         dataset_type: DatasetType,
-        dataset_path: Path,
+        dataset_path: Path | None,
         num_trials: int,
         log_dir: Path,
         source_dict: dict,
-        input_dim: int = 1,
+        input_dim: int | None = 1,
         hidden_dim: int = 64,
         precision: str | None = None,
         random_seed: int | None = None,
@@ -115,12 +115,12 @@ class TrainingConfig:
             lr_scheduler_kwargs = None
 
         dataset_type = DatasetType(config_dict["dataset"]["type"])
-        if dataset_type == DatasetType.TABULAR:
-            dataset_path = Path(config_dict["dataset"]["path"])
-
+        dataset_path = config_dict["dataset"].get("path")
+        if dataset_path:
+            dataset_path = Path(dataset_path)
+        input_dim = config_dict["dataset"].get("input_dim")
         num_trials = eval_dict["num_trials"]
         log_dir = Path(eval_dict["log_dir"])
-        input_dim = config_dict["dataset"].get("input_dim", 1)
         hidden_dim = config_dict.get("hidden_dim", 64)
         random_seed = config_dict.get("random_seed")
 
