@@ -87,7 +87,7 @@ def fix_random_seed(random_seed: int | None):
         torch.manual_seed(random_seed)
 
 
-def get_chkp_callbacks(chkp_dir: Path, chkp_freq: int) -> list[ModelCheckpoint]:
+def get_chkp_callbacks(head_type: HeadType, chkp_dir: Path, chkp_freq: int) -> list[ModelCheckpoint]:
     temporal_checkpoint_callback = ModelCheckpoint(
         dirpath=chkp_dir,
         every_n_epochs=chkp_freq,
@@ -103,16 +103,16 @@ def get_chkp_callbacks(chkp_dir: Path, chkp_freq: int) -> list[ModelCheckpoint]:
         save_top_k=1,
         enable_version_counter=False,
     )
-    best_mae_checkpoint_callback = ModelCheckpoint(
+    best_metric_checkpoint_callback = ModelCheckpoint(
         dirpath=chkp_dir,
-        monitor="val_mae",
+        monitor="val_acc" if head_type == HeadType.MULTI_CLASS else "val_mae",
         every_n_epochs=1,
-        filename="best_mae",
+        filename="best_acc" if head_type == HeadType.MULTI_CLASS else "best_mae",
         save_top_k=1,
         enable_version_counter=False,
     )
     return [
         temporal_checkpoint_callback,
         best_loss_checkpoint_callback,
-        best_mae_checkpoint_callback,
+        best_metric_checkpoint_callback,
     ]

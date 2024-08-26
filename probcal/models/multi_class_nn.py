@@ -85,8 +85,8 @@ class MultiClassNN(L.LightningModule):
         loss = self.loss_fn(y_hat, y)
         self.train_acc.update(y_hat, y)
 
-        self.log("train/loss", loss, prog_bar=True, on_epoch=True)
-        self.log("train/acc", self.train_acc, on_epoch=True)
+        self.log("train_loss", loss, prog_bar=True, on_epoch=True)
+        self.log("train_acc", self.train_acc, on_epoch=True)
 
         return loss
 
@@ -96,8 +96,8 @@ class MultiClassNN(L.LightningModule):
         loss = self.loss_fn(y_hat, y)
         self.val_acc.update(y_hat, y)
 
-        self.log("val/loss", loss, prog_bar=True, on_epoch=True, sync_dist=True)
-        self.log("val/acc", self.val_acc, on_epoch=True)
+        self.log("val_loss", loss, prog_bar=True, on_epoch=True, sync_dist=True)
+        self.log("val_acc", self.val_acc, on_epoch=True)
 
         return loss
 
@@ -105,7 +105,7 @@ class MultiClassNN(L.LightningModule):
         x, y = batch
         y_hat = self.predict(x)
         self.test_acc.update(y_hat, y)
-        self.log("test/acc", self.test_acc, on_epoch=True)
+        self.log("test_acc", self.test_acc, on_epoch=True)
 
     def predict_step(self, batch: torch.Tensor) -> torch.Tensor:
         x, _ = batch
