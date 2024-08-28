@@ -80,6 +80,14 @@ class MNISTCNN(Backbone):
         x = self.relu(self.fc2(x))
         return x
 
+class CIFAR10CNN(Backbone):
+    """A CNN feature extractor for the CIFAR10 dataset (3x32x32 image tensors)."""
+    
+    def __init__(self, output_dim: int = 64):
+        super(CIFAR10CNN, self).__init__(output_dim=output_dim)
+
+        
+
 
 class SmallCNN(Backbone):
     """A small CNN feature extractor for 3x128x128 image tensors.
