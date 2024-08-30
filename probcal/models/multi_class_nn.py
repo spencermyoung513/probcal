@@ -81,6 +81,7 @@ class MultiClassNN(L.LightningModule):
     
     def training_step(self, batch: tuple[torch.Tensor, torch.LongTensor]) -> torch.Tensor:
         x, y = batch
+        y = y.squeeze().long()
         y_hat = self(x)
         loss = self.loss_fn(y_hat, y)
         self.train_acc.update(y_hat, y)
@@ -92,6 +93,7 @@ class MultiClassNN(L.LightningModule):
 
     def validation_step(self, batch: torch.Tensor) -> torch.Tensor:
         x, y = batch
+        y = y.squeeze().long()
         y_hat = self(x)
         loss = self.loss_fn(y_hat, y)
         self.val_acc.update(y_hat, y)
@@ -103,6 +105,7 @@ class MultiClassNN(L.LightningModule):
 
     def test_step(self, batch: torch.Tensor):
         x, y = batch
+        y = y.squeeze().long()
         y_hat = self.predict(x)
         self.test_acc.update(y_hat, y)
         self.log("test_acc", self.test_acc, on_epoch=True)

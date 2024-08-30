@@ -38,6 +38,8 @@ def get_model(config: TrainingConfig, return_initializer: bool = False) -> L.Lig
     if config.dataset_type == DatasetType.TABULAR:
         backbone_type = MLP
         backbone_kwargs["input_dim"] = config.input_dim
+        if "spiral" in str(config.dataset_path):
+            initializer = partialclass(MultiClassNN, classes=["0", "1"])
     elif config.dataset_type == DatasetType.MNIST:
         backbone_type = MNISTCNN
         initializer = partialclass(MultiClassNN, classes=[str(x) for x in range(10)])

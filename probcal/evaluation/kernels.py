@@ -53,7 +53,8 @@ def bhattacharyya_kernel(x: torch.Tensor, x_prime: torch.Tensor) -> torch.Tensor
     Returns:
         torch.Tensor: (n,m) Gram tensor.
     """
-    if not torch.allclose(x.sum(dim=1), 1) or not torch.allclose(x_prime.sum(dim=1), 1):
+    one_tensor = torch.ones(1, device=x.device)
+    if not torch.allclose(x.sum(dim=1), one_tensor) or not torch.allclose(x_prime.sum(dim=1), one_tensor):
         raise ValueError("The rows of x or x_prime do not sum to 1, so the Bhattacharrya kernel is not applicable.")
     
     return torch.matmul(x.sqrt(), x_prime.T.sqrt())
