@@ -1,6 +1,11 @@
 import warnings
+from typing import Callable
 
 import torch
+from torch import nn
+
+from probcal.evaluation.kernels import rbf_kernel
+from probcal.evaluation.metrics import compute_mcmd_torch
 
 
 def gaussian_nll(
@@ -61,3 +66,30 @@ def neg_binom_nll(outputs: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
         - targets * (torch.log(alphamu) - torch.log(1 + alphamu))
     )
     return losses.mean()
+
+
+class MCMDLoss(nn.Module):
+
+    def __init__(
+        self,
+        x_kernel: Callable[[torch.Tensor, torch.Tensor], torch.Tensor] | None = None,
+        y_kernel: Callable[[torch.Tensor, torch.Tensor], torch.Tensor] | None = None,
+        lmbda: float = 0.01,
+    ):
+        super().__init__()
+        self.x_kernel = x_kernel or rbf_kernel
+        self.y_kernel = y_kernel or rbf_kernel
+        self.lmbda = lmbda
+    
+    def forward(self, x: torch.Tensor, y: torch.Tensor, x_prime: torch.Tensor, y_prime: torch.Tensor) -> torch.Tensor:
+        mcmd_vals = compute_mcmd_torch(
+            grid=x,
+            x=x,
+            y=y,
+            x_prime=x_prime,
+            y_prime=y_prime,
+            x_kernel=self.x_kernel,
+            y_kernel=self.y_kernel,
+            lmbda=self.lmbda,
+        )
+        return mcmd_vals.mean()
