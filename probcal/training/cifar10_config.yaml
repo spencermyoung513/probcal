@@ -3,7 +3,8 @@ random_seed: 1998
 head_type: multi_class
 dataset:
   type: image
-  path: cifar_10
+  spec: cifar_10
+  path: Null
   input_dim: 3
 training:
   accelerator: gpu

@@ -1,4 +1,4 @@
 from .tabular_data_module import TabularDataModule
 from .coco_people_datamodule import COCOPeopleDataModule
 from .mnist_datamodule import MNISTDataModule
-
+from .cifar10_datamodule import CIFAR10DataModule

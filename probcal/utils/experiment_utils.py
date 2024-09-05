@@ -53,8 +53,9 @@ def get_model(config: TrainingConfig, return_initializer: bool = False) -> Discr
         if config.dataset_path_or_spec == ImageDatasetName.MNIST:
             backbone_type = MNISTCNN
             initializer = partialclass(MultiClassNN, classes=[str(x) for x in range(10)])
-        elif config.dataset_path_or_spec == ImageDatasetName.COINS:
-            backbone_type = SmallCNN
+        # Use enums.py file to set the string for what COINS should be equivalent to
+        # elif config.dataset_path_or_spec == ImageDatasetName.COINS:
+        #     backbone_type = SmallCNN
         elif config.dataset_path_or_spec == ImageDatasetName.COCO_PEOPLE:
             backbone_type = ViT
         elif config.dataset_path_or_spec == ImageDatasetName.CIFAR10:
