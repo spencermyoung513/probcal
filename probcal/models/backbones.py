@@ -80,13 +80,62 @@ class MNISTCNN(Backbone):
         x = self.relu(self.fc2(x))
         return x
 
+
 class CIFAR10CNN(Backbone):
     """A CNN feature extractor for the CIFAR10 dataset (3x32x32 image tensors)."""
     
     def __init__(self, output_dim: int = 64):
         super(CIFAR10CNN, self).__init__(output_dim=output_dim)
 
-        
+        self.conv1 = nn.Conv2d(3, 6, 5)
+        self.bn1 = nn.BatchNorm2d(6)
+        self.max_pool = nn.MaxPool2d(2, 2)
+        self.conv2 = nn.Conv2d(6, 16, 5)
+        self.bn2 = nn.BatchNorm2d(16)
+        self.flat = nn.Flatten()
+        self.fc1 = nn.Linear(16 * 5 * 5, 120)
+        self.fc2 = nn.Linear(120, 84)
+        self.fc3 = nn.Linear(84, output_dim)
+        self.relu = nn.ReLU()
+        # SHOULD THERE BE A DROPOUT LAYER TOO??
+
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = self.bn1(self.max_pool(self.relu(self.conv1(x))))
+        x = self.bn2(self.max_pool(self.relu(self.conv2(x))))
+        x = self.flat(x)
+        x = self.relu(self.fc1(x))
+        x = self.relu(self.fc2(x))
+        x = self.relu(self.fc3(x))
+        return x
+    
+class CIFAR100CNN(Backbone):
+    """A CNN feature extractor for the CIFAR100 dataset (3x32x32 image tensors)."""
+    
+    def __init__(self, output_dim: int = 64):
+        super(CIFAR10CNN, self).__init__(output_dim=output_dim)
+
+        self.conv1 = nn.Conv2d(3, 6, 5)
+        self.bn1 = nn.BatchNorm2d(6)
+        self.max_pool = nn.MaxPool2d(2, 2)
+        self.conv2 = nn.Conv2d(6, 16, 5)
+        self.bn2 = nn.BatchNorm2d(16)
+        self.flat = nn.Flatten()
+        self.fc1 = nn.Linear(16 * 5 * 5, 120)
+        self.fc2 = nn.Linear(120, 84)
+        self.fc3 = nn.Linear(84, output_dim)
+        self.relu = nn.ReLU()
+        # SHOULD THERE BE A DROPOUT LAYER TOO??
+
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = self.bn1(self.max_pool(self.relu(self.conv1(x))))
+        x = self.bn2(self.max_pool(self.relu(self.conv2(x))))
+        x = self.flat(x)
+        x = self.relu(self.fc1(x))
+        x = self.relu(self.fc2(x))
+        x = self.relu(self.fc3(x))
+        return x
 
 
 class SmallCNN(Backbone):

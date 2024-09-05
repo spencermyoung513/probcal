@@ -12,7 +12,6 @@ from probcal.utils.experiment_utils import get_datamodule
 from probcal.utils.experiment_utils import get_model
 
 
-
 def main(config: TrainingConfig):
 
     fix_random_seed(config.random_seed)
@@ -27,7 +26,11 @@ def main(config: TrainingConfig):
 
         model = get_model(config)
         chkp_dir = config.chkp_dir / config.experiment_name / f"version_{i}"
-        chkp_callbacks = get_chkp_callbacks(chkp_dir, config.chkp_freq)
+        chkp_callbacks = get_chkp_callbacks(
+            head_type=config.head_type,
+            chkp_dir=chkp_dir,
+            chkp_freq=config.chkp_freq,
+        )
         logger = CSVLogger(save_dir=config.log_dir, name=config.experiment_name)
 
         trainer = L.Trainer(

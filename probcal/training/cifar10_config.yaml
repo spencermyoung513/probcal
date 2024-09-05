@@ -1,0 +1,27 @@
+experiment_name: cifar_10
+random_seed: 1998
+head_type: multi_class
+dataset:
+  type: image
+  path: cifar_10
+  input_dim: 3
+training:
+  accelerator: gpu
+  batch_size: 64
+  chkp_dir: chkp
+  chkp_freq: 50
+  num_epochs: 50
+  optimizer:
+    type: adam_w
+    kwargs:
+      lr: 0.001
+      weight_decay: 0.00001
+  lr_scheduler:
+    type: cosine_annealing
+    kwargs:
+      T_max: 50
+      eta_min: 0
+      last_epoch: -1
+evaluation:
+  num_trials: 1
+  log_dir: logs
