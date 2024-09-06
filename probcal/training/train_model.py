@@ -27,7 +27,7 @@ def main(config: TrainingConfig):
         model = get_model(config)
         chkp_dir = config.chkp_dir / config.experiment_name / f"version_{i}"
         chkp_callbacks = get_chkp_callbacks(
-            head_type=config.head_type,
+            #head_type=config.head_type, CAN I LEAVE THIS LINE COMMENTED OUT?
             chkp_dir=chkp_dir,
             chkp_freq=config.chkp_freq,
         )

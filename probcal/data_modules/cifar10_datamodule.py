@@ -34,7 +34,7 @@ class CIFAR10DataModule(L.LightningDataModule):
         self.cifar10_predict = CIFAR10(self.root_dir, train=False, download=True, transform=transform)
         cifar10_full = CIFAR10(self.root_dir, train=True, download=True, transform=transform)
         self.cifar10_train, self.cifar10_val = random_split(
-            cifar10_full, [55000, 5000], generator=torch.Generator().manual_seed(1998) 
+            cifar10_full, [45000, 5000], generator=torch.Generator().manual_seed(1998) 
         )
     
 

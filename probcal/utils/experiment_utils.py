@@ -111,6 +111,7 @@ def get_datamodule(
                 persistent_workers=True,
             )
         elif dataset_path_or_spec == ImageDatasetName.CIFAR10:
+            print("--------------------------------DOWNLOADING CIFAR10")
             return CIFAR10DataModule(
                 root_dir="data/cifar_10",
                 batch_size=batch_size,
@@ -142,16 +143,16 @@ def get_chkp_callbacks(chkp_dir: Path, chkp_freq: int) -> list[ModelCheckpoint]:
         save_top_k=1,
         enable_version_counter=False,
     )
-    best_mae_checkpoint_callback = ModelCheckpoint(
-        dirpath=chkp_dir,
-        monitor="val_mae",
-        every_n_epochs=1,
-        filename="best_mae",
-        save_top_k=1,
-        enable_version_counter=False,
-    )
+    # best_mae_checkpoint_callback = ModelCheckpoint(
+    #     dirpath=chkp_dir,
+    #     monitor="val_mae",
+    #     every_n_epochs=1,
+    #     filename="best_mae",
+    #     save_top_k=1,
+    #     enable_version_counter=False,
+    # )
     return [
         temporal_checkpoint_callback,
         best_loss_checkpoint_callback,
-        best_mae_checkpoint_callback,
+        #best_mae_checkpoint_callback,
     ]
