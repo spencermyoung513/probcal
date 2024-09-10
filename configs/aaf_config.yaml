@@ -1,0 +1,24 @@
+experiment_name: aaf_testing
+random_seed: 1998
+head_type: gaussian
+dataset:
+  type: image
+  spec: aaf
+  path: null
+  input_dim: 3
+training:
+  accelerator: gpu
+  batch_size: 32
+  chkp_dir: chkp
+  chkp_freq: 50
+  num_epochs: 200
+  optimizer:
+    type: adam_w
+    kwargs:
+      lr: 0.001
+      weight_decay: 0.00001
+  lr_scheduler:
+    type: cosine_annealing
+    kwargs:path/to/weights/dir
+  num_trials: 1
+  log_dir: logs
