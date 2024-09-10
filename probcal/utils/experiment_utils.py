@@ -8,6 +8,7 @@ import torch
 from lightning.pytorch.callbacks import ModelCheckpoint
 
 from probcal.data_modules import TabularDataModule
+from probcal.data_modules import ImageDataModule
 from probcal.enums import DatasetType
 from probcal.enums import HeadType
 from probcal.models import GaussianNN
@@ -53,6 +54,14 @@ def get_datamodule(
 ) -> L.LightningDataModule:
     if dataset_type == DatasetType.TABULAR:
         return TabularDataModule(
+            dataset_path=dataset_path,
+            batch_size=batch_size,
+            num_workers=9,
+            persistent_workers=True,
+        )
+    
+    elif dataset_type == DatasetType.IMAGE:
+        return ImageDataModule(
             dataset_path=dataset_path,
             batch_size=batch_size,
             num_workers=9,
