@@ -8,15 +8,18 @@ import matplotlib.pyplot as plt
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
 
-# move face_labels into /faces
-
 class AdienceDataset(Dataset):
     def __init__(self, image_dir: str, transform=None):
         self.image_dir = Path(image_dir)
-
-        # read in the labels into a df
-
+        labelFilePaths = [f for f in os.listdir(image_dir/"face_labels") if f.endswith('.txt')]
+        labels = pd.DataFrame()
+        for file in labelFilePaths:
+            temp = pd.read_csv(image_dir/"face_labels"/file, sep='\t')
+            labels = labels.append(temp)
+        self.labelsDF = labels
         self.transform = transform
+
+        # TODO: Im not sure if this is fully correct
         self.image_files = sorted([f for f in os.listdir(image_dir) if f.endswith(('.png', '.jpg', '.jpeg'))])
         
         
@@ -24,10 +27,8 @@ class AdienceDataset(Dataset):
         return len(self.image_files)
     
     def __getitem__(self, idx):
-        # construct the path to the image from the label[idx]
-
         img_name = self.image_files[idx]
-        img_path = self.image_dir / img_name
+        img_path = f"{self.image_dir}/{self.labelsDF[idx]['user_id']}/cours_tilt_aligned_face.{self.labelsDF[idx]['face_id']}.{self.labelsDF[idx]['original_image']}"
         label_path = self.label_dir / f"{img_name.split('.')[0]}.txt"
         
         # TODO :: figure out what form to return the image and label in ?? TensorDataset
