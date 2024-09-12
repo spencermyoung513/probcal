@@ -3,4 +3,5 @@ logs
 .vscode
 chkp/
 ignore/
-data/faces
+data/faces/*
+!/data/faces/face_labels
