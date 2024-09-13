@@ -11,16 +11,19 @@ from torch.utils.data import Dataset, DataLoader
 class AdienceDataset(Dataset):
     def __init__(self, image_dir: str, transform=None):
         self.image_dir = Path(image_dir)
-        labelFilePaths = [f for f in os.listdir(image_dir+"/face_labels")]
+        labelFilePaths = [f for f in os.listdir(self.image_dir.joinpath("face_labels"))]
         labels = pd.DataFrame()
         for file in labelFilePaths:
-            temp = pd.read_csv(image_dir+"/face_labels/"+file, sep='\t')
+            temp = pd.read_csv(self.image_dir.joinpath("face_labels",file), sep='\t')
             labels = pd.concat([labels,temp])
         self.labelsDF = labels
         self.transform = transform
 
         # TODO: Im not sure if this is fully correct
-        self.image_files = [f for f in os.listdir(image_dir) if f.endswith(('.png', '.jpg', '.jpeg'))]
+        self.image_files = []
+        for dir in os.listdir(self.image_dir):
+            if os.path.isdir(self.image_dir.joinpath(dir)):
+                self.image_files.extend([file for file in os.listdir(self.image_dir.joinpath(dir)) if file.endswith(('.jpg','.jpeg','.png'))])
         
         
     def __len__(self):
