@@ -14,12 +14,11 @@ class AdienceDataset(Dataset):
         labelFilePaths = [f for f in os.listdir(self.image_dir.joinpath("face_labels"))]
         labels = pd.DataFrame()
         for file in labelFilePaths:
-            temp = pd.read_csv(self.image_dir.joinpath("face_labels",file), sep='\t')
+            temp = pd.read_csv(self.image_dir.joinpath("face_labels", file), sep='\t')
             labels = pd.concat([labels,temp])
         self.labelsDF = labels
         self.transform = transform
 
-        # TODO: Im not sure if this is fully correct
         self.image_files = []
         for dir in os.listdir(self.image_dir):
             if os.path.isdir(self.image_dir.joinpath(dir)):
@@ -30,9 +29,8 @@ class AdienceDataset(Dataset):
         return len(self.image_files)
     
     def __getitem__(self, idx):
-        # img_name = self.image_files[idx]
-        img_path = f"{self.image_dir}/{self.labelsDF.iloc[idx]['user_id']}/cours_tilt_aligned_face.{self.labelsDF.iloc[idx]['face_id']}.{self.labelsDF.iloc[idx]['original_image']}"
-        # label_path = self.label_dir / f"{img_name.split('.')[0]}.txt"
+        file_name = f"cours_tilt_aligned_face.{self.labelsDF.iloc[idx]['face_id']}.{self.labelsDF.iloc[idx]['original_image']}"
+        img_path = self.image_dir.joinpath(self.labelsDF.iloc[idx]['user_id'], file_name)
         print(img_path)
         
         # TODO :: figure out what form to return the image and label in ?? TensorDataset
@@ -49,4 +47,6 @@ class AdienceDataset(Dataset):
         # # Convert label to tensor (you might need to modify this based on your label format)
         # label = torch.tensor(float(label))
         
-        return None, None
+        # FIXME :: the label will be a tensor, this is just a placeholder for now
+        # TODO :: some of the age labels are a tuple with a range (e.g. (60, 100)). What should the data be output as
+        return None, self.labelsDF.iloc[idx]['age']
