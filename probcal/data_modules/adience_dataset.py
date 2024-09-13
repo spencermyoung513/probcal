@@ -2,34 +2,35 @@ import os
 from pathlib import Path
 import torch
 import pandas as pd
-from skimage import io, transform
+# from skimage import io, transform
 import numpy as np
 import matplotlib.pyplot as plt
 from torch.utils.data import Dataset, DataLoader
-from torchvision import transforms, utils
+# from torchvision import transforms, utils
 
 class AdienceDataset(Dataset):
     def __init__(self, image_dir: str, transform=None):
         self.image_dir = Path(image_dir)
-        labelFilePaths = [f for f in os.listdir(image_dir/"face_labels") if f.endswith('.txt')]
+        labelFilePaths = [f for f in os.listdir(image_dir+"/face_labels")]
         labels = pd.DataFrame()
         for file in labelFilePaths:
-            temp = pd.read_csv(image_dir/"face_labels"/file, sep='\t')
-            labels = labels.append(temp)
+            temp = pd.read_csv(image_dir+"/face_labels/"+file, sep='\t')
+            labels = pd.concat([labels,temp])
         self.labelsDF = labels
         self.transform = transform
 
         # TODO: Im not sure if this is fully correct
-        self.image_files = sorted([f for f in os.listdir(image_dir) if f.endswith(('.png', '.jpg', '.jpeg'))])
+        self.image_files = [f for f in os.listdir(image_dir) if f.endswith(('.png', '.jpg', '.jpeg'))]
         
         
     def __len__(self):
         return len(self.image_files)
     
     def __getitem__(self, idx):
-        img_name = self.image_files[idx]
-        img_path = f"{self.image_dir}/{self.labelsDF[idx]['user_id']}/cours_tilt_aligned_face.{self.labelsDF[idx]['face_id']}.{self.labelsDF[idx]['original_image']}"
-        label_path = self.label_dir / f"{img_name.split('.')[0]}.txt"
+        # img_name = self.image_files[idx]
+        img_path = f"{self.image_dir}/{self.labelsDF.iloc[idx]['user_id']}/cours_tilt_aligned_face.{self.labelsDF.iloc[idx]['face_id']}.{self.labelsDF.iloc[idx]['original_image']}"
+        # label_path = self.label_dir / f"{img_name.split('.')[0]}.txt"
+        print(img_path)
         
         # TODO :: figure out what form to return the image and label in ?? TensorDataset
 
