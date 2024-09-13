@@ -11,3 +11,4 @@ pandas==2.2.2
 wget=3.2
 pycocotools==2.0.8
 imgdl=2.0.1
+jax==0.4.30

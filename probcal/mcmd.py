@@ -1,5 +1,8 @@
 from typing import Callable, Optional
+
 import numpy as np
+import jax.numpy as jnp
+from jax.lib import xla_bridge
 
 
 
@@ -77,4 +80,29 @@ class MCMD(object):
         mcmd = first_term - second_term + third_term
         return mcmd
 
+class JaxMCMD(object):
+
+    def __init__(
+            self,
+            num_x: int,
+            num_x_prime: int,
+            grid: jnp.ndarray,
+            x: jnp.ndarray,
+            y: jnp.ndarray,
+            x_prime: jnp.ndarray,
+            y_prime: jnp.ndarray,
+            x_kernel: Callable[[jnp.ndarray, jnp.ndarray], jnp.ndarray],
+            y_kernel: Callable[[jnp.ndarray, jnp.ndarray], jnp.ndarray],
+            lmbda: Optional[float] = 0.01
+    ):
+        self.n = num_x
+        self.m = num_x_prime
+        self.grid = grid
+        self.x = x
+        self.y = y
+        self.x_prime = x_prime
+        self.y_prime = y_prime
+        self.x_kernel = x_kernel
+        self.y_kernel = y_kernel
+        self.lmbda = lmbda
 
