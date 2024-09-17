@@ -6,8 +6,7 @@ logs
 .vscode
 chkp/
 ignore/
-data/faces/*
-!/data/faces/face_labels
+*/faces.tar.gz
+*/faces
 */mnist
 */coco_people
-
