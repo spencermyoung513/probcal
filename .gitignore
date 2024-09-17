@@ -1,3 +1,4 @@
+*.ckpt
 .DS_store
 *.log
 .idea
