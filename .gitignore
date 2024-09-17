@@ -1,3 +1,6 @@
+.DS_store
+*.log
+.idea
 __pycache__
 logs
 .vscode
@@ -11,3 +14,6 @@ data/aaf/image sets/picture_data.csv
 data/aaf/image sets/picture_data.txt
 data/aaf/image sets/train.txt
 data/aaf/image sets/val.txt
+*/mnist
+*/coco_people
+

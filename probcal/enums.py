@@ -36,3 +36,6 @@ class ImageDatasetName(Enum):
     CIFAR10 = 'cifar_10'
     CIFAR100 = 'cifar_100'
     AAF = 'aaf'
+
+class TextDatasetName(Enum):
+    REVIEWS = "reviews"
