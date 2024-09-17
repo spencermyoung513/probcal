@@ -5,3 +5,9 @@ chkp/
 ignore/
 .venv/
 **/*.jpg
+data/aaf/image sets/create_csv.py
+data/aaf/image sets/merge_script.py
+data/aaf/image sets/picture_data.csv
+data/aaf/image sets/picture_data.txt
+data/aaf/image sets/train.txt
+data/aaf/image sets/val.txt
