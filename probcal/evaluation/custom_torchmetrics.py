@@ -1,6 +1,9 @@
 from typing import Type
 
+import matplotlib.pyplot as plt
+import numpy as np
 import torch
+from matplotlib.figure import Figure
 from torchmetrics import Metric
 
 from probcal.evaluation.metrics import compute_regression_ece
