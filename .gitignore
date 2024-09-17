@@ -1,3 +1,6 @@
+.DS_store
+*.log
+.idea
 __pycache__
 logs
 .vscode
@@ -5,3 +8,6 @@ chkp/
 ignore/
 data/faces/*
 !/data/faces/face_labels
+*/mnist
+*/coco_people
+
