@@ -43,22 +43,3 @@ class AAFDataset(Dataset):
             sample = self.transform(sample)
 
         return sample
-    
-
-face_dataset = AAFDataset(csv_file='data/aaf/image sets/picture_data.csv',
-                                    root_dir='data/aaf/original images')
-
-fig = plt.figure()
-
-for i, sample in enumerate(face_dataset):
-    print(i, sample['image'].shape, sample['age'], sample['gender'])
-
-    ax = plt.subplot(1, 4, i + 1)
-    plt.tight_layout()
-    ax.set_title('Sample #{}'.format(i))
-    ax.imshow(sample['image'])
-
-
-    if i == 3:
-        plt.show()
-        break
