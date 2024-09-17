@@ -1,10 +1,10 @@
-experiment_name: aaf_testing
+experiment_name: aaf
 random_seed: 1998
 head_type: gaussian
 dataset:
   type: image
   spec: aaf
-  path: null
+  path: aaf
   input_dim: 3
 training:
   accelerator: gpu
@@ -19,6 +19,10 @@ training:
       weight_decay: 0.00001
   lr_scheduler:
     type: cosine_annealing
-    kwargs:path/to/weights/dir
+    kwargs:
+      T_max: 200
+      eta_min: 0
+      last_epoch: -1
+evaluation:
   num_trials: 1
   log_dir: logs

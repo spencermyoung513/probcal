@@ -5,7 +5,7 @@ from pathlib import Path
 import yaml
 
 from probcal.enums import AcceleratorType
-from probcal.enums import DatasetType
+from probcal.enums import DatasetType, ImageDatasetName
 from probcal.enums import HeadType
 from probcal.enums import LRSchedulerType
 from probcal.enums import OptimizerType
@@ -117,6 +117,8 @@ class TrainingConfig:
         dataset_type = DatasetType(config_dict["dataset"]["type"])
         if dataset_type == DatasetType.TABULAR:
             dataset_path = Path(config_dict["dataset"]["path"])
+        elif dataset_type == DatasetType.IMAGE:
+            dataset_path = ImageDatasetName(config_dict["dataset"]["path"])
 
         num_trials = eval_dict["num_trials"]
         log_dir = Path(eval_dict["log_dir"])

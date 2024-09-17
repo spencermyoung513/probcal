@@ -2,11 +2,10 @@ import os
 import torch
 import pandas as pd
 import numpy as np
-from skimage import io, transform
-import matplotlib.pyplot as plt
+from PIL import Image
 
-from torch.utils.data import Dataset, DataLoader
-from torchvision import transforms, utils
+
+from torch.utils.data import Dataset
 
 class AAFDataset(Dataset):
     """The All-Age-Faces (AAF) Dataset contains 13'322 face images (mostly Asian) 
@@ -33,13 +32,7 @@ class AAFDataset(Dataset):
 
         img_name = os.path.join(self.root_dir,
                                 self.pictures_df.iloc[idx, 0])
-        image = io.imread(img_name)
+        image = Image.open(img_name)
         age = self.pictures_df.iloc[idx, 1]
-        gender = self.pictures_df.iloc[idx, 2]
-        
-        sample = {'image': image, 'age': age, 'gender': gender}
 
-        if self.transform:
-            sample = self.transform(sample)
-
-        return sample
+        return image, age

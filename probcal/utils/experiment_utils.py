@@ -8,13 +8,13 @@ import numpy as np
 import torch
 from lightning.pytorch.callbacks import ModelCheckpoint
 
-from probcal.data_modules import TabularDataModule, COCOPeopleDataModule
+from probcal.data_modules import TabularDataModule, COCOPeopleDataModule, AAFDataModule
 from probcal.enums import DatasetType, ImageDatasetName, TextDatasetName
 from probcal.enums import HeadType
 from probcal.models import GaussianNN
 from probcal.models import NegBinomNN
 from probcal.models import PoissonNN
-from probcal.models.backbones import MLP
+from probcal.models.backbones import MLP, ViT
 from probcal.models.discrete_regression_nn import DiscreteRegressionNN
 from probcal.utils.configs import TrainingConfig
 
@@ -35,6 +35,10 @@ def get_model(config: TrainingConfig, return_initializer: bool = False) -> Discr
     if config.dataset_type == DatasetType.TABULAR:
         backbone_type = MLP
         backbone_kwargs = {"input_dim": config.input_dim}
+    elif config.dataset_type == DatasetType.IMAGE:
+        backbone_type = ViT
+        backbone_kwargs = {}
+
     backbone_kwargs["output_dim"] = config.hidden_dim
 
     model = initializer(
@@ -70,6 +74,14 @@ def get_datamodule(
         elif dataset_spec == ImageDatasetName.COCO_PEOPLE:
             return COCOPeopleDataModule(
                 root_dir=os.path.join(GLOBAL_DATA_DIR, "coco_people"),
+                batch_size=batch_size,
+                num_workers=num_workers,
+                persistent_workers=True if num_workers > 0 else False,
+            )
+        elif dataset_spec == ImageDatasetName.AAF:
+            return AAFDataModule(
+                csv_file_path = os.path.join(GLOBAL_DATA_DIR, "aaf/image_sets/picture_data.csv"),
+                root_dir=os.path.join(GLOBAL_DATA_DIR, "aaf/original_images"),
                 batch_size=batch_size,
                 num_workers=num_workers,
                 persistent_workers=True if num_workers > 0 else False,
