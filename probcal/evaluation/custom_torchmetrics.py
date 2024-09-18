@@ -102,6 +102,7 @@ class AverageNLL(Metric):
         nll = -torch.maximum(all_target_probs, eps).log().mean()
         return nll
 
+
 class MedianPrecision(Metric):
     """A custom `torchmetric` for computing the median precision (1 / variance) of posterior predictive distributions."""
 
