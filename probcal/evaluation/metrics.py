@@ -6,10 +6,14 @@ from scipy.linalg import cho_factor
 from scipy.linalg import cho_solve
 from scipy.stats import rv_continuous
 
+from probcal.random_variables.discrete_random_variable import DiscreteRandomVariable
+
 
 def compute_regression_ece(
     y_true: np.ndarray,
-    posterior_predictive: rv_continuous,
+    posterior_predictive: rv_continuous
+    | DiscreteRandomVariable
+    | torch.distributions.Distribution,
     num_bins: int = 100,
     weights: str = "uniform",
     alpha: float = 1.0,
@@ -26,7 +30,7 @@ def compute_regression_ece(
 
     Args:
         y_true (np.ndarray): The true values of the regression targets.
-        posterior_predictive (RandomVariable): Random variable representing the posterior predictive distribution over the targets.
+        posterior_predictive (rv_continuous | DiscreteRandomVariable | torch.distributions.Distribution): Random variable representing the posterior predictive distribution over the targets.
         num_bins (int): The number of bins to use for the ECE. Defaults to 100.
         weights (str, optional): Strategy for choosing the weights in the ECE sum. Must be either "uniform" or "frequency" (terms are weighted by the numerator of q_j). Defaults to "uniform".
         alpha (float, optional): Controls how severely we penalize the model for the distance between p_j and q_j. Defaults to 1 (error term is |p_j - q_j|).
@@ -34,9 +38,16 @@ def compute_regression_ece(
     Returns:
         float: The expected calibration error.
     """
+    pytorch_dist = torch.distributions.Distribution | DiscreteRandomVariable
     eps = 1e-5
     p_j = np.linspace(eps, 1 - eps, num=num_bins)
-    cdf_less_than_p = posterior_predictive.cdf(y_true) <= p_j.reshape(-1, 1)
+    if isinstance(posterior_predictive, pytorch_dist):
+        y_true_torch = torch.tensor(y_true, device=posterior_predictive.device)
+        p_j_torch = torch.tensor(p_j, device=posterior_predictive.device).reshape(-1, 1)
+        cdf_less_than_p = posterior_predictive.cdf(y_true_torch) <= p_j_torch
+        cdf_less_than_p = cdf_less_than_p.detach().cpu().numpy()
+    else:
+        cdf_less_than_p = posterior_predictive.cdf(y_true) <= p_j.reshape(-1, 1)
     q_j = cdf_less_than_p.mean(axis=1)
 
     if weights == "uniform":
