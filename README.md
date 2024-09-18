@@ -53,6 +53,7 @@ All regression models should inherit from the `DiscreteRegressionNN` class (foun
 - `_forward_impl` (defines a forward pass through the network)
 - `_predict_impl` (defines how to make predictions with the network, including any transformations on the output of the forward pass)
 - `_sample_impl` (defines how to sample from the network's learned posterior predictive distribution for a given input)
+- `_posterior_predictive_impl` (defines how to produce a posterior predictive distribution from network output)
 - `_point_prediction_impl` (defines how to interpret network output as a single point prediction for a regression target)
 - `_addl_test_metrics_dict` (defines any metrics beyond rmse/mae that are computed during model evaluation)
 - `_update_addl_test_metrics_batch` (defines how to update additional metrics beyond rmse/mae for each test batch).

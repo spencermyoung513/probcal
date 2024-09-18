@@ -115,6 +115,13 @@ class GaussianNN(DiscreteRegressionNN):
         Returns:
             torch.Tensor: Batched sample tensor, with shape (N, num_samples).
         """
+        dist = self.posterior_predictive(y_hat, training)
+        sample = dist.sample((num_samples,)).view(num_samples, -1).T
+        return sample
+
+    def _posterior_predictive_impl(
+        self, y_hat: torch.Tensor, training: bool = False
+    ) -> torch.distributions.Normal:
         if training:
             mu, logvar = torch.split(y_hat, [1, 1], dim=-1)
             var = logvar.exp()
@@ -122,8 +129,7 @@ class GaussianNN(DiscreteRegressionNN):
             mu, var = torch.split(y_hat, [1, 1], dim=-1)
 
         dist = torch.distributions.Normal(loc=mu.squeeze(), scale=var.sqrt().squeeze())
-        sample = dist.sample((num_samples,)).view(num_samples, -1).T
-        return sample
+        return dist
 
     def _point_prediction_impl(self, y_hat: torch.Tensor, training: bool) -> torch.Tensor:
         mu, _ = torch.split(y_hat, [1, 1], dim=-1)

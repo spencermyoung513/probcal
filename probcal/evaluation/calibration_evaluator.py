@@ -1,4 +1,3 @@
-import warnings
 from dataclasses import dataclass
 from functools import partial
 from typing import Callable
@@ -22,6 +21,7 @@ from probcal.evaluation.kernels import laplacian_kernel
 from probcal.evaluation.kernels import polynomial_kernel
 from probcal.evaluation.kernels import rbf_kernel
 from probcal.evaluation.metrics import compute_mcmd_torch
+from probcal.evaluation.metrics import compute_regression_ece
 from probcal.models.discrete_regression_nn import DiscreteRegressionNN
 
 
@@ -39,11 +39,14 @@ KernelFunction: TypeAlias = Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
 
 @dataclass
 class CalibrationEvaluatorSettings:
-    input_kernel: Literal["polynomial"] | KernelFunction = "polynomial"
-    output_kernel: Literal["rbf", "laplacian"] | KernelFunction = "rbf"
     dataset_type: DatasetType = DatasetType.IMAGE
-    lmbda: float = 0.1
-    num_samples_per_posterior: int = 5
+    mcmd_input_kernel: Literal["polynomial"] | KernelFunction = "polynomial"
+    mcmd_output_kernel: Literal["rbf", "laplacian"] | KernelFunction = "rbf"
+    mcmd_lmbda: float = 0.1
+    mcmd_num_samples: int = 5
+    ece_bins: int = 50
+    ece_weights: Literal["uniform", "frequency"] = "frequency"
+    ece_alpha: float = 1.0
 
 
 class CalibrationEvaluator:
@@ -113,7 +116,7 @@ class CalibrationEvaluator:
             y_prime=y_prime,
             x_kernel=x_kernel,
             y_kernel=y_kernel,
-            lmbda=self.settings.lmbda,
+            lmbda=self.settings.mcmd_lmbda,
         )
         return_obj = [mcmd_vals]
         if return_grid:
@@ -126,11 +129,35 @@ class CalibrationEvaluator:
             return tuple(return_obj)
 
     def compute_ece(self, model: DiscreteRegressionNN, data_loader: DataLoader) -> float:
-        warnings.warn(
-            "ECE computation for calibration evaluator not yet implemented. Placeholder value of 0.0 will be used.",
-            stacklevel=2,
+        """Compute the regression ECE of the given model over the dataset spanned by the data loader.
+
+        Args:
+            model (DiscreteRegressionNN): Probabilistic regression model to compute the ECE for.
+            data_loader (DataLoader): DataLoader with the test data to compute ECE over.
+
+        Returns:
+            float: The regression ECE.
+        """
+        all_outputs = []
+        all_targets = []
+        for inputs, targets in tqdm(
+            data_loader, desc="Getting posterior predictive dists for MCMD..."
+        ):
+            all_outputs.append(model.predict(inputs.to(model.device)))
+            all_targets.append(targets.to(model.device))
+
+        all_targets = torch.cat(all_targets).detach().cpu().numpy()
+        all_outputs = torch.cat(all_outputs, dim=0)
+        posterior_predictive = model.posterior_predictive(all_outputs)
+
+        ece = compute_regression_ece(
+            y_true=all_targets,
+            posterior_predictive=posterior_predictive,
+            num_bins=self.settings.ece_bins,
+            weights=self.settings.ece_weights,
+            alpha=self.settings.ece_alpha,
         )
-        return 0.0
+        return ece
 
     def plot_mcmd_results(
         self,
@@ -190,7 +217,7 @@ class CalibrationEvaluator:
             y_hat = model.predict(inputs)
             x_prime.append(torch.repeat_interleave(x[-1], repeats=5, dim=0))
             y_prime.append(
-                model.sample(y_hat, num_samples=self.settings.num_samples_per_posterior).flatten()
+                model.sample(y_hat, num_samples=self.settings.mcmd_num_samples).flatten()
             )
 
         x = torch.cat(x, dim=0)
@@ -201,14 +228,14 @@ class CalibrationEvaluator:
         return x, y, x_prime, y_prime
 
     def _get_kernel_functions(self, y: torch.Tensor) -> tuple[KernelFunction, KernelFunction]:
-        if self.settings.input_kernel == "polynomial":
+        if self.settings.mcmd_input_kernel == "polynomial":
             x_kernel = polynomial_kernel
         else:
-            x_kernel = self.settings.input_kernel
+            x_kernel = self.settings.mcmd_input_kernel
 
-        if self.settings.output_kernel == "rbf":
+        if self.settings.mcmd_output_kernel == "rbf":
             y_kernel = partial(rbf_kernel, gamma=(1 / (2 * y.float().var())))
-        elif self.settings.output_kernel == "laplacian":
+        elif self.settings.mcmd_output_kernel == "laplacian":
             y_kernel = partial(laplacian_kernel, gamma=(1 / (2 * y.float().var())))
 
         return x_kernel, y_kernel

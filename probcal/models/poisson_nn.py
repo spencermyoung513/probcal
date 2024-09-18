@@ -101,10 +101,16 @@ class PoissonNN(DiscreteRegressionNN):
         Returns:
             torch.Tensor: Batched sample tensor, with shape (N, num_samples).
         """
-        lmbda = y_hat.exp() if training else y_hat
-        dist = torch.distributions.Poisson(lmbda.squeeze())
+        dist = self.posterior_predictive(y_hat, training)
         sample = dist.sample((num_samples,)).view(num_samples, -1).T
         return sample
+
+    def _posterior_predictive_impl(
+        self, y_hat: torch.Tensor, training: bool = False
+    ) -> torch.distributions.Poisson:
+        lmbda = y_hat.exp() if training else y_hat
+        dist = torch.distributions.Poisson(lmbda.squeeze())
+        return dist
 
     def _point_prediction_impl(self, y_hat: torch.Tensor, training: bool) -> torch.Tensor:
         lmbda = y_hat.exp() if training else y_hat
