@@ -9,4 +9,4 @@ chkp/
 ignore/
 */mnist
 */coco_people
-
+*/logs
