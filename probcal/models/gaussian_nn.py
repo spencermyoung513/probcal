@@ -122,7 +122,8 @@ class GaussianNN(DiscreteRegressionNN):
             mu, var = torch.split(y_hat, [1, 1], dim=-1)
 
         dist = torch.distributions.Normal(loc=mu.squeeze(), scale=var.sqrt().squeeze())
-        return dist.sample((num_samples,)).T
+        sample = dist.sample((num_samples,)).view(num_samples, -1).T
+        return sample
 
     def _point_prediction_impl(self, y_hat: torch.Tensor, training: bool) -> torch.Tensor:
         mu, _ = torch.split(y_hat, [1, 1], dim=-1)

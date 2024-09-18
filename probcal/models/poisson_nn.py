@@ -103,7 +103,8 @@ class PoissonNN(DiscreteRegressionNN):
         """
         lmbda = y_hat.exp() if training else y_hat
         dist = torch.distributions.Poisson(lmbda.squeeze())
-        return dist.sample((num_samples,)).T
+        sample = dist.sample((num_samples,)).view(num_samples, -1).T
+        return sample
 
     def _point_prediction_impl(self, y_hat: torch.Tensor, training: bool) -> torch.Tensor:
         lmbda = y_hat.exp() if training else y_hat

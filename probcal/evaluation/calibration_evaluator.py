@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from functools import partial
 from typing import Callable
 from typing import Literal
+from typing import Sequence
 from typing import TypeAlias
 
 import lightning as L
@@ -14,6 +15,7 @@ from open_clip import CLIP
 from sklearn.manifold import TSNE
 from torch.utils.data import DataLoader
 from torchvision.transforms import Compose
+from tqdm import tqdm
 
 from probcal.enums import DatasetType
 from probcal.evaluation.kernels import laplacian_kernel
@@ -25,7 +27,8 @@ from probcal.models.discrete_regression_nn import DiscreteRegressionNN
 
 @dataclass
 class CalibrationResults:
-    mcmd_grid_2d: np.ndarray
+    input_grid_2d: np.ndarray
+    regression_targets: np.ndarray
     mcmd_vals: np.ndarray
     mean_mcmd: float
     ece: float
@@ -34,6 +37,7 @@ class CalibrationResults:
 KernelFunction: TypeAlias = Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
 
 
+@dataclass
 class CalibrationEvaluatorSettings:
     input_kernel: Literal["polynomial"] | KernelFunction = "polynomial"
     output_kernel: Literal["rbf", "laplacian"] | KernelFunction = "rbf"
@@ -52,34 +56,52 @@ class CalibrationEvaluator:
         self._image_preprocess = None
         self._tokenizer = None
 
+    @torch.inference_mode()
     def __call__(
         self, model: DiscreteRegressionNN, data_module: L.LightningDataModule
     ) -> CalibrationResults:
         data_module.prepare_data()
-        data_module.setup()
+        data_module.setup("test")
         test_dataloader = data_module.test_dataloader()
-        mcmd_vals, grid = self.compute_mcmd(model, test_dataloader, return_grid=True)
+
+        print("Computing MCMD...")
+        mcmd_vals, grid, targets = self.compute_mcmd(
+            model, test_dataloader, return_grid=True, return_targets=True
+        )
+
+        print("Running TSNE to project grid to 2d...")
         grid_2d = TSNE().fit_transform(grid.detach().cpu().numpy())
+
+        print("Computing ECE...")
         ece = self.compute_ece(model, test_dataloader)
+
         return CalibrationResults(
-            mcmd_grid_2d=grid_2d,
-            mcmd_vals=mcmd_vals.detach().numpy(),
+            input_grid_2d=grid_2d,
+            regression_targets=targets.detach().cpu().numpy(),
+            mcmd_vals=mcmd_vals.detach().cpu().numpy(),
             mean_mcmd=mcmd_vals.mean().item(),
             ece=ece,
         )
 
     def compute_mcmd(
-        self, model: DiscreteRegressionNN, data_loader: DataLoader, return_grid: bool = False
-    ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
+        self,
+        model: DiscreteRegressionNN,
+        data_loader: DataLoader,
+        return_grid: bool = False,
+        return_targets: bool = False,
+    ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor] | tuple[
+        torch.Tensor, torch.Tensor, torch.Tensor
+    ]:
         """Compute the MCMD between samples drawn from the given model and the data spanned by the data loader.
 
         Args:
             model (DiscreteRegressionNN): Probabilistic regression model to compute the MCMD for.
             data_loader (DataLoader): DataLoader with the test data to compute MCMD over.
             return_grid (bool, optional): Whether/not to return the grid of values the MCMD was computed over. Defaults to False.
+            return_targets (bool, optional): Whether/not to return the regression targets the MCMD was computed against. Defaults to False.
 
         Returns:
-            torch.Tensor | tuple[torch.Tensor, torch.Tensor]: The computed MCMD values, along with the grid of inputs these values correspond to (if return_grid is True).
+            torch.Tensor | tuple[torch.Tensor, torch.Tensor] | tuple[torch.Tensor, torch.Tensor, torch.Tensor]: The computed MCMD values, along with the grid of inputs these values correspond to (if return_grid is True) and the regression targets (if return_targets is True).
         """
         x, y, x_prime, y_prime = self._get_samples_for_mcmd(model, data_loader)
         x_kernel, y_kernel = self._get_kernel_functions(y)
@@ -93,10 +115,15 @@ class CalibrationEvaluator:
             y_kernel=y_kernel,
             lmbda=self.settings.lmbda,
         )
+        return_obj = [mcmd_vals]
         if return_grid:
-            return mcmd_vals, x
+            return_obj.append(x)
+        if return_targets:
+            return_obj.append(y)
+        if len(return_obj) == 1:
+            return return_obj[0]
         else:
-            return mcmd_vals
+            return tuple(return_obj)
 
     def compute_ece(self, model: DiscreteRegressionNN, data_loader: DataLoader) -> float:
         warnings.warn(
@@ -108,26 +135,41 @@ class CalibrationEvaluator:
     def plot_mcmd_results(
         self,
         calibration_results: CalibrationResults,
-        ax: plt.Axes | None = None,
         gridsize: int = 15,
         show: bool = False,
-    ):
-        """Given a set of calibration results, plot the MCMD values against their 2d input projections on a hexbin grid.
+    ) -> plt.Figure:
+        """Given a set of calibration results and an existing axes, plot the MCMD values against their 2d input projections on a hexbin grid.
 
         Args:
             calibration_results (CalibrationResults): Calibration results from a CalibrationEvaluator.
-            ax (plt.Axes | None, optional): If specified, the axes to draw the plot on. Defaults to None.
+            ax (plt.Axes): The axes to draw the plot on.
             gridsize (int, optional): Gridsize parameter for the hexbin plot. Defaults to 15.
-            show (bool, optional): Whether/not to show the plot. Defaults to False.
+            show (bool, optional): Whether/not to show the resultant figure with plt.show(). Defaults to False.
+
+        Returns:
+            Figure: Matplotlib figure with the visualized MCMD values.
         """
-        ax = plt.subplots(1, 1, figsize=(10, 6))[1] if ax is None else ax
-        ax.set_title(f"Mean MCMD: {calibration_results.mean_mcmd:.4f}")
-        mappable = ax.hexbin(
-            *calibration_results.mcmd_grid_2d, calibration_results.mcmd_vals, gridsize=gridsize
+        fig, axs = plt.subplots(1, 2, figsize=(10, 4))
+        axs: Sequence[plt.Axes]
+        axs[0].set_title("Data")
+        hb1 = axs[0].hexbin(
+            *calibration_results.input_grid_2d.T,
+            calibration_results.regression_targets,
+            gridsize=gridsize,
         )
-        plt.colorbar(mappable, cax=ax, orientation="vertical")
+        fig.colorbar(hb1, ax=axs[0])
+
+        axs[1].set_title(f"Mean MCMD: {calibration_results.mean_mcmd:.4f}")
+        hb2 = axs[1].hexbin(
+            *calibration_results.input_grid_2d.T, calibration_results.mcmd_vals, gridsize=gridsize
+        )
+        fig.colorbar(hb2, ax=axs[1])
+
+        fig.tight_layout()
+
         if show:
             plt.show()
+        return fig
 
     def _get_samples_for_mcmd(
         self, model: DiscreteRegressionNN, data_loader: DataLoader
@@ -136,24 +178,25 @@ class CalibrationEvaluator:
         y = []
         x_prime = []
         y_prime = []
-        for inputs, targets in data_loader:
+        for inputs, targets in tqdm(data_loader, desc="Sampling from posteriors for MCMD..."):
             if self.settings.dataset_type == DatasetType.TABULAR:
                 x.append(inputs)
             elif self.settings.dataset_type == DatasetType.IMAGE:
-                x.append(self.clip_model.encode_image(inputs, normalize=True))
+                x.append(self.clip_model.encode_image(inputs.to(self.device), normalize=True))
             elif self.settings.dataset_type == DatasetType.TEXT:
-                x.append(self.clip_model.encode_text(inputs, normalize=True))
-            y.append(targets)
+                x.append(self.clip_model.encode_text(inputs.to(self.device), normalize=True))
+            y.append(targets.to(model.device))
+            inputs = inputs.to(model.device)
             y_hat = model.predict(inputs)
-            x_prime.append(torch.repeat_interleave(inputs, repeats=5, dim=0))
+            x_prime.append(torch.repeat_interleave(x[-1], repeats=5, dim=0))
             y_prime.append(
-                model.sample(y_hat, num_samples=self.settings.num_samples_per_posterior)
+                model.sample(y_hat, num_samples=self.settings.num_samples_per_posterior).flatten()
             )
 
         x = torch.cat(x, dim=0)
-        y = torch.cat(y)
+        y = torch.cat(y).float()
         x_prime = torch.cat(x_prime, dim=0)
-        y_prime = torch.cat(y_prime)
+        y_prime = torch.cat(y_prime).float()
 
         return x, y, x_prime, y_prime
 
@@ -164,16 +207,16 @@ class CalibrationEvaluator:
             x_kernel = self.settings.input_kernel
 
         if self.settings.output_kernel == "rbf":
-            y_kernel = partial(rbf_kernel, gamma=(1 / (2 * y.var())))
+            y_kernel = partial(rbf_kernel, gamma=(1 / (2 * y.float().var())))
         elif self.settings.output_kernel == "laplacian":
-            y_kernel = partial(laplacian_kernel, gamma=(1 / (2 * y.var())))
+            y_kernel = partial(laplacian_kernel, gamma=(1 / (2 * y.float().var())))
 
         return x_kernel, y_kernel
 
     @property
     def clip_model(self) -> CLIP:
         if self._clip_model is None:
-            self._clip_model_, self._image_preprocess = open_clip.create_model_and_transforms(
+            self._clip_model, _, self._image_preprocess = open_clip.create_model_and_transforms(
                 model_name="ViT-B-32",
                 pretrained="laion2b_s34b_b79k",
                 device=self.device,
@@ -183,7 +226,7 @@ class CalibrationEvaluator:
     @property
     def image_preprocess(self) -> Compose:
         if self._image_preprocess is None:
-            self._clip_model_, self._image_preprocess = open_clip.create_model_and_transforms(
+            self._clip_model, _, self._image_preprocess = open_clip.create_model_and_transforms(
                 model_name="ViT-B-32",
                 pretrained="laion2b_s34b_b79k",
                 device=self.device,

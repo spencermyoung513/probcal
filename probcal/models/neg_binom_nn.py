@@ -108,7 +108,8 @@ class NegBinomNN(DiscreteRegressionNN):
             torch.Tensor: Batched sample tensor, with shape (N, num_samples).
         """
         dist = self._convert_output_to_dist(y_hat)
-        return dist.sample((num_samples,)).T
+        sample = dist.sample((num_samples,)).view(num_samples, -1).T
+        return sample
 
     def _point_prediction_impl(self, y_hat: torch.Tensor, training: bool) -> torch.Tensor:
         dist = self._convert_output_to_dist(y_hat)
