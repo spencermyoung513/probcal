@@ -35,9 +35,6 @@ class AAFDataModule(L.LightningDataModule):
         self.persistent_workers = persistent_workers
         self.surface_image_path = surface_image_path
 
-    def prepare_data(self) -> None:
-        # Force images to be downloaded.
-        AAFDataset(self.csv_file_path, self.root_dir)
 
     def setup(self, stage):
         resize = Resize((self.IMG_SIZE, self.IMG_SIZE))

@@ -1,38 +1,116 @@
 import os
-import torch
+import re
+import csv
+from pathlib import Path
+from shutil import unpack_archive, move, rmtree
+from typing import Callable
+
 import pandas as pd
-import numpy as np
+import gdown
+from imgdl import download
 from PIL import Image
-
-
+from PIL.Image import Image as PILImage
 from torch.utils.data import Dataset
 
 class AAFDataset(Dataset):
     """The All-Age-Faces (AAF) Dataset contains 13'322 face images (mostly Asian) 
     distributed across all ages (from 2 to 80), including 7381 females and 5941 males."""
 
-    def __init__(self, csv_file, root_dir, transform=None):
+    DATA_URL = "https://drive.google.com/uc?id=1wa5qOHUZn9O3Zp1efVoTwkK7PWZu8FJS"
+    
+    def __init__(
+        self,
+        root_dir: str | Path,
+        limit: int | None = None,
+        transform: Callable[[PILImage], PILImage] | None = None,
+        target_transform: Callable[[int], int] | None = None,
+        surface_image_path: bool = False,
+    ):
+        """Create an instance of the COCOPeople dataset.
+
+        Args:
+            root_dir (str | Path): Root directory where dataset files should be stored.
+            limit (int | None, optional): Max number of images to download/use for this dataset. Defaults to None.
+            transform (Callable, optional): A function/transform that takes in a PIL image and returns a transformed version. e.g, `transforms.RandomCrop`. Defaults to None.
+            target_transform (Callable, optional): A function/transform that takes in the target and transforms it. Defaults to None.
+            surface_image_path (bool, optional): Whether/not to return the image path along with the image and age in __getitem__.
         """
-        Arguments:
-            csv_file (string): Path to the csv file with annotations.
-            root_dir (string): Directory with all the images.
-            transform (callable, optional): Optional transform to be applied
-                on a sample.
-        """
-        self.pictures_df = pd.read_csv(csv_file)
-        self.root_dir = root_dir
+
+        self.root_dir = Path(root_dir)
+        self.limit = limit
+        self.image_dir = self.root_dir / "images"
+        self.annotations_dir = self.root_dir / "annotations"
+        self.surface_image_path = surface_image_path
+
+        for dir in self.root_dir, self.image_dir, self.annotations_dir:
+            if not dir.exists(): # ?
+                os.makedirs(dir)
+
+        if not self._already_downloaded():
+            self._download()
+
         self.transform = transform
+        self.target_transform = target_transform
+        self.instances = self._get_instances_df()
 
-    def __len__(self):
-        return len(self.pictures_df)
 
-    def __getitem__(self, idx):
-        if torch.is_tensor(idx):
-            idx = idx.tolist()
+    def _already_downloaded(self) -> bool:
+        return (
+            self.annotations_dir.exists()
+            and any(self.annotations_dir.iterdir())
+            and self.image_dir.exists()
+            and any(self.image_dir.iterdir())        
+        )
 
-        img_name = os.path.join(self.root_dir,
-                                self.pictures_df.iloc[idx, 0])
-        image = Image.open(img_name)
-        age = self.pictures_df.iloc[idx, 1]
 
-        return image, age
+    def _download(self):
+
+        # Download raw folder
+        if not self.annotations_json_path.exists():
+            print("Downloading zipped file...")
+            zip_file_name = "All-Age-Faces Dataset"
+            output_path = str(self.root_dir) + "/" + zip_file_name + ".zip"
+            gdown.download(self.DATA_URL, output_path, quiet=False, fuzzy=True)
+            unpack_archive(output_path, self.root_dir)
+
+        # Setup annotations files
+        input_txt_file1 = str(self.root_dir / zip_file_name / "image sets" / "train.txt")
+        input_txt_file2 = str(self.root_dir / zip_file_name / "image sets" / "val.txt")
+        output_csv_file = str(self.annotations_dir / "annotations.csv")
+
+        # Convert from txt to csv + transformations
+        with open(input_txt_file1, 'r') as txt_file1, \
+             open(input_txt_file2, 'r') as txt_file2, \
+             open(output_csv_file, 'w') as csv_file:
+            
+            csv_writer = csv.writer(csv_file)
+            csv_writer.writerow(['Filename', 'Age', 'Gender'])
+
+            for line in txt_file1:
+                filename, gender = line.strip().split()
+                age = filename[-6:-4]
+                csv_writer.writerow([filename, age, gender])
+
+            for line in txt_file2:
+                filename, gender = line.strip().split()
+                age = filename[-6:-4]
+                csv_writer.writerow([filename, age, gender])
+        
+        # Setup images folder      
+        src_folder = str(self.root_dir / zip_file_name / "original images")
+
+        for filename in os.listdir(src_folder):
+            src_file = os.path.join(src_folder, filename)
+            dest_file = os.path.join(self.image_dir, filename)
+            move(src_file, dest_file)
+
+        # Clean up
+        os.remove(output_path)
+        rmtree(str(self.root_dir / zip_file_name))
+
+    def _get_instances_df(self) -> pd.DataFrame:
+        pass
+
+
+    def __getitem__(self, idx: int) -> tuple[PILImage, int] | tuple[PILImage, tuple[str, int]]:
+        pass
