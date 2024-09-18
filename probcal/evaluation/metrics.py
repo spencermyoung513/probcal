@@ -1,4 +1,5 @@
 from typing import Callable
+from typing import TypeAlias
 
 import numpy as np
 import torch
@@ -38,16 +39,25 @@ def compute_regression_ece(
     Returns:
         float: The expected calibration error.
     """
-    pytorch_dist = torch.distributions.Distribution | DiscreteRandomVariable
+    TorchDistribution: TypeAlias = torch.distributions.Distribution | DiscreteRandomVariable
     eps = 1e-5
     p_j = np.linspace(eps, 1 - eps, num=num_bins)
-    if isinstance(posterior_predictive, pytorch_dist):
-        y_true_torch = torch.tensor(y_true, device=posterior_predictive.device)
-        p_j_torch = torch.tensor(p_j, device=posterior_predictive.device).reshape(-1, 1)
+    if isinstance(posterior_predictive, TorchDistribution):
+        if isinstance(posterior_predictive, torch.distributions.Distribution):
+            device = None
+            for param in posterior_predictive.__dict__.values():
+                if isinstance(param, torch.Tensor) and str(param.device) != "cpu":
+                    device = param.device
+            device = device or torch.device("cpu")
+        elif isinstance(posterior_predictive, DiscreteRandomVariable):
+            device = posterior_predictive.device
+        y_true_torch = torch.tensor(y_true, device=device)
+        p_j_torch = torch.tensor(p_j, device=device).reshape(-1, 1)
         cdf_less_than_p = posterior_predictive.cdf(y_true_torch) <= p_j_torch
         cdf_less_than_p = cdf_less_than_p.detach().cpu().numpy()
     else:
         cdf_less_than_p = posterior_predictive.cdf(y_true) <= p_j.reshape(-1, 1)
+
     q_j = cdf_less_than_p.mean(axis=1)
 
     if weights == "uniform":
