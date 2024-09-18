@@ -115,7 +115,23 @@ class DoublePoissonNN(DiscreteRegressionNN):
 
         return torch.exp(y_hat)
 
-    def _point_prediction(self, y_hat: torch.Tensor, training: bool) -> torch.Tensor:
+    def _sample_impl(
+        self, y_hat: torch.Tensor, training: bool = False, num_samples: int = 1
+    ) -> torch.Tensor:
+        """Sample from this network's posterior predictive distributions for a batch of data (as specified by y_hat).
+
+        Args:
+            y_hat (torch.Tensor): Output tensor from a regression network, with shape (N, ...).
+            training (bool, optional): Boolean indicator specifying if `y_hat` is a training output or not. This particularly matters when outputs are in log space during training, for example. Defaults to False.
+            num_samples (int, optional): Number of samples to take from each posterior predictive. Defaults to 1.
+
+        Returns:
+            torch.Tensor: Batched sample tensor, with shape (N, num_samples).
+        """
+        dist = self._convert_output_to_dist(y_hat, log_output=training)
+        return dist.rvs((num_samples, dist.dimension)).T
+
+    def _point_prediction_impl(self, y_hat: torch.Tensor, training: bool) -> torch.Tensor:
         dist = self._convert_output_to_dist(y_hat, log_output=training)
         mode = torch.argmax(dist.pmf_vals, axis=0)
         return mode

@@ -88,7 +88,24 @@ class PoissonNN(DiscreteRegressionNN):
 
         return torch.exp(y_hat)
 
-    def _point_prediction(self, y_hat: torch.Tensor, training: bool) -> torch.Tensor:
+    def _sample_impl(
+        self, y_hat: torch.Tensor, training: bool = False, num_samples: int = 1
+    ) -> torch.Tensor:
+        """Sample from this network's posterior predictive distributions for a batch of data (as specified by y_hat).
+
+        Args:
+            y_hat (torch.Tensor): Output tensor from a regression network, with shape (N, ...).
+            training (bool, optional): Boolean indicator specifying if `y_hat` is a training output or not. This particularly matters when outputs are in log space during training, for example. Defaults to False.
+            num_samples (int, optional): Number of samples to take from each posterior predictive. Defaults to 1.
+
+        Returns:
+            torch.Tensor: Batched sample tensor, with shape (N, num_samples).
+        """
+        lmbda = y_hat.exp() if training else y_hat
+        dist = torch.distributions.Poisson(lmbda.squeeze())
+        return dist.sample((num_samples,)).T
+
+    def _point_prediction_impl(self, y_hat: torch.Tensor, training: bool) -> torch.Tensor:
         lmbda = y_hat.exp() if training else y_hat
         return lmbda.floor()
 
