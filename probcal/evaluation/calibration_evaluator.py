@@ -1,0 +1,197 @@
+import warnings
+from dataclasses import dataclass
+from functools import partial
+from typing import Callable
+from typing import Literal
+from typing import TypeAlias
+
+import lightning as L
+import numpy as np
+import open_clip
+import torch
+from matplotlib import pyplot as plt
+from open_clip import CLIP
+from sklearn.manifold import TSNE
+from torch.utils.data import DataLoader
+from torchvision.transforms import Compose
+
+from probcal.enums import DatasetType
+from probcal.evaluation.kernels import laplacian_kernel
+from probcal.evaluation.kernels import polynomial_kernel
+from probcal.evaluation.kernels import rbf_kernel
+from probcal.evaluation.metrics import compute_mcmd_torch
+from probcal.models.discrete_regression_nn import DiscreteRegressionNN
+
+
+@dataclass
+class CalibrationResults:
+    mcmd_grid_2d: np.ndarray
+    mcmd_vals: np.ndarray
+    mean_mcmd: float
+    ece: float
+
+
+KernelFunction: TypeAlias = Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
+
+
+class CalibrationEvaluatorSettings:
+    input_kernel: Literal["polynomial"] | KernelFunction = "polynomial"
+    output_kernel: Literal["rbf", "laplacian"] | KernelFunction = "rbf"
+    dataset_type: DatasetType = DatasetType.IMAGE
+    lmbda: float = 0.1
+    num_samples_per_posterior: int = 5
+
+
+class CalibrationEvaluator:
+    """Helper object to evaluate the calibration of a neural net."""
+
+    def __init__(self, settings: CalibrationEvaluatorSettings):
+        self.settings = settings
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self._clip_model = None
+        self._image_preprocess = None
+        self._tokenizer = None
+
+    def __call__(
+        self, model: DiscreteRegressionNN, data_module: L.LightningDataModule
+    ) -> CalibrationResults:
+        data_module.prepare_data()
+        data_module.setup()
+        test_dataloader = data_module.test_dataloader()
+        mcmd_vals, grid = self.compute_mcmd(model, test_dataloader, return_grid=True)
+        grid_2d = TSNE().fit_transform(grid.detach().cpu().numpy())
+        ece = self.compute_ece(model, test_dataloader)
+        return CalibrationResults(
+            mcmd_grid_2d=grid_2d,
+            mcmd_vals=mcmd_vals.detach().numpy(),
+            mean_mcmd=mcmd_vals.mean().item(),
+            ece=ece,
+        )
+
+    def compute_mcmd(
+        self, model: DiscreteRegressionNN, data_loader: DataLoader, return_grid: bool = False
+    ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
+        """Compute the MCMD between samples drawn from the given model and the data spanned by the data loader.
+
+        Args:
+            model (DiscreteRegressionNN): Probabilistic regression model to compute the MCMD for.
+            data_loader (DataLoader): DataLoader with the test data to compute MCMD over.
+            return_grid (bool, optional): Whether/not to return the grid of values the MCMD was computed over. Defaults to False.
+
+        Returns:
+            torch.Tensor | tuple[torch.Tensor, torch.Tensor]: The computed MCMD values, along with the grid of inputs these values correspond to (if return_grid is True).
+        """
+        x, y, x_prime, y_prime = self._get_samples_for_mcmd(model, data_loader)
+        x_kernel, y_kernel = self._get_kernel_functions(y)
+        mcmd_vals = compute_mcmd_torch(
+            grid=x,
+            x=x,
+            y=y,
+            x_prime=x_prime,
+            y_prime=y_prime,
+            x_kernel=x_kernel,
+            y_kernel=y_kernel,
+            lmbda=self.settings.lmbda,
+        )
+        if return_grid:
+            return mcmd_vals, x
+        else:
+            return mcmd_vals
+
+    def compute_ece(self, model: DiscreteRegressionNN, data_loader: DataLoader) -> float:
+        warnings.warn(
+            "ECE computation for calibration evaluator not yet implemented. Placeholder value of 0.0 will be used.",
+            stacklevel=2,
+        )
+        return 0.0
+
+    def plot_mcmd_results(
+        self,
+        calibration_results: CalibrationResults,
+        ax: plt.Axes | None = None,
+        gridsize: int = 15,
+        show: bool = False,
+    ):
+        """Given a set of calibration results, plot the MCMD values against their 2d input projections on a hexbin grid.
+
+        Args:
+            calibration_results (CalibrationResults): Calibration results from a CalibrationEvaluator.
+            ax (plt.Axes | None, optional): If specified, the axes to draw the plot on. Defaults to None.
+            gridsize (int, optional): Gridsize parameter for the hexbin plot. Defaults to 15.
+            show (bool, optional): Whether/not to show the plot. Defaults to False.
+        """
+        ax = plt.subplots(1, 1, figsize=(10, 6))[1] if ax is None else ax
+        ax.set_title(f"Mean MCMD: {calibration_results.mean_mcmd:.4f}")
+        mappable = ax.hexbin(
+            *calibration_results.mcmd_grid_2d, calibration_results.mcmd_vals, gridsize=gridsize
+        )
+        plt.colorbar(mappable, cax=ax, orientation="vertical")
+        if show:
+            plt.show()
+
+    def _get_samples_for_mcmd(
+        self, model: DiscreteRegressionNN, data_loader: DataLoader
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        x = []
+        y = []
+        x_prime = []
+        y_prime = []
+        for inputs, targets in data_loader:
+            if self.settings.dataset_type == DatasetType.TABULAR:
+                x.append(inputs)
+            elif self.settings.dataset_type == DatasetType.IMAGE:
+                x.append(self.clip_model.encode_image(inputs, normalize=True))
+            elif self.settings.dataset_type == DatasetType.TEXT:
+                x.append(self.clip_model.encode_text(inputs, normalize=True))
+            y.append(targets)
+            y_hat = model.predict(inputs)
+            x_prime.append(torch.repeat_interleave(inputs, repeats=5, dim=0))
+            y_prime.append(
+                model.sample(y_hat, num_samples=self.settings.num_samples_per_posterior)
+            )
+
+        x = torch.cat(x, dim=0)
+        y = torch.cat(y)
+        x_prime = torch.cat(x_prime, dim=0)
+        y_prime = torch.cat(y_prime)
+
+        return x, y, x_prime, y_prime
+
+    def _get_kernel_functions(self, y: torch.Tensor) -> tuple[KernelFunction, KernelFunction]:
+        if self.settings.input_kernel == "polynomial":
+            x_kernel = polynomial_kernel
+        else:
+            x_kernel = self.settings.input_kernel
+
+        if self.settings.output_kernel == "rbf":
+            y_kernel = partial(rbf_kernel, gamma=(1 / (2 * y.var())))
+        elif self.settings.output_kernel == "laplacian":
+            y_kernel = partial(laplacian_kernel, gamma=(1 / (2 * y.var())))
+
+        return x_kernel, y_kernel
+
+    @property
+    def clip_model(self) -> CLIP:
+        if self._clip_model is None:
+            self._clip_model_, self._image_preprocess = open_clip.create_model_and_transforms(
+                model_name="ViT-B-32",
+                pretrained="laion2b_s34b_b79k",
+                device=self.device,
+            )
+        return self._clip_model
+
+    @property
+    def image_preprocess(self) -> Compose:
+        if self._image_preprocess is None:
+            self._clip_model_, self._image_preprocess = open_clip.create_model_and_transforms(
+                model_name="ViT-B-32",
+                pretrained="laion2b_s34b_b79k",
+                device=self.device,
+            )
+        return self._image_preprocess
+
+    @property
+    def tokenizer(self):
+        if self._tokenizer is None:
+            self._tokenizer = open_clip.get_tokenizer("ViT-B-32")
+        return self._tokenizer
