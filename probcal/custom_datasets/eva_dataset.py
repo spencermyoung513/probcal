@@ -16,7 +16,7 @@ class EVADataset(Dataset):
     """
     EVA dataset with images voted on how asthetic they are (labeled with the average asthetic score for each image).\n
     To use this dataset class download the dataset from https://github.com/kang-gnak/eva-dataset and place in the /data dir.\n
-    The root_dir for this dataset will be /eva-dataset.
+    The root_dir for this dataset will be the /eva-dataset.
     """
 
     LABELS_CSV = "votes_filtered.csv"
@@ -28,6 +28,14 @@ class EVADataset(Dataset):
         target_transform: Callable[[int], int] | None = None,
         surface_image_path: bool = False,
     ) -> None:
+        """Create an instance of the EVA dataset.
+
+        Args:
+            root_dir (str | Path): Root directory where dataset files should be stored.
+            transform (Callable, optional): A function/transform that takes in a PIL image and returns a transformed version. e.g, `transforms.RandomCrop`. Defaults to None.
+            target_transform (Callable, optional): A function/transform that takes in the target and transforms it. Defaults to None.
+            surface_image_path (bool, optional): Whether/not to return the image path along with the image and count in __getitem__.
+        """
         super().__init__()
 
         self.transform = transform
@@ -90,8 +98,10 @@ class EVADataset(Dataset):
     def _check_for_eva_images(self) -> bool:
         return self.image_dir.exists()
 
-    def _concatenate_and_extract_zip(self, zip_prefix="EVA_together.zip"):
+    def _concatenate_and_extract_zip(self):
         original_dir = os.getcwd()
+
+        zip_prefix = "EVA_together.zip"
 
         # Change to the source directory
         os.chdir(self.root_dir.joinpath("images"))
@@ -128,10 +138,16 @@ class EVADataset(Dataset):
         os.chdir(original_dir)
 
     def _print_stats(self):
+        """
+        Print the statistics of the average scores for the dataset.
+        """
         print("\nStatistics of average scores:")
         print(self.labels_df["avg_score"].describe())
 
     def _create_dist_graph(self):
+        """
+        Creates a graph of the distribution of average scores for the dataset.
+        """
         plt.figure(figsize=(10, 6))
         sns.histplot(data=self.labels_df, x="avg_score", kde=True)
         plt.title("Distribution of Average Scores per Image")
