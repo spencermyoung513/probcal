@@ -11,6 +11,7 @@ class AcceleratorType(Enum):
 class HeadType(Enum):
     GAUSSIAN = "gaussian"
     POISSON = "poisson"
+    DOUBLE_POISSON = "double_poisson"
     NEGATIVE_BINOMIAL = "nbinom"
     MULTI_CLASS = "multi_class"
 
@@ -25,17 +26,20 @@ class LRSchedulerType(Enum):
     COSINE_ANNEALING = "cosine_annealing"
 
 
+class BetaSchedulerType(Enum):
+    COSINE_ANNEALING = "cosine_annealing"
+    LINEAR = "linear"
+
+
 class DatasetType(Enum):
     TABULAR = "tabular"
     IMAGE = "image"
     TEXT = "text"
 
+
 class ImageDatasetName(Enum):
     MNIST = "mnist"
     COCO_PEOPLE = "coco_people"
-    CIFAR10 = 'cifar_10'
-    CIFAR100 = 'cifar_100'
-    AAF = 'aaf'
 
 class TextDatasetName(Enum):
     REVIEWS = "reviews"
