@@ -4,14 +4,13 @@ head_type: gaussian
 dataset:
   type: image
   spec: aaf
-  path: aaf
   input_dim: 3
 training:
   accelerator: gpu
   batch_size: 32
   chkp_dir: chkp
   chkp_freq: 50
-  num_epochs: 200
+  num_epochs: 20
   optimizer:
     type: adam_w
     kwargs:

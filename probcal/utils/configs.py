@@ -186,8 +186,6 @@ class TrainingConfig(BaseConfig):
 
         dataset_type = DatasetType(config_dict["dataset"]["type"])
         dataset_path_or_spec = TrainingConfig.get_dataset_path_or_spec(config_dict["dataset"])
-        elif dataset_type == DatasetType.IMAGE:
-            dataset_path = ImageDatasetName(config_dict["dataset"]["path"])
 
         num_trials = eval_dict["num_trials"]
         log_dir = Path(eval_dict["log_dir"])

@@ -7,7 +7,6 @@ logs
 chkp/
 ignore/
 .venv/
-**/*.jpg
 data
 */mnist
 */coco_people

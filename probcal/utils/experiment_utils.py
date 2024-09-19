@@ -10,15 +10,11 @@ import numpy as np
 import torch
 from lightning.pytorch.callbacks import ModelCheckpoint
 
-<<<<<<< HEAD
-from probcal.data_modules import TabularDataModule, COCOPeopleDataModule, AAFDataModule
-from probcal.enums import DatasetType, ImageDatasetName, TextDatasetName
-=======
+from probcal.data_modules import AAFDataModule
 from probcal.data_modules import COCOPeopleDataModule
 from probcal.data_modules import OodCocoPeopleDataModule
 from probcal.data_modules import TabularDataModule
 from probcal.enums import DatasetType
->>>>>>> 77ce124c31c792aa66e65ba064ee9f313435a078
 from probcal.enums import HeadType
 from probcal.enums import ImageDatasetName
 from probcal.enums import TextDatasetName
@@ -26,16 +22,13 @@ from probcal.models import DoublePoissonNN
 from probcal.models import GaussianNN
 from probcal.models import NegBinomNN
 from probcal.models import PoissonNN
-<<<<<<< HEAD
-from probcal.models.backbones import MLP, ViT
-=======
+from probcal.models.backbones import MLP
 from probcal.models.backbones import DistilBert
 from probcal.models.backbones import LargerMLP
 from probcal.models.backbones import MLP
 from probcal.models.backbones import MNISTCNN
 from probcal.models.backbones import MobileNetV3
 from probcal.models.backbones import ViT
->>>>>>> 77ce124c31c792aa66e65ba064ee9f313435a078
 from probcal.models.discrete_regression_nn import DiscreteRegressionNN
 from probcal.utils.configs import TestConfig
 from probcal.utils.configs import TrainingConfig
@@ -75,10 +68,6 @@ def get_model(
         else:
             backbone_type = MLP
         backbone_kwargs = {"input_dim": config.input_dim}
-<<<<<<< HEAD
-    elif config.dataset_type == DatasetType.IMAGE:
-        backbone_type = ViT
-=======
     elif config.dataset_type == DatasetType.TEXT:
         backbone_type = DistilBert
         backbone_kwargs = {}
@@ -87,9 +76,10 @@ def get_model(
             backbone_type = MNISTCNN
         elif config.dataset_path_or_spec == ImageDatasetName.COCO_PEOPLE:
             backbone_type = ViT
+        elif config.dataset_path_or_spec == ImageDatasetName.AAF:
+            backbone_type = ViT
         else:
             backbone_type = MobileNetV3
->>>>>>> 77ce124c31c792aa66e65ba064ee9f313435a078
         backbone_kwargs = {}
 
     backbone_kwargs["output_dim"] = config.hidden_dim
@@ -140,16 +130,17 @@ def get_datamodule(
                 num_workers=num_workers,
                 persistent_workers=True if num_workers > 0 else False,
             )
-<<<<<<< HEAD
-        elif dataset_spec == ImageDatasetName.AAF:
+        elif dataset_path_or_spec == ImageDatasetName.AAF:
             return AAFDataModule(
                 csv_file_path = os.path.join(GLOBAL_DATA_DIR, "aaf/image_sets/picture_data.csv"),
                 root_dir=os.path.join(GLOBAL_DATA_DIR, "aaf/original_images"),
-=======
+                batch_size=batch_size,
+                num_workers=num_workers,
+                persistent_workers=True if num_workers > 0 else False,
+            )
         elif dataset_path_or_spec == ImageDatasetName.OOD_COCO_PEOPLE:
             return OodCocoPeopleDataModule(
-                root_dir=os.path.join(GLOBAL_DATA_DIR, "coco_people"),
->>>>>>> 77ce124c31c792aa66e65ba064ee9f313435a078
+                root_dir=os.path.join(GLOBAL_DATA_DIR, "ood_coco_people"),
                 batch_size=batch_size,
                 num_workers=num_workers,
                 persistent_workers=True if num_workers > 0 else False,

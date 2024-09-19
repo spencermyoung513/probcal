@@ -11,7 +11,7 @@ class AAFDataset(Dataset):
     """The All-Age-Faces (AAF) Dataset contains 13'322 face images (mostly Asian) 
     distributed across all ages (from 2 to 80), including 7381 females and 5941 males."""
 
-    def __init__(self, csv_file, root_dir, transform=None):
+    def __init__(self, csv_file: str, root_dir: str, transform=None):
         """
         Arguments:
             csv_file (string): Path to the csv file with annotations.
