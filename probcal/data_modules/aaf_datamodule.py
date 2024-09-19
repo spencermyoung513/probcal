@@ -20,7 +20,6 @@ class AAFDataModule(L.LightningDataModule):
 
     def __init__(
         self,
-        csv_file_path: str | Path,
         root_dir: str | Path,
         batch_size: int,
         num_workers: int,
@@ -28,7 +27,6 @@ class AAFDataModule(L.LightningDataModule):
         surface_image_path: bool = False,
     ):
         super().__init__()
-        self.csv_file_path = csv_file_path
         self.root_dir = Path(root_dir)
         self.batch_size = batch_size
         self.num_workers = num_workers
@@ -45,8 +43,8 @@ class AAFDataModule(L.LightningDataModule):
         inference_transforms = Compose([resize, to_tensor, normalize])
 
         full_dataset = AAFDataset(
-            self.csv_file_path,
-            self.root_dir
+            self.root_dir,
+            surface_image_path=self.surface_image_path,
         )
         num_instances = len(full_dataset)
         generator = np.random.default_rng(seed=1998)

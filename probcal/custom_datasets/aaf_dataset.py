@@ -115,7 +115,7 @@ class AAFDataset(Dataset):
 
     def __getitem__(self, idx: int) -> tuple[PILImage, int] | tuple[PILImage, tuple[str, int]]:
         row = self.instances.iloc[idx]
-        image_path = row['image_path']
+        image_path = str(self.image_dir / row['image_path'])
         image = Image.open(image_path)
         age = row['age']
         if self.transform is not None:
