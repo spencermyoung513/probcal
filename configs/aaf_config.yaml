@@ -10,7 +10,7 @@ training:
   batch_size: 32
   chkp_dir: chkp
   chkp_freq: 50
-  num_epochs: 20
+  num_epochs: 5
   optimizer:
     type: adam_w
     kwargs:
