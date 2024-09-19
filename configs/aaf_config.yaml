@@ -4,13 +4,13 @@ head_type: gaussian
 dataset:
   type: image
   spec: aaf
-  input_dim: 3
 training:
   accelerator: gpu
-  batch_size: 32
+  batch_size: 64
   chkp_dir: chkp
-  chkp_freq: 50
+  chkp_freq: 6
   num_epochs: 5
+  precision: bf16-mixed
   optimizer:
     type: adam_w
     kwargs:
@@ -19,7 +19,7 @@ training:
   lr_scheduler:
     type: cosine_annealing
     kwargs:
-      T_max: 200
+      T_max: 30
       eta_min: 0
       last_epoch: -1
 evaluation:
