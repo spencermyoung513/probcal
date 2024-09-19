@@ -10,6 +10,18 @@ from scipy.stats import rv_continuous
 from probcal.random_variables.discrete_random_variable import DiscreteRandomVariable
 
 
+def _compute_discrete_torch_dist_cdf(
+    dist: torch.distributions.Poisson | torch.distributions.NegativeBinomial,
+    y_vals: torch.Tensor,
+    max_val: int = 2000,
+) -> torch.Tensor:
+    support = torch.arange(max_val).unsqueeze(0).repeat(len(y_vals), 1)
+    probs_over_support: torch.Tensor = dist.log_prob(support).exp()
+    probs_over_support *= support <= y_vals.view(-1, 1)
+    cdf = probs_over_support.sum(dim=1)
+    return cdf
+
+
 def compute_regression_ece(
     y_true: np.ndarray,
     posterior_predictive: rv_continuous
@@ -42,6 +54,7 @@ def compute_regression_ece(
     TorchDistribution: TypeAlias = torch.distributions.Distribution | DiscreteRandomVariable
     eps = 1e-5
     p_j = np.linspace(eps, 1 - eps, num=num_bins)
+
     if isinstance(posterior_predictive, TorchDistribution):
         if isinstance(posterior_predictive, torch.distributions.Distribution):
             device = None
@@ -53,7 +66,25 @@ def compute_regression_ece(
             device = posterior_predictive.device
         y_true_torch = torch.tensor(y_true, device=device)
         p_j_torch = torch.tensor(p_j, device=device).reshape(-1, 1)
-        cdf_less_than_p = posterior_predictive.cdf(y_true_torch) <= p_j_torch
+
+        # CDF is not currently implemented for the Poisson or Negative Binomial in PyTorch, so we approximate it.
+        if isinstance(posterior_predictive, torch.distributions.Poisson):
+            cdf = _compute_discrete_torch_dist_cdf(
+                dist=torch.distributions.Poisson(posterior_predictive.rate.view(-1, 1)),
+                y_vals=y_true_torch,
+            )
+        elif isinstance(posterior_predictive, torch.distributions.NegativeBinomial):
+            cdf = _compute_discrete_torch_dist_cdf(
+                dist=torch.distributions.NegativeBinomial(
+                    total_count=posterior_predictive.total_count.view(-1, 1),
+                    probs=posterior_predictive.probs.view(-1, 1),
+                ),
+                y_vals=y_true_torch,
+            )
+        else:
+            cdf = posterior_predictive.cdf(y_true_torch)
+
+        cdf_less_than_p = cdf <= p_j_torch
         cdf_less_than_p = cdf_less_than_p.detach().cpu().numpy()
     else:
         cdf_less_than_p = posterior_predictive.cdf(y_true) <= p_j.reshape(-1, 1)
