@@ -40,10 +40,11 @@ class AAFDataset(Dataset):
         self.limit = limit
         self.image_dir = self.root_dir / "images"
         self.annotations_dir = self.root_dir / "annotations"
+        self.annotations_csv_path = self.annotations_dir / "annotations.csv"
         self.surface_image_path = surface_image_path
 
         for dir in self.root_dir, self.image_dir, self.annotations_dir:
-            if not dir.exists(): # ?
+            if not dir.exists():
                 os.makedirs(dir)
 
         if not self._already_downloaded():
@@ -66,25 +67,24 @@ class AAFDataset(Dataset):
     def _download(self):
 
         # Download raw folder
-        if not self.annotations_json_path.exists():
-            print("Downloading zipped file...")
-            zip_file_name = "All-Age-Faces Dataset"
-            output_path = str(self.root_dir) + "/" + zip_file_name + ".zip"
-            gdown.download(self.DATA_URL, output_path, quiet=False, fuzzy=True)
-            unpack_archive(output_path, self.root_dir)
+        print("Downloading zipped file...")
+        zip_file_name = "All-Age-Faces Dataset"
+        output_path = str(self.root_dir) + "/" + zip_file_name + ".zip"
+        gdown.download(self.DATA_URL, output_path, quiet=False, fuzzy=True)
+        unpack_archive(output_path, self.root_dir)
 
         # Setup annotations files
         input_txt_file1 = str(self.root_dir / zip_file_name / "image sets" / "train.txt")
         input_txt_file2 = str(self.root_dir / zip_file_name / "image sets" / "val.txt")
-        output_csv_file = str(self.annotations_dir / "annotations.csv")
+        output_csv_file = str(self.annotations_csv_path)
 
         # Convert from txt to csv + transformations
         with open(input_txt_file1, 'r') as txt_file1, \
-             open(input_txt_file2, 'r') as txt_file2, \
-             open(output_csv_file, 'w') as csv_file:
+            open(input_txt_file2, 'r') as txt_file2, \
+            open(output_csv_file, 'w') as csv_file:
             
             csv_writer = csv.writer(csv_file)
-            csv_writer.writerow(['Filename', 'Age', 'Gender'])
+            csv_writer.writerow(['image_path', 'age', 'gender'])
 
             for line in txt_file1:
                 filename, gender = line.strip().split()
@@ -109,8 +109,23 @@ class AAFDataset(Dataset):
         rmtree(str(self.root_dir / zip_file_name))
 
     def _get_instances_df(self) -> pd.DataFrame:
-        pass
+        annotations = str(self.annotations_csv_path)
+        return pd.read_csv(annotations)
 
 
     def __getitem__(self, idx: int) -> tuple[PILImage, int] | tuple[PILImage, tuple[str, int]]:
-        pass
+        row = self.instances.iloc[idx]
+        image_path = row['image_path']
+        image = Image.open(image_path)
+        age = row['age']
+        if self.transform is not None:
+            image = self.transform(image)
+        if self.target_transform is not None:
+            age = self.target_transform(age)
+        if self.surface_image_path:
+            return image, (image_path, age)
+        else:
+            return image, age
+        
+    def __len__(self):
+        return len(self.instances)

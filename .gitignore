@@ -6,8 +6,6 @@ logs
 .vscode
 chkp/
 ignore/
-.venv/
-**/*.jpg
 data
 */mnist
 */coco_people

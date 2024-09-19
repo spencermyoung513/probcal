@@ -80,8 +80,7 @@ def get_datamodule(
             )
         elif dataset_spec == ImageDatasetName.AAF:
             return AAFDataModule(
-                csv_file_path = os.path.join(GLOBAL_DATA_DIR, "aaf/image_sets/picture_data.csv"),
-                root_dir=os.path.join(GLOBAL_DATA_DIR, "aaf/original_images"),
+                root_dir=os.path.join(GLOBAL_DATA_DIR, "aaf"),
                 batch_size=batch_size,
                 num_workers=num_workers,
                 persistent_workers=True if num_workers > 0 else False,
