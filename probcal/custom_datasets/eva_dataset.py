@@ -138,10 +138,3 @@ class EVADataset(Dataset):
         plt.xlabel("Average Score")
         plt.ylabel("Count")
         plt.show()
-
-
-eva = EVADataset(root_dir="../../data/eva-dataset", surface_image_path=True)
-print(eva.labels_df.head())
-print(len(eva))
-eva._print_stats()
-print(eva[0])
