@@ -1,3 +1,4 @@
-from .tabular_data_module import TabularDataModule
 from .coco_people_datamodule import COCOPeopleDataModule
 from .aaf_datamodule import AAFDataModule
+from .coco_people_datamodule import OodCocoPeopleDataModule
+from .tabular_data_module import TabularDataModule
