@@ -1,4 +1,5 @@
 import os
+import subprocess
 import zipfile
 from glob import glob
 from pathlib import Path
@@ -15,8 +16,6 @@ from torch.utils.data import Dataset
 class EVADataset(Dataset):
     """
     EVA dataset with images voted on how asthetic they are (labeled with the average asthetic score for each image).\n
-    To use this dataset class download the dataset from https://github.com/kang-gnak/eva-dataset and place in the /data dir.\n
-    The root_dir for this dataset will be the /eva-dataset.
     """
 
     LABELS_CSV = "votes_filtered.csv"
@@ -42,15 +41,14 @@ class EVADataset(Dataset):
         self.target_transform = target_transform
         self.surface_image_path = surface_image_path
 
-        self.root_dir = Path(root_dir)
+        self.repo_url = "https://github.com/kang-gnak/eva-dataset"
+
+        self.root_dir = Path(root_dir).joinpath("eva-dataset")
         self.labels_dir = self.root_dir.joinpath("data")
         self.image_dir = self.root_dir.joinpath("images", "EVA_together")
 
         if not self._check_for_eva_data():
-            print("EVA dataset not found.")
-            print(
-                "Please download the EVA dataset from here -> https://github.com/kang-gnak/eva-dataset and place it in the data dir."
-            )
+            self._download_dataset()
             return
 
         if not self._check_for_eva_images():
@@ -86,6 +84,10 @@ class EVADataset(Dataset):
 
     def __len__(self):
         return len(self.labels_df)
+
+    def _download_dataset(self):
+        print(f"Downloading repository to {self.root_dir}")
+        subprocess.run(["git", "clone", self.repo_url, self.root_dir], check=True)
 
     def _check_for_eva_data(self) -> bool:
         return (
