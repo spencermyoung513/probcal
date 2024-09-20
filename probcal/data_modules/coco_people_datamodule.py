@@ -113,7 +113,7 @@ class COCOPeopleDataModule(L.LightningDataModule):
         return tensor
 
 
-class OodCocoPeopleDataModule(COCOPeopleDataModule):
+class OodBlurCocoPeopleDataModule(COCOPeopleDataModule):
     def __init__(
         self,
         root_dir: str | Path,
