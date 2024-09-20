@@ -56,7 +56,7 @@ def main(cfg: dict) -> None:
             1,
             num_workers=0
         )
-    datamodule.setup(stage="test")
+    datamodule.setup(stage="test", perturb=cfg['data']['perturb'])
     test_loader = datamodule.test_dataloader()
 
     # instantiate model

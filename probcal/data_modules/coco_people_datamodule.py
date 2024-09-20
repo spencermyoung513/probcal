@@ -124,12 +124,15 @@ class OodCocoPeopleDataModule(COCOPeopleDataModule):
     ):
         super().__init__(root_dir, batch_size, num_workers, persistent_workers, surface_image_path)
 
-    def setup(self, stage):
+    def setup(self, stage, *args, **kwargs):
         if stage != "test":
             raise ValueError(f"Invalid stage: {stage}. Only 'test' is supported for OOD class")
 
         resize = Resize((self.IMG_SIZE, self.IMG_SIZE))
-        blur = GaussianBlur(kernel_size=(5, 9), sigma=(1.0, 1.0))
+        blur = GaussianBlur(
+            kernel_size=(5, 9),
+            sigma=(kwargs['perturb'], kwargs['perturb'])
+        )
         normalize = Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))
         to_tensor = ToTensor()
         inference_transforms = Compose([resize, blur, to_tensor, normalize])

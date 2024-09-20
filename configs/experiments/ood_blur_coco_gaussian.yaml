@@ -7,8 +7,7 @@ model:
 data:
   test_examples: 10
   n_samples: 5
-  ood_perturbation: 0.0
-  ood_type: blur
+  perturb: 5.0
   module: ood_coco_people # {ood_coco_people, coco_people}
 hyperparams:
   lmbda: 0.01
