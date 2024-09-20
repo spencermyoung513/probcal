@@ -77,7 +77,7 @@ def get_model(
         elif config.dataset_path_or_spec == ImageDatasetName.COCO_PEOPLE:
             backbone_type = ViT
         elif config.dataset_path_or_spec == ImageDatasetName.AAF:
-            backbone_type = ViT
+            backbone_type = MobileNetV3
         else:
             backbone_type = MobileNetV3
         backbone_kwargs = {}

@@ -6,10 +6,10 @@ dataset:
   spec: aaf
 training:
   accelerator: gpu
-  batch_size: 64
+  batch_size: 32
   chkp_dir: chkp
   chkp_freq: 6
-  num_epochs: 5
+  num_epochs: 200
   precision: bf16-mixed
   optimizer:
     type: adam_w
