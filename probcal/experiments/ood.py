@@ -11,7 +11,6 @@ from probcal.enums import DatasetType, ImageDatasetName, HeadType
 
 from probcal.evaluation.metrics import compute_mcmd_torch
 from probcal.evaluation.kernels import polynomial_kernel, rbf_kernel
-from probcal.random_variables import RVS
 
 NUM_IMG_PLOT = 4
 EXP_NAME = "ood_gaussian_blur_coco_people_gaussian"
@@ -87,9 +86,12 @@ for i in range(NUM_IMG_PLOT):
     axs[i, 0].set_title("Input Image")
     axs[i, 0].axis("off")
 
-    rv = RVS[model_cfg.head_type.value](*imgs_to_plot_preds[i])
+    rv = model._posterior_predictive_impl(
+        imgs_to_plot_preds[i],
+        training=False
+    )
     disc_support = torch.arange(0, imgs_to_plot_true.max() + 5)
-    dist_func = rv.pdf(disc_support)
+    dist_func = torch.exp(rv.log_prob(disc_support))
     axs[i, 1].plot(disc_support, dist_func)
     axs[i, 1].scatter(imgs_to_plot_true[i], 0, color="black", marker="*", s=50, zorder=100)
 
