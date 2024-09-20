@@ -10,7 +10,7 @@ from probcal.utils.configs import TestConfig
 from probcal.enums import DatasetType, ImageDatasetName, HeadType
 
 from probcal.evaluation.metrics import compute_mcmd_torch
-from probcal.kernels import polynomial_kernel_torch, rbf_kernel
+from probcal.evaluation.kernels import polynomial_kernel, rbf_kernel
 from probcal.samplers import SAMPLERS
 from probcal.random_variables import RVS
 
@@ -109,7 +109,7 @@ with torch.inference_mode():
         y=Y_true.float(),
         x_prime=x_prime,
         y_prime=y_prime.float(),
-        x_kernel=polynomial_kernel_torch,
+        x_kernel=polynomial_kernel,
         y_kernel=partial(rbf_kernel, gamma=1 / (2 * Y_true.float().var())),
         lmbda=0.1,
     )
