@@ -72,6 +72,7 @@ class EVADataset(Dataset):
         row = self.labels_df.iloc[idx]
         image_path = self.image_dir.joinpath(row["file_name"])
         image = Image.open(image_path)
+        image = self._ensure_rgb(image)
         score = row["avg_score"]
         if self.transform is not None:
             image = self.transform(image)
@@ -84,6 +85,11 @@ class EVADataset(Dataset):
 
     def __len__(self):
         return len(self.labels_df)
+
+    def _ensure_rgb(self, image: PILImage):
+        if image.mode != "RGB":
+            return image.convert("RGB")
+        return image
 
     def _download_dataset(self):
         print(f"Downloading repository to {self.root_dir}")
