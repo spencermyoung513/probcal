@@ -11,7 +11,6 @@ from probcal.enums import DatasetType, ImageDatasetName, HeadType
 
 from probcal.evaluation.metrics import compute_mcmd_torch
 from probcal.evaluation.kernels import polynomial_kernel, rbf_kernel
-from probcal.samplers import SAMPLERS
 from probcal.random_variables import RVS
 
 NUM_IMG_PLOT = 4
@@ -26,7 +25,7 @@ if not os.path.exists(LOG_DIR):
 # build dataset and data loader
 datamodule = get_datamodule(
         DatasetType.IMAGE,
-        ImageDatasetName.COCO_PEOPLE,
+        ImageDatasetName.OOD_COCO_PEOPLE,
         1,
         num_workers=0
     )
@@ -48,11 +47,12 @@ embedder, _, transform = open_clip.create_model_and_transforms(
 )
 embedder.eval()
 
-n = 100
+n = 10
 m = 5
 X = torch.zeros((n, 512)) # image embeddings
 Y_true = torch.zeros((n, 1)) # true labels
-Y_hat = []
+Y_hat = [] # predicted model outputs
+Y_prime = [] # sampled model outputs
 imgs_to_plot = []
 imgs_to_plot_preds = []
 imgs_to_plot_true = []
@@ -61,10 +61,12 @@ for i, (x, y) in tqdm(enumerate(test_loader), total=n):
     with torch.no_grad():
         img_features = embedder.encode_image(x, normalize=True)
         pred = model._predict_impl(x)
+        samples = model._sample_impl(pred, training=False, num_samples=m)
 
     X[i] = img_features
     Y_true[i] = y
     Y_hat.append(pred)
+    Y_prime.append(samples.T)
 
     if i < NUM_IMG_PLOT:
         img = datamodule.denormalize(x)
@@ -96,19 +98,18 @@ plt.savefig(os.path.join(LOG_DIR, "input_images.png"))
 
 # compute MCMD
 Y_hat = torch.cat(Y_hat, dim=0)
-sampler = SAMPLERS[model_cfg.head_type.value](Y_hat)
-y_prime = sampler.sample(m=m).reshape(-1, 1)
+Y_prime = torch.cat(Y_prime, dim=0)
 
 with torch.inference_mode():
     x_prime = X.repeat_interleave(m, dim=0)
-    print(x_prime.shape, y_prime.shape)
+    print(x_prime.shape, Y_prime.shape)
 
     mcmd_vals = compute_mcmd_torch(
         grid=X,
         x=X,
         y=Y_true.float(),
         x_prime=x_prime,
-        y_prime=y_prime.float(),
+        y_prime=Y_prime.float(),
         x_kernel=polynomial_kernel,
         y_kernel=partial(rbf_kernel, gamma=1 / (2 * Y_true.float().var())),
         lmbda=0.1,
