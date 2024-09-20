@@ -31,10 +31,11 @@ def mk_log_dir(log_dir, exp_name):
         os.makedirs('logs')
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)
+    return log_dir
 
 def main(cfg: dict) -> None:
-
-    mk_log_dir(cfg['exp']['log_dir'], cfg['exp']['name'])
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    log_dir = mk_log_dir(cfg['exp']['log_dir'], cfg['exp']['name'])
 
     # build dataset and data loader
     datamodule = get_datamodule(
@@ -47,25 +48,24 @@ def main(cfg: dict) -> None:
     test_loader = datamodule.test_dataloader()
 
     # instantiate model
-    model_cfg = TestConfig.from_yaml(f"configs/test/coco_gaussian_cfg.yaml")
+    model_cfg = TestConfig.from_yaml(cfg['model']['test_cfg'])
     model = get_model(model_cfg)
-    weights_fpath = "weights/coco_people_gaussian/version_0/state_dict_best_mae.ckpt"
-    state_dict = torch.load(weights_fpath, map_location='cpu')
+    weights_fpath = cfg['model']['weights']
+    state_dict = torch.load(weights_fpath, map_location=device)
     model.load_state_dict(state_dict)
 
     # get embeder
     embedder, _, transform = open_clip.create_model_and_transforms(
         model_name="ViT-B-32",
         pretrained="laion2b_s34b_b79k",
-        device="cpu",
+        device=device,
     )
     embedder.eval()
 
-    n = 1000
-    m = 5
+    n = cfg['data']['test_examples'] if cfg['data']['test_examples'] else len(test_loader)
+    m = cfg['data']['n_samples']
     X = torch.zeros((n, 512)) # image embeddings
     Y_true = torch.zeros((n, 1)) # true labels
-    Y_hat = [] # predicted model outputs
     Y_prime = [] # sampled model outputs
     imgs_to_plot = []
     imgs_to_plot_preds = []
@@ -79,10 +79,9 @@ def main(cfg: dict) -> None:
 
         X[i] = img_features
         Y_true[i] = y
-        Y_hat.append(pred)
         Y_prime.append(samples.T)
 
-        if i < NUM_IMG_PLOT:
+        if i < cfg['plot']['num_img_to_plot']:
             img = datamodule.denormalize(x)
             img = img.squeeze(0).permute(1, 2, 0).detach()
             imgs_to_plot.append(img)
@@ -96,9 +95,9 @@ def main(cfg: dict) -> None:
     fig, axs = plt.subplots(4, 2, figsize=(10, 8), sharey="col")
     imgs_to_plot_preds = torch.cat(imgs_to_plot_preds, dim=0)
     imgs_to_plot_true = torch.cat(imgs_to_plot_true, dim=0)
-    for i in range(NUM_IMG_PLOT):
+    for i in range(cfg['plot']['num_img_to_plot']):
         axs[i, 0].imshow(imgs_to_plot[i])
-        axs[i, 0].set_title("Input Image")
+        axs[i, 0].set_title(f"Image: {i+1}")
         axs[i, 0].axis("off")
 
         rv = model._posterior_predictive_impl(
@@ -111,10 +110,9 @@ def main(cfg: dict) -> None:
         axs[i, 1].scatter(imgs_to_plot_true[i], 0, color="black", marker="*", s=50, zorder=100)
 
 
-    plt.savefig(os.path.join(LOG_DIR, "input_images.png"))
+    plt.savefig(os.path.join(log_dir, "input_images.png"))
 
     # compute MCMD
-    Y_hat = torch.cat(Y_hat, dim=0)
     Y_prime = torch.cat(Y_prime, dim=0)
 
     with torch.inference_mode():

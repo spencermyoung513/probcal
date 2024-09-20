@@ -4,11 +4,11 @@ exp:
 model:
   head: gaussian # {gaussian, poisson, nbimon}
   hidden_dim: 256
-  weights:
-  test_cfg: test/coco_gaussian_cfg.yaml
+  weights: weights/coco_people_gaussian/version_0/state_dict_best_mae.ckpt
+  test_cfg: configs/test/coco_gaussian_cfg.yaml
 data:
-  test_examples: 1000
-  n_draws: 5
+  test_examples: 100
+  n_samples: 5
   ood_perturbation: 0.0
   ood_type: blur
   module: ood_coco_people # {ood_coco_people, coco_people}
