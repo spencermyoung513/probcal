@@ -9,7 +9,7 @@ import logging
 
 from probcal.utils.experiment_utils import get_model, get_datamodule, from_yaml
 from probcal.utils.configs import TestConfig
-from probcal.enums import DatasetType, ImageDatasetName, HeadType
+from probcal.enums import DatasetType, ImageDatasetName
 
 from probcal.evaluation.metrics import compute_mcmd_torch
 from probcal.evaluation.kernels import polynomial_kernel, rbf_kernel
@@ -57,7 +57,10 @@ def main(cfg: dict) -> None:
             1,
             num_workers=0
         )
-    datamodule.setup(stage="test", perturb=cfg['data']['perturb'])
+    if cfg['data']['module'] == ImageDatasetName.COCO_PEOPLE.value:
+        datamodule.setup(stage="test")
+    else:
+        datamodule.setup(stage="test", perturb=cfg['data']['perturb'])
     test_loader = datamodule.test_dataloader()
 
     # instantiate model
