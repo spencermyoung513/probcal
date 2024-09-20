@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Optional
 from typing import Type
 from typing import Union
+import yaml
 
 import lightning as L
 import numpy as np
@@ -174,3 +175,7 @@ def get_chkp_callbacks(chkp_dir: Path, chkp_freq: int) -> list[ModelCheckpoint]:
         best_loss_checkpoint_callback,
         best_mae_checkpoint_callback,
     ]
+
+def from_yaml(fpath):
+    with open(fpath, "r") as f:
+        return yaml.safe_load(f)
