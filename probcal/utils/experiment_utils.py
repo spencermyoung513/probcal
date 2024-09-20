@@ -11,6 +11,7 @@ import torch
 from lightning.pytorch.callbacks import ModelCheckpoint
 
 from probcal.data_modules import COCOPeopleDataModule
+from probcal.data_modules import EVADataModule
 from probcal.data_modules import OodCocoPeopleDataModule
 from probcal.data_modules import TabularDataModule
 from probcal.enums import DatasetType
@@ -129,6 +130,13 @@ def get_datamodule(
         elif dataset_path_or_spec == ImageDatasetName.OOD_COCO_PEOPLE:
             return OodCocoPeopleDataModule(
                 root_dir=os.path.join(GLOBAL_DATA_DIR, "coco_people"),
+                batch_size=batch_size,
+                num_workers=num_workers,
+                persistent_workers=True if num_workers > 0 else False,
+            )
+        elif dataset_path_or_spec == ImageDatasetName.EVA:
+            return EVADataModule(
+                root_dir=os.path.join(GLOBAL_DATA_DIR, "eva"),
                 batch_size=batch_size,
                 num_workers=num_workers,
                 persistent_workers=True if num_workers > 0 else False,
