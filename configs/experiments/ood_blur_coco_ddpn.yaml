@@ -1,0 +1,19 @@
+exp:
+  name: ood_gaussian_coco_people_gaussian
+  log_dir: logs
+model:
+  weights:
+  test_cfg:
+data:
+  test_examples: 100
+  n_samples: 5
+  ood_perturbation: 0.0
+  ood_type: blur
+  module: ood_coco_people # {ood_coco_people, coco_people}
+hyperparams:
+  lmbda: 0.01
+  x_kernel_gamma: 5.0
+  y_kernel_gamma: 0.5
+plot:
+  gen_fig: True
+  num_img_to_plot: 4

@@ -5,6 +5,7 @@ from functools import partial
 import torch
 import open_clip
 import argparse
+import logging
 
 from probcal.utils.experiment_utils import get_model, get_datamodule, from_yaml
 from probcal.utils.configs import TestConfig
@@ -27,15 +28,26 @@ def mk_log_dir(log_dir, exp_name):
         """
 
     log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), log_dir, exp_name)
+    log_file = os.path.join(log_dir, 'log.txt')
     if not os.path.exists('logs'):
         os.makedirs('logs')
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)
-    return log_dir
+    return log_dir, log_file
 
 def main(cfg: dict) -> None:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    log_dir = mk_log_dir(cfg['exp']['log_dir'], cfg['exp']['name'])
+    log_dir, log_file = mk_log_dir(cfg['exp']['log_dir'], cfg['exp']['name'])
+    logging.basicConfig(
+        filename=log_file,
+        level=logging.INFO,
+        format='%(asctime)s - %(levelname)s - %(message)s',
+        filemode='w'
+    )
+    logging.info(f"Beginning experiment {cfg['exp']['name']}")
+    logging.info(f"Model Config: {cfg['model']}")
+    logging.info(f"Data Config: {cfg['data']}")
+    logging.info(f"Hyperparam Config: {cfg['hyperparams']}")
 
     # build dataset and data loader
     datamodule = get_datamodule(
@@ -132,6 +144,7 @@ def main(cfg: dict) -> None:
 
 
     print(mcmd_vals.mean())
+    logging.info(f"Final MCMD: {mcmd_vals.mean()}")
 
 
 if __name__ == "__main__":
