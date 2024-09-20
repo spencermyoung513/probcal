@@ -1,13 +1,13 @@
 exp:
-  name: ood_gaussian_coco_people_ddpn
+  name: ood_gaussian_coco_people_poisson
   log_dir: logs
 model:
-  weights: weights/coco_people_ddpn/version_0/state_dict_best_mae.ckpt
-  test_cfg: configs/test/coco_ddpn_cfg.yaml
+  weights: weights/coco_people_poisson/version_0/state_dict_best_mae.ckpt
+  test_cfg: configs/test/coco_poisson_cfg.yaml
 data:
-  test_examples: 100
+  test_examples: 10
   n_samples: 5
-  perturb: 0.0
+  perturb: 10.0
   module: ood_blur_coco_people # {ood_blur_coco_people, ood_mixup_coco_people, coco_people}
 hyperparams:
   lmbda: 0.01

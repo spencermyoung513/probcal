@@ -46,6 +46,7 @@ def main(cfg: dict) -> None:
     )
     logging.info(f"Beginning experiment {cfg['exp']['name']}")
     logging.info(f"Model Config: {cfg['model']}")
+    print(f"Getting models weights: {cfg['model']['weights']}")
     logging.info(f"Data Config: {cfg['data']}")
     logging.info(f"Hyperparam Config: {cfg['hyperparams']}")
 
