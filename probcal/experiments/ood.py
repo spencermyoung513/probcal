@@ -57,7 +57,7 @@ imgs_to_plot = []
 imgs_to_plot_preds = []
 imgs_to_plot_true = []
 
-for i, (x, y) in tqdm(enumerate(test_loader), total=len(n)):
+for i, (x, y) in tqdm(enumerate(test_loader), total=n):
     with torch.no_grad():
         img_features = embedder.encode_image(x, normalize=True)
         pred = model._predict_impl(x)
