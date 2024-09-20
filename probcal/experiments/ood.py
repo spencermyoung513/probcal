@@ -1,5 +1,5 @@
 import os.path
-
+from tqdm import tqdm
 import matplotlib.pyplot as plt
 from functools import partial
 import torch
@@ -26,7 +26,7 @@ if not os.path.exists(LOG_DIR):
 # build dataset and data loader
 datamodule = get_datamodule(
         DatasetType.IMAGE,
-        ImageDatasetName.OOD_COCO_PEOPLE,
+        ImageDatasetName.COCO_PEOPLE,
         1,
         num_workers=0
     )
@@ -48,7 +48,7 @@ embedder, _, transform = open_clip.create_model_and_transforms(
 )
 embedder.eval()
 
-n = 10
+n = 100
 m = 5
 X = torch.zeros((n, 512)) # image embeddings
 Y_true = torch.zeros((n, 1)) # true labels
@@ -57,8 +57,7 @@ imgs_to_plot = []
 imgs_to_plot_preds = []
 imgs_to_plot_true = []
 
-for i, (x, y) in enumerate(test_loader):
-    print(x.shape, y.shape)
+for i, (x, y) in tqdm(enumerate(test_loader), total=len(test_loader)):
     with torch.no_grad():
         img_features = embedder.encode_image(x, normalize=True)
         pred = model._predict_impl(x)

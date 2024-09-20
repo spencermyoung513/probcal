@@ -129,7 +129,7 @@ class OodCocoPeopleDataModule(COCOPeopleDataModule):
             raise ValueError(f"Invalid stage: {stage}. Only 'test' is supported for OOD class")
 
         resize = Resize((self.IMG_SIZE, self.IMG_SIZE))
-        blur = GaussianBlur(kernel_size=(5, 9), sigma=(10.0, 10.0))
+        blur = GaussianBlur(kernel_size=(5, 9), sigma=(1.0, 1.0))
         normalize = Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))
         to_tensor = ToTensor()
         inference_transforms = Compose([resize, blur, to_tensor, normalize])
