@@ -1,5 +1,5 @@
 from functools import partial
-from typing import Type
+from typing import Type, Optional
 
 import torch
 from torch import nn
@@ -36,12 +36,12 @@ class DoublePoissonNN(DiscreteRegressionNN):
         self,
         backbone_type: Type[Backbone],
         backbone_kwargs: dict,
-        optim_type: OptimizerType,
-        optim_kwargs: dict,
-        lr_scheduler_type: LRSchedulerType | None = None,
-        lr_scheduler_kwargs: dict | None = None,
-        beta_scheduler_type: BetaSchedulerType | None = None,
-        beta_scheduler_kwargs: dict | None = None,
+        optim_type: Optional[OptimizerType] = None,
+        optim_kwargs: Optional[dict] = None,
+        lr_scheduler_type: Optional[LRSchedulerType] = None,
+        lr_scheduler_kwargs: Optional[dict] = None,
+        beta_scheduler_type: BetaSchedulerType = None,
+        beta_scheduler_kwargs: Optional[dict] = None,
     ):
         """Instantiate a DoublePoissonNN.
 
