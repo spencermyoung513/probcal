@@ -1,3 +1,4 @@
 from .coco_people_datamodule import COCOPeopleDataModule
 from .coco_people_datamodule import OodCocoPeopleDataModule
+from .eva_datamodule import EVADataModule
 from .tabular_data_module import TabularDataModule
