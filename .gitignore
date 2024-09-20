@@ -8,4 +8,4 @@ chkp/
 ignore/
 */mnist
 */coco_people
-data/eva-dataset
+*/eva
