@@ -11,6 +11,7 @@ from torchvision.transforms import Normalize
 from torchvision.transforms import Resize
 from torchvision.transforms import ToTensor
 
+
 from probcal.custom_datasets import COCOPeopleDataset
 from probcal.custom_datasets import ImageDatasetWrapper
 
@@ -112,8 +113,7 @@ class COCOPeopleDataModule(L.LightningDataModule):
 
         return tensor
 
-
-class OodBlurCocoPeopleDataModule(COCOPeopleDataModule):
+class OodCocoPeopleDataModule(COCOPeopleDataModule):
     def __init__(
         self,
         root_dir: str | Path,
@@ -124,18 +124,20 @@ class OodBlurCocoPeopleDataModule(COCOPeopleDataModule):
     ):
         super().__init__(root_dir, batch_size, num_workers, persistent_workers, surface_image_path)
 
+    def _get_ood_transform(self, **kwargs):
+        # implemented by base class
+        pass
+
+
     def setup(self, stage, *args, **kwargs):
         if stage != "test":
             raise ValueError(f"Invalid stage: {stage}. Only 'test' is supported for OOD class")
 
         resize = Resize((self.IMG_SIZE, self.IMG_SIZE))
-        blur = GaussianBlur(
-            kernel_size=(5, 9),
-            sigma=(kwargs['perturb'], kwargs['perturb'])
-        )
+        ood_transform = self._get_ood_transform(**kwargs)
         normalize = Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))
         to_tensor = ToTensor()
-        inference_transforms = Compose([resize, blur, to_tensor, normalize])
+        inference_transforms = Compose([resize, ood_transform, to_tensor, normalize])
 
         full_dataset = COCOPeopleDataset(
             self.root_dir,
@@ -152,3 +154,45 @@ class OodBlurCocoPeopleDataModule(COCOPeopleDataModule):
             base_dataset=Subset(full_dataset, test_indices),
             transforms=inference_transforms,
         )
+
+
+class OodBlurCocoPeopleDataModule(OodCocoPeopleDataModule):
+    def __init__(
+        self,
+        root_dir: str | Path,
+        batch_size: int,
+        num_workers: int,
+        persistent_workers: bool,
+        surface_image_path: bool = False,
+    ):
+        super().__init__(root_dir, batch_size, num_workers, persistent_workers, surface_image_path)
+
+
+    def _get_ood_transform(self, **kwargs):
+        blur = GaussianBlur(
+            kernel_size=(5, 9),
+            sigma=(kwargs['perturb'], kwargs['perturb'])
+        )
+        return blur
+
+class OodMixupCocoPeopleDataModule(OodCocoPeopleDataModule):
+
+    def __init__(
+        self,
+        root_dir: str | Path,
+        batch_size: int,
+        num_workers: int,
+        persistent_workers: bool,
+        surface_image_path: bool = False,
+    ):
+        super().__init__(
+            root_dir,
+            batch_size,
+            num_workers,
+            persistent_workers,
+            surface_image_path
+        )
+
+    def _get_ood_transform(self, **kwargs):
+        mixup = Mixup(**kwargs)
+        return mixup
