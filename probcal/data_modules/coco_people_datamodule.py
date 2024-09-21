@@ -13,8 +13,8 @@ from torchvision.transforms import ToTensor
 
 
 from probcal.custom_datasets import COCOPeopleDataset
-from probcal.custom_datasets import ImageDatasetWrapper, MixupImageDatasetWrapper
-from probcal.transforms import MixUpTransform
+from probcal.custom_datasets import ImageDatasetWrapper, MixupImageDatasetWrapper, LabelNoiseImageDatasetWrapper
+from probcal.transforms import MixUpTransform, GaussianNoiseTransform
 
 
 class COCOPeopleDataModule(L.LightningDataModule):
@@ -203,4 +203,48 @@ class OodMixupCocoPeopleDataModule(COCOPeopleDataModule):
             base_dataset=Subset(full_dataset, test_indices),
             transforms=inference_transforms,
             mixup_transform=mixup_transform
+        )
+
+class OodLabelNoiseCocoPeopleDataModule(COCOPeopleDataModule):
+
+    def __init__(
+        self,
+        root_dir: str | Path,
+        batch_size: int,
+        num_workers: int,
+        persistent_workers: bool,
+        surface_image_path: bool = False,
+    ):
+        super().__init__(
+            root_dir,
+            batch_size,
+            num_workers,
+            persistent_workers,
+            surface_image_path
+        )
+
+    def setup(self, stage, *args, **kwargs):
+        if stage != "test":
+            raise ValueError(f"Invalid stage: {stage}. Only 'test' is supported for OOD class")
+
+        resize = Resize((self.IMG_SIZE, self.IMG_SIZE))
+        normalize = Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))
+        to_tensor = ToTensor()
+        inference_transforms = Compose([resize, to_tensor, normalize])
+        full_dataset = COCOPeopleDataset(
+            self.root_dir,
+            surface_image_path=self.surface_image_path,
+        )
+        num_instances = len(full_dataset)
+        generator = np.random.default_rng(seed=1998)
+        shuffled_indices = generator.permutation(np.arange(num_instances))
+        num_train = int(0.7 * num_instances)
+        num_val = int(0.1 * num_instances)
+        test_indices = shuffled_indices[num_train + num_val :]
+
+        noise_transform = GaussianNoiseTransform(**kwargs['perturb'])
+        self.test = LabelNoiseImageDatasetWrapper(
+            base_dataset=Subset(full_dataset, test_indices),
+            transforms=inference_transforms,
+            noise_transform=noise_transform
         )

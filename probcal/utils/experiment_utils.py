@@ -12,7 +12,7 @@ import torch
 from lightning.pytorch.callbacks import ModelCheckpoint
 
 from probcal.data_modules import COCOPeopleDataModule
-from probcal.data_modules import OodBlurCocoPeopleDataModule, OodMixupCocoPeopleDataModule
+from probcal.data_modules import OodBlurCocoPeopleDataModule, OodMixupCocoPeopleDataModule, OodLabelNoiseCocoPeopleDataModule
 from probcal.data_modules import TabularDataModule
 from probcal.enums import DatasetType
 from probcal.enums import HeadType
@@ -140,6 +140,13 @@ def get_datamodule(
                 batch_size=batch_size,
                 num_workers=num_workers,
                 persistent_workers=True if num_workers > 0 else False,
+            )
+        elif dataset_path_or_spec == ImageDatasetName.OOD_LABEL_NOISE_COCO_PEOPLE:
+            return OodLabelNoiseCocoPeopleDataModule(
+                root_dir=os.path.join(GLOBAL_DATA_DIR, "coco_people"),
+                batch_size=batch_size,
+                num_workers=num_workers,
+                persistent_workers=True if num_workers > 0 else False
             )
     elif dataset_type == DatasetType.TEXT:
         if dataset_path_or_spec == TextDatasetName.REVIEWS:

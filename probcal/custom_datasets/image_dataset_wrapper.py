@@ -38,3 +38,14 @@ class MixupImageDatasetWrapper(ImageDatasetWrapper):
         y = self.mixup_transform(y1, y2)
 
         return x, y
+
+class LabelNoiseImageDatasetWrapper(ImageDatasetWrapper):
+
+    def __init__(self, base_dataset, transforms, noise_transform):
+        super().__init__(base_dataset, transforms)
+        self.noise_transform = noise_transform
+
+    def __getitem__(self, idx):
+        x, y = self.base[idx]
+        y = self.noise_transform(y)
+        return self.transforms(x), y
