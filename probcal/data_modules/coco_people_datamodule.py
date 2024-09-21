@@ -12,8 +12,9 @@ from torchvision.transforms import Resize
 from torchvision.transforms import ToTensor
 
 
-from probcal.custom_datasets import COCOPeopleDataset, MixUpCOCOPeopleDataset
-from probcal.custom_datasets import ImageDatasetWrapper
+from probcal.custom_datasets import COCOPeopleDataset
+from probcal.custom_datasets import ImageDatasetWrapper, MixupImageDatasetWrapper
+from probcal.transforms import MixUpTransform
 
 
 class COCOPeopleDataModule(L.LightningDataModule):
@@ -186,8 +187,8 @@ class OodMixupCocoPeopleDataModule(COCOPeopleDataModule):
         normalize = Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))
         to_tensor = ToTensor()
         inference_transforms = Compose([resize, to_tensor, normalize])
-
-        full_dataset = MixUpCOCOPeopleDataset(
+        mixup_transform = MixUpTransform(kwargs['perturb'])
+        full_dataset = COCOPeopleDataset(
             self.root_dir,
             surface_image_path=self.surface_image_path,
         )
@@ -198,7 +199,8 @@ class OodMixupCocoPeopleDataModule(COCOPeopleDataModule):
         num_val = int(0.1 * num_instances)
         test_indices = shuffled_indices[num_train + num_val :]
 
-        self.test = ImageDatasetWrapper(
+        self.test = MixupImageDatasetWrapper(
             base_dataset=Subset(full_dataset, test_indices),
             transforms=inference_transforms,
+            mixup_transform=mixup_transform
         )
