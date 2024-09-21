@@ -3,15 +3,9 @@ import matplotlib.pyplot as plt
 from probcal.enums import DatasetType, ImageDatasetName
 from probcal.utils.experiment_utils import get_model, get_datamodule
 
+from probcal.transforms import MixUpTransform
+
 L = 0.25
-def mixup_data(x1, x2, lam=0.2):
-    '''Returns mixed inputs, pairs of targets, and lambda'''
-
-
-
-    mixed_x = lam * x1 + (1 - lam) * x2
-    return mixed_x
-
 
 datamodule = get_datamodule(
             DatasetType.IMAGE,
@@ -30,8 +24,11 @@ fig, axs = plt.subplots(4, 1, figsize=(10, 8), sharey="col")
 
 x1 = datamodule.denormalize(x1.permute(1, 2, 0))
 x2 = datamodule.denormalize(x2.permute(1, 2, 0))
-x3 = mixup_data(x1, x2, L)
-x4 = mixup_data(x2, x1, L)
+
+mixup_transform = MixUpTransform(L)
+
+x3 = mixup_transform(x1, x2)
+x4 = mixup_transform(x2, x1)
 
 axs[0].imshow(x1)
 axs[0].set_title(f"Image: {1}")

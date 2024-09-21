@@ -114,3 +114,38 @@ class COCOPeopleDataset(Dataset):
 
     def __len__(self):
         return len(self.instances)
+
+
+class MixUpCOCOPeopleDataset(COCOPeopleDataset):
+
+    def __init__(
+        self,
+        root_dir: str | Path,
+        limit: int | None = None,
+        transform: Callable[[PILImage], PILImage] | None = None,
+        target_transform: Callable[[int], int] | None = None,
+        surface_image_path: bool = False,
+    ):
+        super().__init__(
+            root_dir=root_dir,
+            limit=limit,
+            transform=transform,
+            target_transform=target_transform,
+            surface_image_path=surface_image_path,
+        )
+
+    def __getitem__(self, idx: int) -> tuple[PILImage, int] | tuple[PILImage, tuple[str, int]]:
+        row = self.instances.iloc[idx]
+        image_path = row["image_path"]
+        image = Image.open(image_path)
+        count = row["count"]
+        if self.transform is not None:
+            image = self.transform(image)
+        if self.target_transform is not None:
+            count = self.target_transform(count)
+        if self.surface_image_path:
+            return image, (image_path, count)
+        else:
+            return image, count
+
+

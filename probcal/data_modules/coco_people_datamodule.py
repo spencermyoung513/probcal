@@ -12,7 +12,7 @@ from torchvision.transforms import Resize
 from torchvision.transforms import ToTensor
 
 
-from probcal.custom_datasets import COCOPeopleDataset
+from probcal.custom_datasets import COCOPeopleDataset, MixUpCOCOPeopleDataset
 from probcal.custom_datasets import ImageDatasetWrapper
 
 
@@ -113,7 +113,7 @@ class COCOPeopleDataModule(L.LightningDataModule):
 
         return tensor
 
-class OodCocoPeopleDataModule(COCOPeopleDataModule):
+class OodBlurCocoPeopleDataModule(COCOPeopleDataModule):
     def __init__(
         self,
         root_dir: str | Path,
@@ -134,7 +134,10 @@ class OodCocoPeopleDataModule(COCOPeopleDataModule):
             raise ValueError(f"Invalid stage: {stage}. Only 'test' is supported for OOD class")
 
         resize = Resize((self.IMG_SIZE, self.IMG_SIZE))
-        ood_transform = self._get_ood_transform(**kwargs)
+        ood_transform = GaussianBlur(
+            kernel_size=(5, 9),
+            sigma=(kwargs['perturb'], kwargs['perturb'])
+        )
         normalize = Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))
         to_tensor = ToTensor()
         inference_transforms = Compose([resize, ood_transform, to_tensor, normalize])
@@ -156,26 +159,8 @@ class OodCocoPeopleDataModule(COCOPeopleDataModule):
         )
 
 
-class OodBlurCocoPeopleDataModule(OodCocoPeopleDataModule):
-    def __init__(
-        self,
-        root_dir: str | Path,
-        batch_size: int,
-        num_workers: int,
-        persistent_workers: bool,
-        surface_image_path: bool = False,
-    ):
-        super().__init__(root_dir, batch_size, num_workers, persistent_workers, surface_image_path)
 
-
-    def _get_ood_transform(self, **kwargs):
-        blur = GaussianBlur(
-            kernel_size=(5, 9),
-            sigma=(kwargs['perturb'], kwargs['perturb'])
-        )
-        return blur
-
-class OodMixupCocoPeopleDataModule(OodCocoPeopleDataModule):
+class OodMixupCocoPeopleDataModule(COCOPeopleDataModule):
 
     def __init__(
         self,
@@ -193,6 +178,27 @@ class OodMixupCocoPeopleDataModule(OodCocoPeopleDataModule):
             surface_image_path
         )
 
-    def _get_ood_transform(self, **kwargs):
-        mixup = Mixup(**kwargs)
-        return mixup
+    def setup(self, stage, *args, **kwargs):
+        if stage != "test":
+            raise ValueError(f"Invalid stage: {stage}. Only 'test' is supported for OOD class")
+
+        resize = Resize((self.IMG_SIZE, self.IMG_SIZE))
+        normalize = Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))
+        to_tensor = ToTensor()
+        inference_transforms = Compose([resize, to_tensor, normalize])
+
+        full_dataset = MixUpCOCOPeopleDataset(
+            self.root_dir,
+            surface_image_path=self.surface_image_path,
+        )
+        num_instances = len(full_dataset)
+        generator = np.random.default_rng(seed=1998)
+        shuffled_indices = generator.permutation(np.arange(num_instances))
+        num_train = int(0.7 * num_instances)
+        num_val = int(0.1 * num_instances)
+        test_indices = shuffled_indices[num_train + num_val :]
+
+        self.test = ImageDatasetWrapper(
+            base_dataset=Subset(full_dataset, test_indices),
+            transforms=inference_transforms,
+        )

@@ -40,6 +40,7 @@ class ImageDatasetName(Enum):
     MNIST = "mnist"
     COCO_PEOPLE = "coco_people"
     OOD_BLUR_COCO_PEOPLE = "ood_blur_coco_people"
+    OOD_MIXUP_COCO_PEOPLE = "ood_mixup_coco_people"
 
 
 class TextDatasetName(Enum):

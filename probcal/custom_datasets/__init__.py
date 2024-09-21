@@ -1,2 +1,2 @@
-from .coco_people_dataset import COCOPeopleDataset
+from .coco_people_dataset import COCOPeopleDataset, MixUpCOCOPeopleDataset
 from .image_dataset_wrapper import ImageDatasetWrapper

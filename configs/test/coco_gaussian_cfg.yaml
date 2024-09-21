@@ -1,3 +1,4 @@
+experiment_name: coco_gaussian
 random_seed: 1998
 head_type: gaussian
 hidden_dim: 256
