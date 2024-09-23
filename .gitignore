@@ -9,3 +9,6 @@ ignore/
 */mnist
 */coco_people
 */eva
+data/
+
+!data/discrete_sine_wave
