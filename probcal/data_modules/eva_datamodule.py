@@ -42,7 +42,7 @@ class EVADataModule(L.LightningDataModule):
     def setup(self, stage):
         resize = Resize((self.IMG_SIZE, self.IMG_SIZE))
         augment = AutoAugment()
-        normalize = Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))
+        normalize = Normalize(mean=self.IMAGE_NET_MEAN, std=self.IMAGE_NET_STD)
         to_tensor = ToTensor()
         train_transforms = Compose([resize, augment, to_tensor, normalize])
         inference_transforms = Compose([resize, to_tensor, normalize])
