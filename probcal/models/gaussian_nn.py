@@ -1,3 +1,4 @@
+from typing import Optional
 from typing import Type
 
 import torch
@@ -30,10 +31,10 @@ class GaussianNN(DiscreteRegressionNN):
         self,
         backbone_type: Type[Backbone],
         backbone_kwargs: dict,
-        optim_type: OptimizerType,
-        optim_kwargs: dict,
-        lr_scheduler_type: LRSchedulerType | None = None,
-        lr_scheduler_kwargs: dict | None = None,
+        optim_type: Optional[OptimizerType] = None,
+        optim_kwargs: Optional[dict] = None,
+        lr_scheduler_type: Optional[LRSchedulerType] = None,
+        lr_scheduler_kwargs: Optional[dict] = None,
     ):
         """Instantiate a GaussianNN.
 
@@ -101,7 +102,36 @@ class GaussianNN(DiscreteRegressionNN):
 
         return y_hat
 
-    def _point_prediction(self, y_hat: torch.Tensor, training: bool) -> torch.Tensor:
+    def _sample_impl(
+        self, y_hat: torch.Tensor, training: bool = False, num_samples: int = 1
+    ) -> torch.Tensor:
+        """Sample from this network's posterior predictive distributions for a batch of data (as specified by y_hat).
+
+        Args:
+            y_hat (torch.Tensor): Output tensor from a regression network, with shape (N, ...).
+            training (bool, optional): Boolean indicator specifying if `y_hat` is a training output or not. This particularly matters when outputs are in log space during training, for example. Defaults to False.
+            num_samples (int, optional): Number of samples to take from each posterior predictive. Defaults to 1.
+
+        Returns:
+            torch.Tensor: Batched sample tensor, with shape (N, num_samples).
+        """
+        dist = self.posterior_predictive(y_hat, training)
+        sample = dist.sample((num_samples,)).view(num_samples, -1).T
+        return sample
+
+    def _posterior_predictive_impl(
+        self, y_hat: torch.Tensor, training: bool = False
+    ) -> torch.distributions.Normal:
+        if training:
+            mu, logvar = torch.split(y_hat, [1, 1], dim=-1)
+            var = logvar.exp()
+        else:
+            mu, var = torch.split(y_hat, [1, 1], dim=-1)
+
+        dist = torch.distributions.Normal(loc=mu.squeeze(), scale=var.sqrt().squeeze())
+        return dist
+
+    def _point_prediction_impl(self, y_hat: torch.Tensor, training: bool) -> torch.Tensor:
         mu, _ = torch.split(y_hat, [1, 1], dim=-1)
         return mu.round()
 

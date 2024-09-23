@@ -1,5 +1,14 @@
+.DS_store
+*.log
+.idea
 __pycache__
 logs
 .vscode
 chkp/
 ignore/
+data
+*/mnist
+*/coco_people
+data/
+
+!data/discrete_sine_wave
