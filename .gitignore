@@ -6,7 +6,6 @@ logs
 .vscode
 chkp/
 ignore/
-data
 */mnist
 */coco_people
 data/
