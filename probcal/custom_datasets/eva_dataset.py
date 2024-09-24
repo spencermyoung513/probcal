@@ -140,8 +140,9 @@ class EVADataset(Dataset):
 
         print("Extraction complete.")
 
-        os.remove(full_zip)
-        print(f"Removed concatenated zip file: {full_zip}")
+        if os.path.isfile(full_zip):
+            os.remove(full_zip)
+            print(f"Removed concatenated zip file: {full_zip}")
 
         os.chdir(original_dir)
 
