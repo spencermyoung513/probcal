@@ -1,0 +1,10 @@
+experiment_name: name_of_experiment_here
+random_seed: 1998
+head_type: gaussian
+dataset:
+  type: image
+  spec: eva
+batch_size: 4
+accelerator: gpu
+log_dir: eva/eval/logs
+model_ckpt_path: chkp/eva_gaussian/Gaussian_Model/best_loss.ckpt
