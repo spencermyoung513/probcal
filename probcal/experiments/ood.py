@@ -35,6 +35,15 @@ def mk_log_dir(log_dir, exp_name):
         os.makedirs(log_dir)
     return log_dir, log_file
 
+def get_y_kernel(Y_true: torch.Tensor, gamma: str | float):
+
+    if gamma == 'auto':
+        return partial(rbf_kernel, gamma=1 / (2 * Y_true.float().var()))
+    elif isinstance(gamma, float):
+        return partial(rbf_kernel, gamma=gamma)
+    else:
+        raise ValueError(f"Invalid gamma value: {gamma}")
+
 def main(cfg: dict) -> None:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     log_dir, log_file = mk_log_dir(cfg['exp']['log_dir'], cfg['exp']['name'])
@@ -142,8 +151,8 @@ def main(cfg: dict) -> None:
             x_prime=x_prime,
             y_prime=Y_prime.float(),
             x_kernel=polynomial_kernel,
-            y_kernel=partial(rbf_kernel, gamma=1 / (2 * Y_true.float().var())),
-            lmbda=0.1,
+            y_kernel=get_y_kernel(Y_true, cfg['hyperparams']['y_kernel_gamma']),
+            lmbda=cfg['hyperparams']['lmbda'],
         )
 
 
