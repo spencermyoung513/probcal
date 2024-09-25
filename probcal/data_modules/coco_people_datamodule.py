@@ -125,10 +125,6 @@ class OodBlurCocoPeopleDataModule(COCOPeopleDataModule):
     ):
         super().__init__(root_dir, batch_size, num_workers, persistent_workers, surface_image_path)
 
-    def _get_ood_transform(self, **kwargs):
-        # implemented by base class
-        pass
-
 
     def setup(self, stage, *args, **kwargs):
         if stage != "test":
