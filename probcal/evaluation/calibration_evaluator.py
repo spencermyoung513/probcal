@@ -14,6 +14,7 @@ import open_clip
 import torch
 from matplotlib import pyplot as plt
 from open_clip import CLIP
+from open_clip.tokenizer import HFTokenizer
 from sklearn.manifold import TSNE
 from torch.utils.data import DataLoader
 from torchvision.transforms import Compose
@@ -73,42 +74,64 @@ class CalibrationEvaluatorSettings:
     ece_bins: int = 50
     ece_weights: Literal["uniform", "frequency"] = "frequency"
     ece_alpha: float = 1.0
+    verbose: bool = True
 
 
 class CalibrationEvaluator:
     """Helper object to evaluate the calibration of a neural net."""
 
-    def __init__(self, settings: CalibrationEvaluatorSettings):
+    def __init__(self, settings: CalibrationEvaluatorSettings, data_module: L.LightningDataModule):
+        """Create a `CalibrationEvaluator`.
+
+        Args:
+            settings (CalibrationEvaluatorSettings): The hyperparameters for the calibration evaluator.
+            data_module (L.LightningDataModule): The data module with the test data that this evaluator will use.
+        """
         self.settings = settings
+        self.data_module = data_module
+        self.data_module.prepare_data()
+        self.data_module.setup("test")
+        self.test_loader = self.data_module.test_dataloader()
+
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self._clip_model = None
-        self._image_preprocess = None
-        self._tokenizer = None
+        self._clip_model: CLIP | None = None
+        self._image_preprocess: Compose | None = None
+        self._tokenizer: HFTokenizer | None = None
+
+        # We cache the feature embeddings to avoid re-invoking CLIP when evaluating several models in sequence.
+        self._input_embeddings: torch.Tensor | None = None
+
+        # The TSNE projection of the input embeddings to 2d space should only happen once, so we cache it.
+        self._input_grid_2d: np.ndarray | None = None
 
     @torch.inference_mode()
-    def __call__(
-        self, model: DiscreteRegressionNN, data_module: L.LightningDataModule
-    ) -> CalibrationResults:
-        data_module.prepare_data()
-        data_module.setup("test")
-        test_dataloader = data_module.test_dataloader()
-
-        print("Computing MCMD...")
+    def __call__(self, model: DiscreteRegressionNN) -> CalibrationResults:
+        self._print_if_verbose("Computing MCMD...")
         mcmd_vals, grid, targets = self.compute_mcmd(
-            model, test_dataloader, return_grid=True, return_targets=True
+            model, self.test_loader, return_grid=True, return_targets=True
         )
 
-        if self.settings.dataset_type == DatasetType.TABULAR:
-            grid_2d = np.array([])
-        else:
-            print("Running TSNE to project grid to 2d...")
-            grid_2d = TSNE().fit_transform(grid.detach().cpu().numpy())
+        self._print_if_verbose("Computing ECE...")
+        ece = self.compute_ece(model, self.test_loader)
 
-        print("Computing ECE...")
-        ece = self.compute_ece(model, test_dataloader)
+        if self._input_grid_2d is None:
+            self._print_if_verbose("Creating 2D input grid for visualization...")
+            if grid.shape[-1] == 1:
+                self._print_if_verbose(
+                    "Input grid is 1-dimensional. Cannot project to 2d. Saving empty array..."
+                )
+                self._input_grid_2d = np.array([])
+            elif grid.shape[-1] == 2:
+                self._print_if_verbose(
+                    "Input grid is 2-dimensional. No need to run TSNE. Saving original grid..."
+                )
+                self._input_grid_2d = grid
+            else:
+                self._print_if_verbose("Running TSNE to project grid to 2d...")
+                self._input_grid_2d = TSNE().fit_transform(grid.detach().cpu().numpy())
 
         return CalibrationResults(
-            input_grid_2d=grid_2d,
+            input_grid_2d=self._input_grid_2d,
             regression_targets=targets.detach().cpu().numpy(),
             mcmd_vals=mcmd_vals.detach().cpu().numpy(),
             mean_mcmd=mcmd_vals.mean().item(),
@@ -230,28 +253,43 @@ class CalibrationEvaluator:
     def _get_samples_for_mcmd(
         self, model: DiscreteRegressionNN, data_loader: DataLoader
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-        x = []
+        computing_x = self._input_embeddings is None
+        x = [] if computing_x else self._input_embeddings
         y = []
         x_prime = []
         y_prime = []
+        position = 0
         for inputs, targets in tqdm(data_loader, desc="Sampling from posteriors for MCMD..."):
-            if self.settings.dataset_type == DatasetType.TABULAR:
-                x.append(inputs)
-            elif self.settings.dataset_type == DatasetType.IMAGE:
-                x.append(self.clip_model.encode_image(inputs.to(self.device), normalize=True))
-            elif self.settings.dataset_type == DatasetType.TEXT:
-                x.append(self.clip_model.encode_text(inputs.to(self.device), normalize=True))
+            inputs = inputs.to(self.device)
+            if computing_x:
+                if self.settings.dataset_type == DatasetType.TABULAR:
+                    embedding = inputs
+                elif self.settings.dataset_type == DatasetType.IMAGE:
+                    embedding = self.clip_model.encode_image(
+                        inputs,
+                        normalize=True,
+                    )
+                elif self.settings.dataset_type == DatasetType.TEXT:
+                    embedding = self.clip_model.encode_text(
+                        inputs,
+                        normalize=True,
+                    )
+                x.append(embedding)
+            else:
+                embedding = self._input_embeddings[position : position + len(inputs)]
+            position += len(inputs)
+
             y.append(targets.to(model.device))
-            inputs = inputs.to(model.device)
             y_hat = model.predict(inputs)
             x_prime.append(
-                torch.repeat_interleave(x[-1], repeats=self.settings.mcmd_num_samples, dim=0)
+                torch.repeat_interleave(embedding, repeats=self.settings.mcmd_num_samples, dim=0)
             )
             y_prime.append(
                 model.sample(y_hat, num_samples=self.settings.mcmd_num_samples).flatten()
             )
-
-        x = torch.cat(x, dim=0)
+        if computing_x:
+            x = torch.cat(x, dim=0)
+            self._input_embeddings = x
         y = torch.cat(y).float()
         x_prime = torch.cat(x_prime, dim=0)
         y_prime = torch.cat(y_prime).float()
@@ -270,6 +308,10 @@ class CalibrationEvaluator:
             y_kernel = partial(laplacian_kernel, gamma=(1 / (2 * y.float().var())))
 
         return x_kernel, y_kernel
+
+    def _print_if_verbose(self, msg: str):
+        if self.settings.verbose:
+            print(msg)
 
     @property
     def clip_model(self) -> CLIP:

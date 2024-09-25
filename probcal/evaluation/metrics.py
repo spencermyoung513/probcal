@@ -144,27 +144,27 @@ def compute_mcmd_numpy(
     n = len(x)
     m = len(x_prime)
 
+    # Compute gram matrices.
     K_X = x_kernel(x, x)
     K_X_prime = x_kernel(x_prime, x_prime)
-
-    W_X = cho_solve(cho_factor(K_X + n * lmbda * np.eye(n)), np.eye(n))
-    W_X_prime = cho_solve(cho_factor(K_X_prime + m * lmbda * np.eye(m)), np.eye(m))
-
+    K_X_G = x_kernel(x, grid)
+    K_X_prime_G = x_kernel(x_prime, grid)
     K_Y = y_kernel(y, y)
     K_Y_prime = y_kernel(y_prime, y_prime)
     K_Y_Y_prime = y_kernel(y, y_prime)
 
-    k_X = x_kernel(x, grid)
-    k_X_prime = x_kernel(x_prime, grid)
+    # Get necessary matrix inverses.
+    W_X = cho_solve(cho_factor(K_X + n * lmbda * np.eye(n)), np.eye(n))
+    W_X_prime = cho_solve(cho_factor(K_X_prime + m * lmbda * np.eye(m)), np.eye(m))
 
-    A_1 = W_X @ K_Y @ W_X.T
-    A_2 = W_X @ K_Y_Y_prime @ W_X_prime.T
-    A_3 = W_X_prime @ K_Y_prime @ W_X_prime.T
+    k_X_T_W_X = K_X_G.T @ W_X
+    W_X_T_k_X = W_X.T @ K_X_G
+    W_X_prime_T_k_X_prime = W_X_prime.T @ K_X_prime_G
+    k_X_prime_T_W_X_prime = K_X_prime_G.T @ W_X_prime
 
-    path = ["einsum_path", (0, 1), (0, 1)]
-    first_term = np.einsum("ij,jk,ki->i", k_X.T, A_1, k_X, optimize=path)
-    second_term = 2 * np.einsum("ij,jk,ki->i", k_X.T, A_2, k_X_prime, optimize=path)
-    third_term = np.einsum("ij,jk,ki->i", k_X_prime.T, A_3, k_X_prime, optimize=path)
+    first_term = np.diag(k_X_T_W_X @ K_Y @ W_X_T_k_X)
+    second_term = 2 * np.diag(k_X_T_W_X @ K_Y_Y_prime @ W_X_prime_T_k_X_prime)
+    third_term = np.diag(k_X_prime_T_W_X_prime @ K_Y_prime @ W_X_prime_T_k_X_prime)
 
     return first_term - second_term + third_term
 
@@ -213,27 +213,28 @@ def compute_mcmd_torch(
     I_n = torch.eye(n, device=device)
     I_m = torch.eye(m, device=device)
 
+    # Compute gram matrices.
     K_X = x_kernel(x, x)
     K_X_prime = x_kernel(x_prime, x_prime)
+    K_X_G = x_kernel(x, grid)
+    K_X_prime_G = x_kernel(x_prime, grid)
+    K_Y = y_kernel(y, y)
+    K_Y_prime = y_kernel(y_prime, y_prime)
+    K_Y_Y_prime = y_kernel(y, y_prime)
 
+    # Get necessary matrix inverses.
     L = torch.linalg.cholesky(K_X + n * lmbda * I_n)
     L_prime = torch.linalg.cholesky(K_X_prime + m * lmbda * I_m)
     W_X = torch.cholesky_inverse(L)
     W_X_prime = torch.cholesky_inverse(L_prime)
 
-    K_Y = y_kernel(y, y)
-    K_Y_prime = y_kernel(y_prime, y_prime)
-    K_Y_Y_prime = y_kernel(y, y_prime)
+    K_X_G_T_W_X = K_X_G.T @ W_X
+    W_X_T_K_X_G = K_X_G_T_W_X.T
+    K_X_prime_G_T_W_X_prime = K_X_prime_G.T @ W_X_prime
+    W_X_prime_T_K_X_prime_G = K_X_prime_G_T_W_X_prime.T
 
-    k_X = x_kernel(x, grid)
-    k_X_prime = x_kernel(x_prime, grid)
-
-    A_1 = W_X @ K_Y @ W_X.T
-    A_2 = W_X @ K_Y_Y_prime @ W_X_prime.T
-    A_3 = W_X_prime @ K_Y_prime @ W_X_prime.T
-
-    first_term = torch.einsum("ij,jk,ki->i", k_X.T, A_1, k_X)
-    second_term = 2 * torch.einsum("ij,jk,ki->i", k_X.T, A_2, k_X_prime)
-    third_term = torch.einsum("ij,jk,ki->i", k_X_prime.T, A_3, k_X_prime)
+    first_term = (K_X_G_T_W_X @ K_Y @ W_X_T_K_X_G).diag()
+    second_term = 2 * (K_X_G_T_W_X @ K_Y_Y_prime @ W_X_prime_T_K_X_prime_G).diag()
+    third_term = (K_X_prime_G_T_W_X_prime @ K_Y_prime @ W_X_prime_T_K_X_prime_G).diag()
 
     return first_term - second_term + third_term
