@@ -1,5 +1,4 @@
 import torch
-
 from torch.utils.data import Dataset
 
 
@@ -20,7 +19,6 @@ class ImageDatasetWrapper(Dataset):
 
 
 class MixupImageDatasetWrapper(ImageDatasetWrapper):
-
     def __init__(self, base_dataset, transforms, mixup_transform):
         super().__init__(base_dataset, transforms)
         self.mixup_transform = mixup_transform
@@ -39,8 +37,8 @@ class MixupImageDatasetWrapper(ImageDatasetWrapper):
 
         return x, y
 
-class LabelNoiseImageDatasetWrapper(ImageDatasetWrapper):
 
+class LabelNoiseImageDatasetWrapper(ImageDatasetWrapper):
     def __init__(self, base_dataset, transforms, noise_transform):
         super().__init__(base_dataset, transforms)
         self.noise_transform = noise_transform

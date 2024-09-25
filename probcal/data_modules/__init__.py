@@ -1,3 +1,5 @@
 from .coco_people_datamodule import COCOPeopleDataModule
-from .coco_people_datamodule import OodBlurCocoPeopleDataModule, OodMixupCocoPeopleDataModule, OodLabelNoiseCocoPeopleDataModule
+from .coco_people_datamodule import OodBlurCocoPeopleDataModule
+from .coco_people_datamodule import OodLabelNoiseCocoPeopleDataModule
+from .coco_people_datamodule import OodMixupCocoPeopleDataModule
 from .tabular_data_module import TabularDataModule

@@ -4,15 +4,17 @@ from pathlib import Path
 from typing import Optional
 from typing import Type
 from typing import Union
-import yaml
 
 import lightning as L
 import numpy as np
 import torch
+import yaml
 from lightning.pytorch.callbacks import ModelCheckpoint
 
 from probcal.data_modules import COCOPeopleDataModule
-from probcal.data_modules import OodBlurCocoPeopleDataModule, OodMixupCocoPeopleDataModule, OodLabelNoiseCocoPeopleDataModule
+from probcal.data_modules import OodBlurCocoPeopleDataModule
+from probcal.data_modules import OodLabelNoiseCocoPeopleDataModule
+from probcal.data_modules import OodMixupCocoPeopleDataModule
 from probcal.data_modules import TabularDataModule
 from probcal.enums import DatasetType
 from probcal.enums import HeadType
@@ -146,7 +148,7 @@ def get_datamodule(
                 root_dir=os.path.join(GLOBAL_DATA_DIR, "coco_people"),
                 batch_size=batch_size,
                 num_workers=num_workers,
-                persistent_workers=True if num_workers > 0 else False
+                persistent_workers=True if num_workers > 0 else False,
             )
     elif dataset_type == DatasetType.TEXT:
         if dataset_path_or_spec == TextDatasetName.REVIEWS:
@@ -189,6 +191,7 @@ def get_chkp_callbacks(chkp_dir: Path, chkp_freq: int) -> list[ModelCheckpoint]:
         best_loss_checkpoint_callback,
         best_mae_checkpoint_callback,
     ]
+
 
 def from_yaml(fpath):
     with open(fpath, "r") as f:

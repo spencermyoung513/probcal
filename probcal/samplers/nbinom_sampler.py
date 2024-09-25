@@ -1,11 +1,11 @@
+import numpy as np
 import scipy
 import torch
-import numpy as np
 
 from probcal.samplers.base_sampler import BaseSampler
 
-class NegBinomSampler(BaseSampler):
 
+class NegBinomSampler(BaseSampler):
     def __init__(self, yhat: torch.Tensor):
         super(NegBinomSampler, self).__init__(yhat)
 
@@ -15,13 +15,12 @@ class NegBinomSampler(BaseSampler):
         alpha = alpha.flatten().detach().numpy()
 
         eps = 1e-6
-        var = mu + alpha * mu ** 2
-        n = mu ** 2 / np.maximum(var - mu, eps)
+        var = mu + alpha * mu**2
+        n = mu**2 / np.maximum(var - mu, eps)
         p = mu / np.maximum(var, eps)
         dist = scipy.stats.nbinom(n=n, p=p)
 
         return dist
-
 
     def get_nll(self, samples):
         nll = np.mean(-self.dist.logpmf(samples))

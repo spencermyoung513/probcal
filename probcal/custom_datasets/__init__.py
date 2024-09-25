@@ -1,2 +1,4 @@
 from .coco_people_dataset import COCOPeopleDataset
-from .image_dataset_wrapper import ImageDatasetWrapper, MixupImageDatasetWrapper, LabelNoiseImageDatasetWrapper
+from .image_dataset_wrapper import ImageDatasetWrapper
+from .image_dataset_wrapper import LabelNoiseImageDatasetWrapper
+from .image_dataset_wrapper import MixupImageDatasetWrapper

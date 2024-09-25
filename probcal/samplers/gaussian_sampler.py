@@ -3,8 +3,8 @@ import torch
 
 from probcal.samplers.base_sampler import BaseSampler
 
-class GaussianSampler(BaseSampler):
 
+class GaussianSampler(BaseSampler):
     def __init__(self, yhat: torch.Tensor):
         super(GaussianSampler, self).__init__(yhat)
 

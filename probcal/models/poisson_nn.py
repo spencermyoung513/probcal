@@ -1,5 +1,6 @@
 from functools import partial
-from typing import Type, Optional
+from typing import Optional
+from typing import Type
 
 import torch
 from torch import nn
