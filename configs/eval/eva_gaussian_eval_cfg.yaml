@@ -6,5 +6,5 @@ dataset:
   spec: eva
 batch_size: 4
 accelerator: cpu
-log_dir: eva/eval/logs
+log_dir: logs
 model_ckpt_path: chkp/eva_gaussian/version_0/best_mae.ckpt
