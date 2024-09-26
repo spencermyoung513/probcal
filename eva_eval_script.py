@@ -5,6 +5,8 @@ from probcal.enums import DatasetType
 from probcal.evaluation import CalibrationEvaluator
 from probcal.evaluation import CalibrationEvaluatorSettings
 from probcal.models import GaussianNN
+from probcal.utils.configs import EvaluationConfig
+from probcal.utils.experiment_utils import get_model
 
 
 # You can customize the settings for the MCMD / ECE computation.
@@ -30,6 +32,11 @@ data_module = EVADataModule(
 for chpk in model_chpks:
     print(f"plotting model from chpk:{chpk}")
     model = GaussianNN.load_from_checkpoint(f"chkp/eva_gaussian/version_0/{chpk}")
+    # instantiate model
+    model_cfg = EvaluationConfig.from_yaml("configs/eval/eva_gaussian_eval_cfg.yaml")
+    model, intializer = get_model(model_cfg, return_initializer=True)
+
+    model = intializer.load_from_checkpoint(f"chkp/eva_gaussian/version_0/{chpk}")
 
     if not os.path.isfile(
         f"results/calibration_results/eva_gaussian_{chpk.split('.')[0]}_calibration_results.npz"
@@ -39,3 +46,4 @@ for chpk in model_chpks:
 
         fig = evaluator.plot_mcmd_results(calibration_results)
         fig.savefig(f"results/plots/{chpk.split('.')[0]}.png")
+        print(f"ECE val for chkp [{chpk}]: {calibration_results.ece}")
