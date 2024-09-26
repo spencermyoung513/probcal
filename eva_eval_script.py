@@ -21,7 +21,7 @@ settings = CalibrationEvaluatorSettings(
 )
 evaluator = CalibrationEvaluator(settings)
 
-model_chpks = ["best_loss.ckpt", "best_mae.ckpt", "last.ckpt", "epoch=149.ckpt", "epoch=99.ckpt"]
+model_chpks = ["best_loss.ckpt", "best_mae.ckpt", "last.ckpt"]
 
 # You can use any lightning data module (preferably, the one with the dataset the model was trained on).
 data_module = EVADataModule(
