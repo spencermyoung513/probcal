@@ -68,7 +68,7 @@ class CalibrationEvaluatorSettings:
     dataset_type: DatasetType = DatasetType.IMAGE
     mcmd_input_kernel: Literal["polynomial"] | KernelFunction = "polynomial"
     mcmd_output_kernel: Literal["rbf", "laplacian"] | KernelFunction = "rbf"
-    mcmd_lmbda: float = 0.1
+    mcmd_lambda: float = 0.1
     mcmd_num_samples: int = 5
     ece_bins: int = 50
     ece_weights: Literal["uniform", "frequency"] = "frequency"
@@ -98,8 +98,11 @@ class CalibrationEvaluator:
             model, test_dataloader, return_grid=True, return_targets=True
         )
 
-        print("Running TSNE to project grid to 2d...")
-        grid_2d = TSNE().fit_transform(grid.detach().cpu().numpy())
+        if self.settings.dataset_type == DatasetType.TABULAR:
+            grid_2d = np.array([])
+        else:
+            print("Running TSNE to project grid to 2d...")
+            grid_2d = TSNE().fit_transform(grid.detach().cpu().numpy())
 
         print("Computing ECE...")
         ece = self.compute_ece(model, test_dataloader)
@@ -142,7 +145,7 @@ class CalibrationEvaluator:
             y_prime=y_prime,
             x_kernel=x_kernel,
             y_kernel=y_kernel,
-            lmbda=self.settings.mcmd_lmbda,
+            lmbda=self.settings.mcmd_lambda,
         )
         return_obj = [mcmd_vals]
         if return_grid:
