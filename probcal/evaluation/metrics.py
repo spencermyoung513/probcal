@@ -228,9 +228,9 @@ def compute_mcmd_torch(
     k_X = x_kernel(x, grid)
     k_X_prime = x_kernel(x_prime, grid)
 
-    A_1 = W_X @ K_Y @ W_X.T
-    A_2 = W_X @ K_Y_Y_prime @ W_X_prime.T
-    A_3 = W_X_prime @ K_Y_prime @ W_X_prime.T
+    A_1 = W_X @ K_Y.to(device) @ W_X.T
+    A_2 = W_X @ K_Y_Y_prime.to(device) @ W_X_prime.T
+    A_3 = W_X_prime @ K_Y_prime.to(device) @ W_X_prime.T
 
     first_term = torch.einsum("ij,jk,ki->i", k_X.T, A_1, k_X)
     second_term = 2 * torch.einsum("ij,jk,ki->i", k_X.T, A_2, k_X_prime)

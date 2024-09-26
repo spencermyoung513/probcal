@@ -1,4 +1,4 @@
-experiment_name: aaf
+experiment_name: aaf_poisson
 random_seed: 1998
 head_type: poisson
 dataset:
@@ -25,3 +25,4 @@ training:
 evaluation:
   num_trials: 1
   log_dir: logs
+  chkp_eval: best_loss
