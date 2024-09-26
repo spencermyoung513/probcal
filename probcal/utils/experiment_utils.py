@@ -20,6 +20,7 @@ from probcal.enums import TextDatasetName
 from probcal.models import DoublePoissonNN
 from probcal.models import FaithfulGaussianNN
 from probcal.models import GaussianNN
+from probcal.models import NaturalGaussianNN
 from probcal.models import NegBinomNN
 from probcal.models import PoissonNN
 from probcal.models.backbones import DistilBert
@@ -53,6 +54,8 @@ def get_model(
             initializer = GaussianNN
     elif config.head_type == HeadType.FAITHFUL_GAUSSIAN:
         initializer = FaithfulGaussianNN
+    elif config.head_type == HeadType.NATURAL_GAUSSIAN:
+        initializer = NaturalGaussianNN
     elif config.head_type == HeadType.POISSON:
         initializer = PoissonNN
     elif config.head_type == HeadType.DOUBLE_POISSON:
