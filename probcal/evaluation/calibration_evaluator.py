@@ -188,6 +188,7 @@ class CalibrationEvaluator:
     def plot_mcmd_results(
         self,
         calibration_results: CalibrationResults,
+        title: str,
         gridsize: int = 15,
         show: bool = False,
     ) -> plt.Figure:
@@ -218,6 +219,8 @@ class CalibrationEvaluator:
         )
         fig.colorbar(hb2, ax=axs[1])
 
+        clean_title = ' '.join(word.capitalize() for word in title.replace('_', ' ').split())
+        fig.suptitle(clean_title)
         fig.tight_layout()
 
         if show:
