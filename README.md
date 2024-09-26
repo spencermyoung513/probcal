@@ -60,6 +60,20 @@ All regression models should inherit from the `DiscreteRegressionNN` class (foun
 
 See existing model classes like `GaussianNN` (found [here](probcal/models/gaussian_nn.py)) for an example of these steps.
 
+## Evaluating Models
+
+To obtain evaluation metrics for a given model, first fill out a config (using [this config](probcal/evaluation/sample_eval_config.yaml) as a template).
+Then, run the following command:
+
+```bash
+python probcal/evaluation/eval_model.py --config path/to/eval/config.yaml
+```
+
+Two results files will be saved to the `log_dir` you specify in your config:
+
+- A `test_metrics.yaml` with metrics like MAE, RMSE, etc.
+- A `calibration_results.npz` file which can be loaded into a `CalibrationResults` object to see MCMD and ECE results.
+
 ## Measuring Calibration
 
 Once a `DiscreteRegressionNN` subclass is trained, its calibration can be measured on a dataset via the `CalibrationEvaluator`. Example usage:
@@ -90,6 +104,7 @@ model = GaussianNN.load_from_checkpoint("path/to/model.ckpt")
 # You can use any lightning data module (preferably, the one with the dataset the model was trained on).
 data_module = COCOPeopleDataModule(root_dir="data", batch_size=4, num_workers=0, persistent_workers=False)
 calibration_results = evaluator(model=model, data_module=data_module)
+calibration_results.save("path/to/results.npz")
 ```
 
 Invoking the `CalibrationEvaluator`'s `__call__` method (as above) kicks off an extensive evaluation wherein MCMD and ECE are computed for the specified model. This passes back a `CalibrationResults` object, which will contain the computed metrics and other helpful variables for further analysis.

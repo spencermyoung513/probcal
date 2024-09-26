@@ -13,7 +13,7 @@ from probcal.enums import ImageDatasetName
 from probcal.evaluation.kernels import polynomial_kernel
 from probcal.evaluation.kernels import rbf_kernel
 from probcal.evaluation.metrics import compute_mcmd_torch
-from probcal.utils.configs import TestConfig
+from probcal.utils.configs import EvaluationConfig
 from probcal.utils.experiment_utils import from_yaml
 from probcal.utils.experiment_utils import get_datamodule
 from probcal.utils.experiment_utils import get_model
@@ -76,7 +76,7 @@ def main(cfg: dict) -> None:
     test_loader = datamodule.test_dataloader()
 
     # instantiate model
-    model_cfg = TestConfig.from_yaml(cfg["model"]["test_cfg"])
+    model_cfg = EvaluationConfig.from_yaml(cfg["model"]["test_cfg"])
     model = get_model(model_cfg)
     weights_fpath = cfg["model"]["weights"]
     state_dict = torch.load(weights_fpath, map_location=device)

@@ -3,7 +3,6 @@ import random
 from pathlib import Path
 from typing import Optional
 from typing import Type
-from typing import Union
 
 import lightning as L
 import numpy as np
@@ -11,6 +10,7 @@ import torch
 import yaml
 from lightning.pytorch.callbacks import ModelCheckpoint
 
+from probcal.data_modules import AAFDataModule
 from probcal.data_modules import COCOPeopleDataModule
 from probcal.data_modules import OodBlurCocoPeopleDataModule
 from probcal.data_modules import OodLabelNoiseCocoPeopleDataModule
@@ -31,7 +31,7 @@ from probcal.models.backbones import MNISTCNN
 from probcal.models.backbones import MobileNetV3
 from probcal.models.backbones import ViT
 from probcal.models.discrete_regression_nn import DiscreteRegressionNN
-from probcal.utils.configs import TestConfig
+from probcal.utils.configs import EvaluationConfig
 from probcal.utils.configs import TrainingConfig
 from probcal.utils.generic_utils import partialclass
 
@@ -39,7 +39,7 @@ GLOBAL_DATA_DIR = "data"
 
 
 def get_model(
-    config: Union[TrainingConfig, TestConfig], return_initializer: bool = False
+    config: TrainingConfig | EvaluationConfig, return_initializer: bool = False
 ) -> DiscreteRegressionNN:
 
     initializer: Type[DiscreteRegressionNN]
@@ -77,6 +77,8 @@ def get_model(
             backbone_type = MNISTCNN
         elif config.dataset_path_or_spec == ImageDatasetName.COCO_PEOPLE:
             backbone_type = ViT
+        elif config.dataset_path_or_spec == ImageDatasetName.AAF:
+            backbone_type = MobileNetV3
         else:
             backbone_type = MobileNetV3
         backbone_kwargs = {}
@@ -92,7 +94,7 @@ def get_model(
             lr_scheduler_type=config.lr_scheduler_type,
             lr_scheduler_kwargs=config.lr_scheduler_kwargs,
         )
-    elif isinstance(config, TestConfig):
+    elif isinstance(config, EvaluationConfig):
         model = initializer(
             backbone_type=backbone_type,
             backbone_kwargs=backbone_kwargs,
@@ -145,7 +147,11 @@ def get_datamodule(
             )
         elif dataset_path_or_spec == ImageDatasetName.OOD_LABEL_NOISE_COCO_PEOPLE:
             return OodLabelNoiseCocoPeopleDataModule(
-                root_dir=os.path.join(GLOBAL_DATA_DIR, "coco_people"),
+                root_dir=os.path.join(GLOBAL_DATA_DIR, "coco_people")
+            )
+        elif dataset_path_or_spec == ImageDatasetName.AAF:
+            return AAFDataModule(
+                root_dir=os.path.join(GLOBAL_DATA_DIR, "aaf"),
                 batch_size=batch_size,
                 num_workers=num_workers,
                 persistent_workers=True if num_workers > 0 else False,
