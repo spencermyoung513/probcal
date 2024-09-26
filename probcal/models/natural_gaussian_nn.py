@@ -1,29 +1,30 @@
 from typing import Type
 
 import torch
+import torch.nn.functional as F
+from scipy.stats import norm
 from torch import nn
 from torchmetrics import Metric
 
 from probcal.enums import LRSchedulerType
 from probcal.enums import OptimizerType
 from probcal.evaluation.custom_torchmetrics import AverageNLL
+from probcal.evaluation.custom_torchmetrics import RegressionECE
 from probcal.models.backbones import Backbone
 from probcal.models.discrete_regression_nn import DiscreteRegressionNN
-from probcal.training.losses import neg_binom_nll
+from probcal.training.losses import natural_gaussian_nll
 
 
-class NegBinomNN(DiscreteRegressionNN):
-    """A neural network that learns the parameters of a Negative Binomial distribution over each regression target (conditioned on the input).
-
-    The mean-scale (mu, alpha) parametrization of the Negative Binomial is used for this network.
+class NaturalGaussianNN(DiscreteRegressionNN):
+    """A neural network that learns the natural parameters of a Gaussian distribution over each regression target (conditioned on the input).
 
     Attributes:
         backbone (Backbone): Backbone to use for feature extraction.
         loss_fn (Callable): The loss function to use for training this NN.
         optim_type (OptimizerType): The type of optimizer to use for training the network, e.g. "adam", "sgd", etc.
         optim_kwargs (dict): Key-value argument specifications for the chosen optimizer, e.g. {"lr": 1e-3, "weight_decay": 1e-5}.
-        lr_scheduler_type (LRSchedulerType | None): If specified, the type of learning rate scheduler to use during training, e.g. "cosine_annealing". Defaults to None.
-        lr_scheduler_kwargs (dict | None): If specified, key-value argument specifications for the chosen lr scheduler, e.g. {"T_max": 500}. Defaults to None.
+        lr_scheduler_type (LRSchedulerType | None): If specified, the type of learning rate scheduler to use during training, e.g. "cosine_annealing".
+        lr_scheduler_kwargs (dict | None): If specified, key-value argument specifications for the chosen lr scheduler, e.g. {"T_max": 500}.
     """
 
     def __init__(
@@ -35,7 +36,7 @@ class NegBinomNN(DiscreteRegressionNN):
         lr_scheduler_type: LRSchedulerType | None = None,
         lr_scheduler_kwargs: dict | None = None,
     ):
-        """Instantiate a NegBinomNN.
+        """Instantiate a NaturalGaussianNN.
 
         Args:
             backbone_type (Type[Backbone]): Type of backbone to use for feature extraction (can be initialized with backbone_type()).
@@ -45,8 +46,8 @@ class NegBinomNN(DiscreteRegressionNN):
             lr_scheduler_type (LRSchedulerType | None): If specified, the type of learning rate scheduler to use during training, e.g. "cosine_annealing".
             lr_scheduler_kwargs (dict | None): If specified, key-value argument specifications for the chosen lr scheduler, e.g. {"T_max": 500}.
         """
-        super(NegBinomNN, self).__init__(
-            loss_fn=neg_binom_nll,
+        super(NaturalGaussianNN, self).__init__(
+            loss_fn=natural_gaussian_nll,
             backbone_type=backbone_type,
             backbone_kwargs=backbone_kwargs,
             optim_type=optim_type,
@@ -54,9 +55,10 @@ class NegBinomNN(DiscreteRegressionNN):
             lr_scheduler_type=lr_scheduler_type,
             lr_scheduler_kwargs=lr_scheduler_kwargs,
         )
-        self.head = nn.Sequential(
-            nn.Linear(self.backbone.output_dim, 2),
-            nn.Softplus(),  # To ensure positivity of output params.
+        self.head = nn.Linear(self.backbone.output_dim, 2)
+        self.ece = RegressionECE(
+            param_list=["loc", "scale"],
+            rv_class_type=norm,
         )
         self.nll = AverageNLL()
         self.save_hyperparameters()
@@ -70,10 +72,11 @@ class NegBinomNN(DiscreteRegressionNN):
         Returns:
             torch.Tensor: Output tensor, with shape (N, 2).
 
-        If viewing outputs as (mu, alpha), use `torch.split(y_hat, [1, 1], dim=-1)` to separate.
+        If viewing outputs as (eta_1, eta_2), use `torch.split(y_hat, [1, 1], dim=-1)` to separate.
         """
         h = self.backbone(x)
-        y_hat = self.head(h)
+        raw = self.head(h)
+        y_hat = torch.stack([raw[:, 0], -0.5 * F.softplus(raw[:, 1])], dim=-1)
         return y_hat
 
     def _predict_impl(self, x: torch.Tensor) -> torch.Tensor:
@@ -85,7 +88,7 @@ class NegBinomNN(DiscreteRegressionNN):
         Returns:
             torch.Tensor: Output tensor, with shape (N, 2).
 
-        If viewing outputs as (mu, alpha), use `torch.split(y_hat, [1, 1], dim=-1)` to separate.
+        If viewing outputs as (mu, var), use `torch.split(y_hat, [1, 1], dim=-1)` to separate.
         """
         self.backbone.eval()
         y_hat = self._forward_impl(x)
@@ -111,36 +114,40 @@ class NegBinomNN(DiscreteRegressionNN):
 
     def _posterior_predictive_impl(
         self, y_hat: torch.Tensor, training: bool = False
-    ) -> torch.distributions.NegativeBinomial:
-        mu, alpha = torch.split(y_hat, [1, 1], dim=-1)
+    ) -> torch.distributions.Normal:
+        eta_1, eta_2 = torch.split(y_hat, [1, 1], dim=-1)
+        mu = self._natural_to_mu(eta_1, eta_2)
+        var = self._natural_to_var(eta_2)
         mu = mu.flatten()
-        alpha = alpha.flatten()
-
-        # Convert to standard parametrization.
-        eps = torch.tensor(1e-6, device=mu.device)
-        var = mu + alpha * mu**2
-        p = mu / torch.maximum(var, eps)
-        failure_prob = torch.minimum(
-            1 - p, 1 - eps
-        )  # Torch docs lie and say this should be P(success).
-        n = mu**2 / torch.maximum(var - mu, eps)
-        dist = torch.distributions.NegativeBinomial(total_count=n, probs=failure_prob)
+        var = var.flatten()
+        std = torch.sqrt(var)
+        dist = torch.distributions.Normal(loc=mu, scale=std)
         return dist
 
     def _point_prediction_impl(self, y_hat: torch.Tensor, training: bool) -> torch.Tensor:
-        dist = self.posterior_predictive(y_hat, training)
-        return dist.mode
+        eta_1, eta_2 = torch.split(y_hat, [1, 1], dim=-1)
+        mu = self._natural_to_mu(eta_1, eta_2)
+        return mu.round()
 
     def _addl_test_metrics_dict(self) -> dict[str, Metric]:
         return {
+            "continuous_ece": self.ece,
             "nll": self.nll,
         }
 
     def _update_addl_test_metrics_batch(
         self, x: torch.Tensor, y_hat: torch.Tensor, y: torch.Tensor
     ):
-        dist = self.posterior_predictive(y_hat, training=False)
         targets = y.flatten()
-        target_probs = torch.exp(dist.log_prob(targets))
+        dist = self.posterior_predictive(y_hat)
 
+        self.ece.update({"loc": dist.mean, "scale": dist.stddev}, targets)
+        # We compute "probability" with the continuity correction (probability of +- 0.5 of the value).
+        target_probs = dist.cdf(targets + 0.5) - dist.cdf(targets - 0.5)
         self.nll.update(target_probs)
+
+    def _natural_to_mu(self, eta_1: torch.Tensor, eta_2: torch.Tensor) -> torch.Tensor:
+        return -0.5 * (eta_1 / eta_2)
+
+    def _natural_to_var(self, eta_2: torch.Tensor) -> torch.Tensor:
+        return -0.5 * torch.reciprocal(eta_2)
