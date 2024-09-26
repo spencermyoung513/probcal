@@ -1,6 +1,7 @@
 from typing import Type
 
 import torch
+from scipy.stats import norm
 from torch import nn
 from torchmetrics import Metric
 
@@ -57,7 +58,10 @@ class FaithfulGaussianNN(DiscreteRegressionNN):
         self.logvar_head = nn.Linear(self.backbone.output_dim, 1)
 
         self.nll = AverageNLL()
-        self.ece = RegressionECE()
+        self.ece = RegressionECE(
+            param_list=["loc", "scale"],
+            rv_class_type=norm,
+        )
 
         self.save_hyperparameters()
 
