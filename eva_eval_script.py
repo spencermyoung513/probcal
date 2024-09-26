@@ -1,3 +1,5 @@
+import os
+
 from probcal.data_modules import EVADataModule
 from probcal.enums import DatasetType
 from probcal.evaluation import CalibrationEvaluator
@@ -18,11 +20,22 @@ settings = CalibrationEvaluatorSettings(
 )
 evaluator = CalibrationEvaluator(settings)
 
-model = GaussianNN.load_from_checkpoint("chkp/eva_gaussian/version_0/best_mae.ckpt")
+model_chpks = ["best_loss.ckpt", "best_mae.ckpt", "last.ckpt", "epoch=149.ckpt", "epoch=99.ckpt"]
 
 # You can use any lightning data module (preferably, the one with the dataset the model was trained on).
 data_module = EVADataModule(
     root_dir="data/eva", batch_size=4, num_workers=0, persistent_workers=False
 )
-calibration_results = evaluator(model=model, data_module=data_module)
-calibration_results.save("eva_gaussian_calibration_results.npz")
+
+for chpk in model_chpks:
+    print(f"plotting model from chpk:{chpk}")
+    model = GaussianNN.load_from_checkpoint(f"chkp/eva_gaussian/version_0/{chpk}")
+
+    if not os.path.isfile(
+        f"results/calibration_results/eva_gaussian_{chpk.split('.')[0]}_calibration_results.npz"
+    ):
+        calibration_results = evaluator(model=model, data_module=data_module)
+        calibration_results.save(f"eva_gaussian_{chpk.split('.')[0]}_calibration_results.npz")
+
+        fig = evaluator.plot_mcmd_results(calibration_results)
+        fig.savefig(f"results/plots/{chpk.split('.')[0]}.png")
