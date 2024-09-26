@@ -115,13 +115,13 @@ class NaturalGaussianNN(DiscreteRegressionNN):
     def _posterior_predictive_impl(
         self, y_hat: torch.Tensor, training: bool = False
     ) -> torch.distributions.Normal:
-        if training:
-            mu, logvar = torch.split(y_hat, [1, 1], dim=-1)
-            var = logvar.exp()
-        else:
-            mu, var = torch.split(y_hat, [1, 1], dim=-1)
-
-        dist = torch.distributions.Normal(loc=mu.squeeze(), scale=var.sqrt().squeeze())
+        eta_1, eta_2 = torch.split(y_hat, [1, 1], dim=-1)
+        mu = self._natural_to_mu(eta_1, eta_2)
+        var = self._natural_to_var(eta_2)
+        mu = mu.flatten()
+        var = var.flatten()
+        std = torch.sqrt(var)
+        dist = torch.distributions.Normal(loc=mu, scale=std)
         return dist
 
     def _point_prediction_impl(self, y_hat: torch.Tensor, training: bool) -> torch.Tensor:
@@ -138,17 +138,11 @@ class NaturalGaussianNN(DiscreteRegressionNN):
     def _update_addl_test_metrics_batch(
         self, x: torch.Tensor, y_hat: torch.Tensor, y: torch.Tensor
     ):
-        eta_1, eta_2 = torch.split(y_hat, [1, 1], dim=-1)
-        mu = self._natural_to_mu(eta_1, eta_2)
-        var = self._natural_to_var(eta_2)
-        mu = mu.flatten()
-        var = var.flatten()
-        std = torch.sqrt(var)
         targets = y.flatten()
+        dist = self.posterior_predictive(y_hat)
 
-        self.ece.update({"loc": mu, "scale": std}, targets)
+        self.ece.update({"loc": dist.mean, "scale": dist.stddev}, targets)
         # We compute "probability" with the continuity correction (probability of +- 0.5 of the value).
-        dist = torch.distributions.Normal(loc=mu, scale=std)
         target_probs = dist.cdf(targets + 0.5) - dist.cdf(targets - 0.5)
         self.nll.update(target_probs)
 
