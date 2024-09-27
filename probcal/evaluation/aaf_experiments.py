@@ -4,23 +4,18 @@ from probcal.evaluation import CalibrationEvaluator
 from probcal.evaluation import CalibrationEvaluatorSettings
 
 from probcal.utils.configs import TrainingConfig
-from probcal.utils.configs import EvaluationConfig
 from probcal.utils.experiment_utils import fix_random_seed
 from probcal.utils.experiment_utils import get_datamodule
 from probcal.utils.experiment_utils import get_model
 
+from probcal.models import GaussianNN
 import os
-from pathlib import Path
 
-def main(config_path: Path):
-
-    config = EvaluationConfig.from_yaml(config_path)
-    if not config.log_dir.exists():
-        os.makedirs(config.log_dir)
+def main(config: TrainingConfig):
     
     # Set Variables
     model_name = config.experiment_name
-    checkpoint = config.model_ckpt_path
+    checkpoint = config.chkp_eval
     path_to_model = os.path.join('chkp', model_name, 'version_0', f'{checkpoint}.ckpt')
 
     output_dir = f"results/{model_name}"
@@ -32,7 +27,6 @@ def main(config_path: Path):
         dataset_type=DatasetType.IMAGE,
         mcmd_input_kernel="polynomial",
         mcmd_output_kernel="rbf",
-        mcmd_lmbda=0.1,
         mcmd_num_samples=5,
         ece_bins=50,
         ece_weights="frequency",
@@ -66,4 +60,4 @@ def parse_args() -> Namespace:
 
 if __name__ == "__main__":
     args = parse_args()
-    main(config_path=Path(args.config))
+    main(TrainingConfig.from_yaml(args.config))

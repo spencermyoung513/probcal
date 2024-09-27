@@ -8,7 +8,7 @@ batch_size: 4
 accelerator: gpu
 log_dir: logs
 model_ckpt_path: chkp/aaf_gaussian/version_0/best_loss.ckpt
-optim:
+optimizer:
     type: adam_w
     kwargs:
       lr: 0.001
