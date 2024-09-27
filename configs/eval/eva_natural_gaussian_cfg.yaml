@@ -1,6 +1,6 @@
-experiment_name: eva_gaussian
+experiment_name: eva_natural_gaussian
 random_seed: 1998
-head_type: gaussian
+head_type: natural_gaussian
 dataset:
   type: image
   spec: eva
