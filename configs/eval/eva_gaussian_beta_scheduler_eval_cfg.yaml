@@ -1,9 +1,10 @@
 experiment_name: eva_gaussian_beta_scheduler
 random_seed: 1998
-head_type: faithful_gaussian
+head_type: gaussian
 dataset:
   type: image
   spec: eva
 batch_size: 4
 accelerator: gpu
 log_dir: logs
+model_ckpt_path: chkp/eva_gaussian_beta_scheduler/version_0/best_loss.ckpt

@@ -7,3 +7,4 @@ dataset:
 batch_size: 4
 accelerator: gpu
 log_dir: logs
+model_ckpt_path: chkp/eva_natural_gaussian/version_0/best_loss.ckpt
