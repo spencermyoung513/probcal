@@ -1,4 +1,4 @@
-experiment_name: eva_gaussian_beta
+experiment_name: eva_gaussian_beta_scheduler
 random_seed: 1998
 head_type: gaussian
 dataset:
@@ -17,8 +17,8 @@ training:
       lr: 0.001
       weight_decay: 0.00001
   beta_scheduler:
-   type: cosine_annealing
-   kwargs:
+    type: cosine_annealing
+    kwargs:
       beta_0: 0.5
       beta_1: 0.5
       last_epoch: -1
