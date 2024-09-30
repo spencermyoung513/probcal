@@ -5,6 +5,6 @@ dataset:
   type: image
   spec: eva
 batch_size: 4
-accelerator: gpu
-log_dir: logs
+accelerator: cpu
+log_dir: logs/faithful_gaussian_results
 model_ckpt_path: chkp/eva_faithful_gaussian/version_0/best_loss.ckpt

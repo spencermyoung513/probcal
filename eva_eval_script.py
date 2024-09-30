@@ -8,6 +8,7 @@ from probcal.data_modules import EVADataModule
 from probcal.enums import DatasetType
 from probcal.evaluation import CalibrationEvaluator
 from probcal.evaluation import CalibrationEvaluatorSettings
+from probcal.evaluation.calibration_evaluator import CalibrationResults
 from probcal.utils.configs import EvaluationConfig
 from probcal.utils.experiment_utils import get_model
 
@@ -18,6 +19,8 @@ def load_config(config_path):
 
 
 def main(config_path):
+    results = CalibrationResults.load("")
+
     config = load_config(config_path)
     name = config["experiment_name"]
 
