@@ -10,6 +10,8 @@ class AcceleratorType(Enum):
 
 class HeadType(Enum):
     GAUSSIAN = "gaussian"
+    FAITHFUL_GAUSSIAN = "faithful_gaussian"
+    NATURAL_GAUSSIAN = "natural_gaussian"
     POISSON = "poisson"
     DOUBLE_POISSON = "double_poisson"
     NEGATIVE_BINOMIAL = "negative_binomial"
@@ -40,7 +42,9 @@ class ImageDatasetName(Enum):
     MNIST = "mnist"
     COCO_PEOPLE = "coco_people"
     AAF = "aaf"
-    OOD_COCO_PEOPLE = "ood_coco_people"
+    OOD_BLUR_COCO_PEOPLE = "ood_blur_coco_people"
+    OOD_MIXUP_COCO_PEOPLE = "ood_mixup_coco_people"
+    OOD_LABEL_NOISE_COCO_PEOPLE = "ood_label_noise_coco_people"
 
 
 class TextDatasetName(Enum):

@@ -1,4 +1,5 @@
 from functools import partial
+from typing import Optional
 from typing import Type
 
 import torch
@@ -23,18 +24,16 @@ class PoissonNN(DiscreteRegressionNN):
         optim_kwargs (dict): Key-value argument specifications for the chosen optimizer, e.g. {"lr": 1e-3, "weight_decay": 1e-5}.
         lr_scheduler_type (LRSchedulerType | None): If specified, the type of learning rate scheduler to use during training, e.g. "cosine_annealing". Defaults to None.
         lr_scheduler_kwargs (dict | None): If specified, key-value argument specifications for the chosen lr scheduler, e.g. {"T_max": 500}. Defaults to None.
-        beta_scheduler_type (BetaSchedulerType | None, optional): If specified, the type of beta scheduler to use for training loss (if applicable). Defaults to None.
-        beta_scheduler_kwargs (dict | None, optional): If specified, key-value argument specifications for the chosen beta scheduler, e.g. {"beta_0": 1.0, "beta_1": 0.5}. Defaults to None.
     """
 
     def __init__(
         self,
         backbone_type: Type[Backbone],
         backbone_kwargs: dict,
-        optim_type: OptimizerType,
-        optim_kwargs: dict,
-        lr_scheduler_type: LRSchedulerType | None = None,
-        lr_scheduler_kwargs: dict | None = None,
+        optim_type: Optional[OptimizerType] = None,
+        optim_kwargs: Optional[dict] = None,
+        lr_scheduler_type: Optional[LRSchedulerType] = None,
+        lr_scheduler_kwargs: Optional[dict] = None,
     ):
         """Instantiate a PoissonNN.
 
