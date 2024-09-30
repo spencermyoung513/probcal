@@ -109,11 +109,22 @@ class CalibrationEvaluator:
         print("Computing ECE...")
         ece = self.compute_ece(model, test_dataloader)
 
+        # Changes
+        mean_mcmd_list = []
+        for trial in range(self.settings.mcmd_num_trials):
+            print(f"Computing MCMD (trial {trial})")
+            mcmd_vals, grid, targets = self.compute_mcmd(
+                model, test_dataloader, return_grid=True, return_targets=True
+            )
+            mean_mcmd_list.append(mcmd_vals.mean().item())
+
+
         return CalibrationResults(
             input_grid_2d=grid_2d,
             regression_targets=targets.detach().cpu().numpy(),
             mcmd_vals=mcmd_vals.detach().cpu().numpy(),
             mean_mcmd=mcmd_vals.mean().item(),
+            mean_mcmd_list=mean_mcmd_list,
             ece=ece,
         )
 

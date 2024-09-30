@@ -48,6 +48,7 @@ def main(config_path: Path):
         mcmd_output_kernel=config.mcmd_output_kernel,
         mcmd_lambda=config.mcmd_lambda,
         mcmd_num_samples=config.mcmd_num_samples,
+        mcmd_num_trials=5,
         ece_bins=config.ece_bins,
         ece_weights=config.ece_weights,
         ece_alpha=config.ece_alpha,
