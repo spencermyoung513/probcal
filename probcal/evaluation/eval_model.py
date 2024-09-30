@@ -37,10 +37,7 @@ def main(config_path: Path):
         devices=1,
         num_nodes=1,
     )
-    metrics = evaluator.test(model=model, datamodule=datamodule)[0]
-    with open(config.log_dir / "test_metrics.yaml", "w") as f:
-        yaml.dump(metrics, f)
-
+    metrics: dict = evaluator.test(model=model, datamodule=datamodule)[0]
     calibration_eval_settings = CalibrationEvaluatorSettings(
         dataset_type=config.dataset_type,
         device=torch.device(config.accelerator_type.value),
@@ -55,6 +52,13 @@ def main(config_path: Path):
     )
     calibration_evaluator = CalibrationEvaluator(settings=calibration_eval_settings)
     results = calibration_evaluator(model=model, data_module=datamodule)
+
+    metrics.update(
+        mean_mcmd=[result.mean_mcmd for result in results.mcmd_results],
+        regression_ece=results.ece,
+    )
+    with open(config.log_dir / "test_metrics.yaml", "w") as f:
+        yaml.dump(metrics, f)
     results.save(config.log_dir / "calibration_results.npz")
 
 
