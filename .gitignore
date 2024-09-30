@@ -1,3 +1,4 @@
+*.ckpt
 .DS_store
 *.log
 .idea
@@ -9,6 +10,7 @@ ignore/
 */mnist
 */coco_people
 */eva
+*/logs
 data/
 
 !data/discrete_sine_wave
