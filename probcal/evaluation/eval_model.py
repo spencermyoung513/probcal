@@ -38,8 +38,12 @@ def main(config_path: Path):
         num_nodes=1,
     )
     metrics = evaluator.test(model=model, datamodule=datamodule)[0]
+    yaml_file_path = config.log_dir / "test_metrics.yaml", "w"
     with open(config.log_dir / "test_metrics.yaml", "w") as f:
-        yaml.dump(metrics, f)
+        yaml_file = yaml.dump(metrics, f)
+
+    with open(yaml_file_path, 'r') as f:
+        yaml_data = yaml.safe_load(f)
 
     calibration_eval_settings = CalibrationEvaluatorSettings(
         dataset_type=config.dataset_type,
@@ -48,13 +52,19 @@ def main(config_path: Path):
         mcmd_output_kernel=config.mcmd_output_kernel,
         mcmd_lambda=config.mcmd_lambda,
         mcmd_num_samples=config.mcmd_num_samples,
-        mcmd_num_trials=5,
+        mcmd_num_trials=1,
         ece_bins=config.ece_bins,
         ece_weights=config.ece_weights,
         ece_alpha=config.ece_alpha,
     )
     calibration_evaluator = CalibrationEvaluator(settings=calibration_eval_settings)
     results = calibration_evaluator(model=model, data_module=datamodule)
+
+    yaml_data['mcmd_list'] = results.mean_mcmd_list
+
+    with open(yaml_file_path, 'w') as file:
+        yaml.dump(yaml_data, file)
+
     results.save(config.log_dir / "calibration_results.npz")
 
 

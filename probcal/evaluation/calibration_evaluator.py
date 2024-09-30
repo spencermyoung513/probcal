@@ -34,6 +34,7 @@ class CalibrationResults:
     regression_targets: np.ndarray
     mcmd_vals: np.ndarray
     mean_mcmd: float
+    mean_mcmd_list: list[float]
     ece: float
 
     def save(self, filepath: str | Path):
@@ -45,6 +46,7 @@ class CalibrationResults:
             regression_targets=self.regression_targets,
             mcmd_vals=self.mcmd_vals,
             mean_mcmd=self.mean_mcmd,
+            mean_mcmd_list=self.mean_mcmd_list,
             ece=self.ece,
         )
 
@@ -56,6 +58,7 @@ class CalibrationResults:
             regression_targets=data["regression_targets"],
             mcmd_vals=data["mcmd_vals"],
             mean_mcmd=data["mean_mcmd"].item(),
+            mean_mcmd_list=data["mean_mcmd_list"],
             ece=data["ece"].item(),
         )
 
@@ -71,6 +74,7 @@ class CalibrationEvaluatorSettings:
     mcmd_output_kernel: Literal["rbf", "laplacian"] | KernelFunction = "rbf"
     mcmd_lambda: float = 0.1
     mcmd_num_samples: int = 5
+    mcmd_num_trials: int = 5,
     ece_bins: int = 50
     ece_weights: Literal["uniform", "frequency"] = "frequency"
     ece_alpha: float = 1.0
@@ -111,7 +115,7 @@ class CalibrationEvaluator:
 
         # Changes
         mean_mcmd_list = []
-        for trial in range(self.settings.mcmd_num_trials):
+        for trial in range(1,self.settings.mcmd_num_trials+1):
             print(f"Computing MCMD (trial {trial})")
             mcmd_vals, grid, targets = self.compute_mcmd(
                 model, test_dataloader, return_grid=True, return_targets=True
