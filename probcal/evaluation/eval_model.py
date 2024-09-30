@@ -44,6 +44,7 @@ def main(config_path: Path):
     calibration_eval_settings = CalibrationEvaluatorSettings(
         dataset_type=config.dataset_type,
         device=torch.device(config.accelerator_type.value),
+        mcmd_num_trials=config.mcmd_num_trials,
         mcmd_input_kernel="polynomial",
         mcmd_output_kernel=config.mcmd_output_kernel,
         mcmd_lambda=config.mcmd_lambda,

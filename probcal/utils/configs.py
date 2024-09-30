@@ -241,6 +241,7 @@ class EvaluationConfig(BaseConfig):
         accelerator_type: AcceleratorType,
         log_dir: Path,
         model_ckpt_path: Path,
+        mcmd_num_trials: int,
         mcmd_output_kernel: Literal["rbf", "laplacian"],
         mcmd_lambda: float,
         mcmd_num_samples: int,
@@ -260,6 +261,7 @@ class EvaluationConfig(BaseConfig):
             log_dir=log_dir,
         )
         self.model_ckpt_path = model_ckpt_path
+        self.mcmd_num_trials = mcmd_num_trials
         self.mcmd_output_kernel = mcmd_output_kernel
         self.mcmd_lambda = mcmd_lambda
         self.mcmd_num_samples = mcmd_num_samples
@@ -291,6 +293,7 @@ class EvaluationConfig(BaseConfig):
         hidden_dim = config_dict.get("hidden_dim", 64)
         batch_size = config_dict.get("batch_size", 1)
         accelerator_type = AcceleratorType(config_dict.get("accelerator", "cpu"))
+        mcmd_num_trials = config_dict.get("mcmd_num_trials", 1)
         mcmd_output_kernel = config_dict.get("mcmd_output_kernel", "rbf")
         if mcmd_output_kernel not in ("rbf", "laplacian"):
             raise ValueError("mcmd_output_kernel must be either 'rbf' or 'laplacian'.")
@@ -313,6 +316,7 @@ class EvaluationConfig(BaseConfig):
             accelerator_type=accelerator_type,
             log_dir=log_dir,
             model_ckpt_path=model_ckpt_path,
+            mcmd_num_trials=mcmd_num_trials,
             mcmd_output_kernel=mcmd_output_kernel,
             mcmd_lambda=mcmd_lambda,
             mcmd_num_samples=mcmd_num_samples,
