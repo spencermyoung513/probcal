@@ -1,0 +1,10 @@
+experiment_name: coco_ddpn
+random_seed: 1998
+head_type: double_poisson
+dataset:
+  type: image
+  spec: coco_people
+batch_size: 4
+accelerator: cpu
+log_dir: logs/coco/coco_ddpn_results
+model_ckpt_path: chkp/coco/ddpn/best_loss.ckpt

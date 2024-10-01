@@ -1,0 +1,10 @@
+experiment_name: coco_stirn
+random_seed: 1998
+head_type: stirn
+dataset:
+  type: image
+  spec: coco_people
+batch_size: 4
+accelerator: cpu
+log_dir: logs/coco/stirn_results
+model_ckpt_path: chkp/coco/stirn/best_loss.ckpt

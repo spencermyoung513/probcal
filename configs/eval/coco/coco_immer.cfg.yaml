@@ -1,0 +1,10 @@
+experiment_name: coco_immer
+random_seed: 1998
+head_type: immer
+dataset:
+  type: image
+  spec: coco_people
+batch_size: 4
+accelerator: cpu
+log_dir: logs/coco/immer_results
+model_ckpt_path: chkp/coco/immer/best_loss.ckpt

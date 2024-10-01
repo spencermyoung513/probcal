@@ -1,0 +1,10 @@
+experiment_name: coco_seitzer
+random_seed: 1998
+head_type: seitzer
+dataset:
+  type: image
+  spec: coco_people
+batch_size: 4
+accelerator: cpu
+log_dir: logs/coco/seitzer_results
+model_ckpt_path: chkp/coco/seitzer/best_loss.ckpt
