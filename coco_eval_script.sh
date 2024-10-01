@@ -1,28 +1,42 @@
-#!/bin/bash
-num_loops=5
+# #!/bin/bash
+# # num_loops=5
 
-if [ $# -eq 1 ]; then
-    # Check if the argument is a positive integer
-    if [[ $1 =~ ^[0-9]+$ ]] && [ $1 -gt 0 ]; then
-        num_loops=$1
-    else
-        echo "Error: Please provide a positive integer for the number of loops."
-        exit 1
-    fi
-fi
+echo "evaluating nbinom model..."
+python probcal/evaluation/eval_model.py --config configs/eval/coco/coco_nbinom_cfg.yaml
+echo "evaluating ddpn model..."
+python probcal/evaluation/eval_model.py --config configs/eval/coco/coco_ddpn_cfg.yaml
+echo "evaluating immer model..."
+python probcal/evaluation/eval_model.py --config configs/eval/coco/coco_immer_cfg.yaml
+echo "evaluating poisson model..."
+python probcal/evaluation/eval_model.py --config configs/eval/coco/coco_poisson_cfg.yaml
+echo "evaluating seitzer model..."
+python probcal/evaluation/eval_model.py --config configs/eval/coco/coco_seitzer_cfg.yaml
+echo "evaluating stirn model..."
+python probcal/evaluation/eval_model.py --config configs/eval/coco/coco_stirn_cfg.yaml
 
-echo "evaluating double possion model..."
 
-for i in $(seq 1 $num_loops)
-do
-    echo "MCMD $i of $num_loops"
-    python probcal/evaluation/eval_model.py --config configs/eval/coco/coco_ddpn_cfg.yaml
-    python eval_script.py --results logs/coco/ddpn_results/calibration_results.npz --data logs/coco/ddpn_results/mcmd_vals.txt
-    echo "Completed MCMD $i"
-    echo "-------------------"
-done
+# if [ $# -eq 1 ]; then
+#     # Check if the argument is a positive integer
+#     if [[ $1 =~ ^[0-9]+$ ]] && [ $1 -gt 0 ]; then
+#         num_loops=$1
+#     else
+#         echo "Error: Please provide a positive integer for the number of loops."
+#         exit 1
+#     fi
+# fi
 
-echo "All $num_loops MCMD completed."
+# echo "evaluating double possion model..."
+
+# for i in $(seq 1 $num_loops)
+# do
+#     echo "MCMD $i of $num_loops"
+#     python probcal/evaluation/eval_model.py --config configs/eval/coco/coco_ddpn_cfg.yaml
+#     python eval_script.py --results logs/coco/ddpn_results/calibration_results.npz --data logs/coco/ddpn_results/mcmd_vals.txt
+#     echo "Completed MCMD $i"
+#     echo "-------------------"
+# done
+
+# echo "All $num_loops MCMD completed."
 
 # echo "evaluating immer model..."
 
