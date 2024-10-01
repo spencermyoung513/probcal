@@ -28,8 +28,8 @@ class FaithfulGaussianNN(DiscreteRegressionNN):
         self,
         backbone_type: Type[Backbone],
         backbone_kwargs: dict,
-        optim_type: OptimizerType,
-        optim_kwargs: dict,
+        optim_type: OptimizerType = None,
+        optim_kwargs: dict = None,
         lr_scheduler_type: LRSchedulerType | None = None,
         lr_scheduler_kwargs: dict | None = None,
     ):

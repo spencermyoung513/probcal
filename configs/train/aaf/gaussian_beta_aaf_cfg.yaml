@@ -1,6 +1,6 @@
 experiment_name: aaf_gaussian_beta
 random_seed: 1998
-head_type: natural_gaussian
+head_type: gaussian
 dataset:
   type: image
   spec: aaf
@@ -23,6 +23,7 @@ training:
       eta_min: 0
       last_epoch: -1
   beta_scheduler:
+    type: linear
     kwargs:
       beta_0: 0.5
       beta_1: 0.5
