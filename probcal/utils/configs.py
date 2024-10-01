@@ -126,7 +126,6 @@ class TrainingConfig(BaseConfig):
         hidden_dim: int = 64,
         precision: str | None = None,
         random_seed: int | None = None,
-        chkp_eval: Path | None = None,
     ):
         super(TrainingConfig, self).__init__(
             experiment_name=experiment_name,
@@ -152,7 +151,6 @@ class TrainingConfig(BaseConfig):
         self.num_trials = num_trials
         self.precision = precision
         self.random_seed = random_seed
-        self.chkp_eval = chkp_eval
 
     @staticmethod
     def from_yaml(config_path: str | Path) -> TrainingConfig:
@@ -200,13 +198,10 @@ class TrainingConfig(BaseConfig):
 
         num_trials = eval_dict["num_trials"]
         log_dir = Path(eval_dict["log_dir"])
-        chkp_eval = eval_dict["chkp_eval"]
 
         input_dim = config_dict["dataset"].get("input_dim", 1)
         hidden_dim = config_dict.get("hidden_dim", 64)
         random_seed = config_dict.get("random_seed")
-
-
 
         return TrainingConfig(
             experiment_name=experiment_name,
@@ -231,7 +226,6 @@ class TrainingConfig(BaseConfig):
             hidden_dim=hidden_dim,
             precision=precision,
             random_seed=random_seed,
-            chkp_eval=chkp_eval,
         )
 
 

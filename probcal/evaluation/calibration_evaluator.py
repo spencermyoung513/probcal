@@ -230,7 +230,6 @@ class CalibrationEvaluator:
     def plot_mcmd_results(
         self,
         calibration_results: CalibrationResults,
-        title: str,
         gridsize: int = 100,
         trial_index: int = 0,
         show: bool = False,
@@ -270,8 +269,6 @@ class CalibrationEvaluator:
         mappable_1 = axs[1].contourf(grid_x, grid_y, grid_mcmd, levels=20, cmap="viridis")
         fig.colorbar(mappable_1, ax=axs[1])
 
-        clean_title = ' '.join(word.capitalize() for word in title.replace('_', ' ').split())
-        fig.suptitle(clean_title)
         fig.tight_layout()
 
         if show:
