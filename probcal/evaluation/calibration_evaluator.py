@@ -75,7 +75,7 @@ class CalibrationResults:
                 mcmd_vals=data[f"mcmd_vals_{i}"],
                 mean_mcmd=data[f"mean_mcmd_{i}"],
             )
-            for i in range(len(num_trials))
+            for i in range(num_trials)
         ]
         return CalibrationResults(
             input_grid_2d=data["input_grid_2d"],
@@ -121,7 +121,7 @@ class CalibrationEvaluator:
         data_module.setup("test")
         test_dataloader = data_module.test_dataloader()
 
-        print(f"Computing MCMD {self.settings.mcmd_num_trials} separate times...")
+        print(f"Running {self.settings.mcmd_num_trials} MCMD computation(s)...")
         mcmd_results = []
         for i in range(self.settings.mcmd_num_trials):
             mcmd_vals, grid, targets = self.compute_mcmd(
@@ -303,6 +303,11 @@ class CalibrationEvaluator:
         x_prime = torch.cat(x_prime, dim=0)
         y_prime = torch.cat(y_prime).float()
 
+        # Ensure feature vectors are normalized so the polynomial kernel is bounded.
+        if self.settings.mcmd_input_kernel == "polynomial" and x.ndim > 1:
+            x = x / torch.norm(x, dim=-1, keepdim=True)
+            x_prime = x_prime / torch.norm(x_prime, dim=-1, keepdim=True)
+
         return x, y, x_prime, y_prime
 
     def _get_kernel_functions(self, y: torch.Tensor) -> tuple[KernelFunction, KernelFunction]:
@@ -312,9 +317,9 @@ class CalibrationEvaluator:
             x_kernel = self.settings.mcmd_input_kernel
 
         if self.settings.mcmd_output_kernel == "rbf":
-            y_kernel = partial(rbf_kernel, gamma=(1 / (2 * y.float().var())))
+            y_kernel = partial(rbf_kernel, gamma=(1 / (2 * y.float().var())).item())
         elif self.settings.mcmd_output_kernel == "laplacian":
-            y_kernel = partial(laplacian_kernel, gamma=(1 / (2 * y.float().var())))
+            y_kernel = partial(laplacian_kernel, gamma=(1 / (2 * y.float().var())).item())
 
         return x_kernel, y_kernel
 
