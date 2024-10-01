@@ -1,6 +1,6 @@
 experiment_name: coco_seitzer
 random_seed: 1998
-head_type: seitzer
+head_type: gaussian
 dataset:
   type: image
   spec: coco_people

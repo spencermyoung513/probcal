@@ -1,6 +1,6 @@
 experiment_name: coco_immer
 random_seed: 1998
-head_type: immer
+head_type: natural_gaussian
 dataset:
   type: image
   spec: coco_people

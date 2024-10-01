@@ -1,6 +1,6 @@
 experiment_name: coco_stirn
 random_seed: 1998
-head_type: stirn
+head_type: faithful_gaussian
 dataset:
   type: image
   spec: coco_people
