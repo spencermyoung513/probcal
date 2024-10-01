@@ -1,3 +1,2 @@
 from .calibration_evaluator import CalibrationEvaluator
 from .calibration_evaluator import CalibrationEvaluatorSettings
-from .calibration_evaluator import CalibrationResults
