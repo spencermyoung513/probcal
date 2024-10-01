@@ -29,6 +29,6 @@ training:
       beta_1: 0.5
       last_epoch: -1
 evaluation:
-  num_trials: 5
+  num_trials: 1
   log_dir: logs
   chkp_eval: best_loss
