@@ -1,4 +1,4 @@
-experiment_name: aaf_dp
+experiment_name: aaf_double_poisson
 random_seed: 1998
 head_type: double_poisson
 dataset:
