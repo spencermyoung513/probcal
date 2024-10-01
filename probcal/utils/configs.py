@@ -198,7 +198,6 @@ class TrainingConfig(BaseConfig):
 
         num_trials = eval_dict["num_trials"]
         log_dir = Path(eval_dict["log_dir"])
-
         input_dim = config_dict["dataset"].get("input_dim", 1)
         hidden_dim = config_dict.get("hidden_dim", 64)
         random_seed = config_dict.get("random_seed")
