@@ -5,6 +5,6 @@ dataset:
   type: image
   spec: coco_people
 batch_size: 4
-accelerator: gpu
+accelerator: cuda
 log_dir: logs/coco/nbinom_results
 model_ckpt_path: chkp/coco/nbinom/best_loss.ckpt
