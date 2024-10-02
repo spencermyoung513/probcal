@@ -64,6 +64,7 @@ def main(cfg: dict) -> None:
     print(f"Getting models weights: {cfg['model']['weights']}")
     logging.info(f"Data Config: {cfg['data']}")
     logging.info(f"Hyperparam Config: {cfg['hyperparams']}")
+    logging.info(f"Device for experiment: {device}")
 
     # build dataset and data loader
     datamodule = get_datamodule(
