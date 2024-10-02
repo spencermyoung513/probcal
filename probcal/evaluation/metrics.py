@@ -213,7 +213,7 @@ def compute_mcmd_torch(
     I_n = torch.eye(n, device=device)
     I_m = torch.eye(m, device=device)
 
-    with torch.autocast(device_type="cpu"):
+    with torch.autocast(device_type=device.type):
         K_X = x_kernel(x, x)
         K_X_prime = x_kernel(x_prime, x_prime)
 
