@@ -6,6 +6,7 @@ class AcceleratorType(Enum):
     gpu = "gpu"
     mps = "mps"
     auto = "auto"
+    cuda = "cuda"
 
 
 class HeadType(Enum):

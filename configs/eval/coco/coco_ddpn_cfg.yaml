@@ -6,5 +6,5 @@ dataset:
   spec: coco_people
 batch_size: 4
 accelerator: cpu
-log_dir: logs/coco/coco_ddpn_results
+log_dir: logs/coco/ddpn_results
 model_ckpt_path: chkp/coco/ddpn/best_loss.ckpt
