@@ -289,6 +289,7 @@ class EvaluationConfig(BaseConfig):
         # Required arguments.
         head_type = HeadType(config_dict["head_type"])
         dataset_type = DatasetType(config_dict["dataset"]["type"])
+
         log_dir = Path(config_dict["log_dir"])
         model_ckpt_path = Path(config_dict["model_ckpt_path"])
         dataset_path_or_spec = TrainingConfig.get_dataset_path_or_spec(config_dict["dataset"])

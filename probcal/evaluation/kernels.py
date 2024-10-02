@@ -2,6 +2,30 @@
 import torch
 
 
+def l2_norm(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+    """
+    Computes the pairwise L2 distance matrix between rows of input tensors x and y.
+
+    Args:
+        x: Tensor of shape (n, d) where n is the number of points in the first tensor and d is the dimensionality.
+        y: Tensor of shape (m, d) where m is the number of points in the second tensor and d is the dimensionality.
+
+    Returns:
+        Tensor of shape (n, m) where each element (i, j) is the L2 distance between x[i] and y[j].
+    """
+    # Compute the squared norm of each row vector in x and y
+    squared_norms_x = torch.sum(x**2, dim=1, keepdim=True)  # Shape (n, 1)
+    squared_norms_y = torch.sum(y**2, dim=1, keepdim=True)  # Shape (m, 1)
+
+    # Compute the pairwise squared distance matrix
+    pairwise_squared_distances = squared_norms_x + squared_norms_y.t() - 2 * torch.mm(x, y.t())
+
+    # Add small epsilon for numerical stability and take square root to get L2 distance
+    pairwise_distances = torch.sqrt(torch.clamp(pairwise_squared_distances, min=1e-12))
+
+    return pairwise_distances
+
+
 def rbf_kernel(x: torch.Tensor, x_prime: torch.Tensor, gamma: float | None = None) -> torch.Tensor:
     """Pytorch implementation of sklearn's RBF kernel.
 
@@ -29,7 +53,7 @@ def rbf_kernel(x: torch.Tensor, x_prime: torch.Tensor, gamma: float | None = Non
         raise ValueError("x and x_prime must have same feature dimension.")
 
     gamma = gamma or 1.0 / x.shape[-1]
-    K = torch.exp(-gamma * torch.cdist(x, x_prime, p=2) ** 2)
+    K = torch.exp(-gamma * l2_norm(x, x_prime) ** 2)
     return K
 
 
