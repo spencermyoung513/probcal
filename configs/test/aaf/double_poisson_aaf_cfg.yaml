@@ -4,11 +4,7 @@ head_type: double_poisson
 dataset:
   type: image
   spec: aaf
-batch_size: 4
+batch_size: 5
 accelerator: cpu
 log_dir: logs/eval/aaf_double_poisson
 model_ckpt_path: chkp/aaf_double_poisson/version_0/best_loss.ckpt
-mcmd_num_trials: 5
-mcmd_input_kernel: polynomial
-mcmd_output_kernel: laplacian
-mcmd_lambda: 0.1
