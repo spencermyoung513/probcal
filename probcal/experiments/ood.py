@@ -163,7 +163,6 @@ def main(cfg: dict) -> None:
             x_kernel=polynomial_kernel,
             y_kernel=get_y_kernel(Y_true, cfg["hyperparams"]["y_kernel_gamma"]),
             lmbda=cfg["hyperparams"]["lmbda"],
-            to_bfloat16=True,
         )
 
     print(mcmd_vals.mean())

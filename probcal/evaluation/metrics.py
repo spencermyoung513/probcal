@@ -178,7 +178,6 @@ def compute_mcmd_torch(
     x_kernel: Callable[[torch.Tensor, torch.Tensor], torch.Tensor],
     y_kernel: Callable[[torch.Tensor, torch.Tensor], torch.Tensor],
     lmbda: float = 0.01,
-    to_bfloat16: bool = False,
 ) -> torch.Tensor:
     """Given a ground-truth conditional distribution and samples from a model's approximation of that distribution, compute the maximum conditional mean discrepancy (MCMD) along the provided grid.
 
@@ -211,38 +210,32 @@ def compute_mcmd_torch(
     n = len(x)
     m = len(x_prime)
     device = x.device
-    if to_bfloat16:
-        x = x.bfloat16()
-        x_prime = x_prime.bfloat16()
-        y = y.bfloat16()
-        y_prime = y_prime.bfloat16()
-        I_n = torch.eye(n, device=device).bfloat16()
-        I_m = torch.eye(m, device=device).bfloat16()
-    else:
-        I_n = torch.eye(n, device=device)
-        I_m = torch.eye(m, device=device)
+    I_n = torch.eye(n, device=device)
+    I_m = torch.eye(m, device=device)
 
-    K_X = x_kernel(x, x)
-    K_X_prime = x_kernel(x_prime, x_prime)
+    with torch.autocast(device_type="cpu"):
+        K_X = x_kernel(x, x)
+        K_X_prime = x_kernel(x_prime, x_prime)
 
-    L = torch.linalg.cholesky(K_X + n * lmbda * I_n)
-    L_prime = torch.linalg.cholesky(K_X_prime + m * lmbda * I_m)
-    W_X = torch.cholesky_inverse(L)
-    W_X_prime = torch.cholesky_inverse(L_prime)
+        L = torch.linalg.cholesky(K_X + n * lmbda * I_n)
+        L_prime = torch.linalg.cholesky(K_X_prime + m * lmbda * I_m)
+        W_X = torch.cholesky_inverse(L)
+        W_X_prime = torch.cholesky_inverse(L_prime)
 
-    K_Y = y_kernel(y, y)
-    K_Y_prime = y_kernel(y_prime, y_prime)
-    K_Y_Y_prime = y_kernel(y, y_prime)
+        K_Y = y_kernel(y, y)
+        K_Y_prime = y_kernel(y_prime, y_prime)
+        K_Y_Y_prime = y_kernel(y, y_prime)
 
-    k_X = x_kernel(x, grid)
-    k_X_prime = x_kernel(x_prime, grid)
+        k_X = x_kernel(x, grid)
+        k_X_prime = x_kernel(x_prime, grid)
 
-    A_1 = W_X @ K_Y @ W_X.T
-    A_2 = W_X @ K_Y_Y_prime @ W_X_prime.T
-    A_3 = W_X_prime @ K_Y_prime @ W_X_prime.T
+        A_1 = W_X @ K_Y @ W_X.T
+        A_2 = W_X @ K_Y_Y_prime @ W_X_prime.T
+        A_3 = W_X_prime @ K_Y_prime @ W_X_prime.T
 
-    first_term = torch.einsum("ij,jk,ki->i", k_X.T, A_1, k_X)
-    second_term = 2 * torch.einsum("ij,jk,ki->i", k_X.T, A_2, k_X_prime)
-    third_term = torch.einsum("ij,jk,ki->i", k_X_prime.T, A_3, k_X_prime)
+        first_term = torch.einsum("ij,jk,ki->i", k_X.T, A_1, k_X)
+        second_term = 2 * torch.einsum("ij,jk,ki->i", k_X.T, A_2, k_X_prime)
+        third_term = torch.einsum("ij,jk,ki->i", k_X_prime.T, A_3, k_X_prime)
+        output = first_term - second_term + third_term
 
-    return first_term - second_term + third_term
+    return output
