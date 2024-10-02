@@ -78,9 +78,13 @@ def main(cfg: dict) -> None:
 
     # instantiate model
     model_cfg = EvaluationConfig.from_yaml(cfg["model"]["test_cfg"])
-    model = get_model(model_cfg)
+    model = get_model(model_cfg).to(device)
     weights_fpath = cfg["model"]["weights"]
-    state_dict = torch.load(weights_fpath, map_location=device)
+    state_dict = torch.load(
+	weights_fpath, 
+	map_location=device, 
+	weights_only=True
+    )
     model.load_state_dict(state_dict)
 
     # get embeder
@@ -93,8 +97,8 @@ def main(cfg: dict) -> None:
 
     n = cfg["data"]["test_examples"] if cfg["data"]["test_examples"] else len(test_loader)
     m = cfg["data"]["n_samples"]
-    X = torch.zeros((n, 512))  # image embeddings
-    Y_true = torch.zeros((n, 1))  # true labels
+    X = torch.zeros((n, 512), device=device)  # image embeddings
+    Y_true = torch.zeros((n, 1), device=device)  # true labels
     Y_prime = []  # sampled model outputs
     imgs_to_plot = []
     imgs_to_plot_preds = []
@@ -102,12 +106,12 @@ def main(cfg: dict) -> None:
 
     for i, (x, y) in tqdm(enumerate(test_loader), total=n):
         with torch.no_grad():
-            img_features = embedder.encode_image(x, normalize=True)
-            pred = model._predict_impl(x)
+            img_features = embedder.encode_image(x.to(device), normalize=True)
+            pred = model._predict_impl(x.to(device))
             samples = model._sample_impl(pred, training=False, num_samples=m)
 
         X[i] = img_features
-        Y_true[i] = y
+        Y_true[i] = y.to(device)
         Y_prime.append(samples.T)
 
         if i < cfg["plot"]["num_img_to_plot"]:
@@ -131,17 +135,17 @@ def main(cfg: dict) -> None:
 
         rv = model._posterior_predictive_impl(imgs_to_plot_preds[i], training=False)
         disc_support = torch.arange(0, imgs_to_plot_true.max() + 5)
-        dist_func = torch.exp(rv.log_prob(disc_support))
-        axs[i, 1].plot(disc_support, dist_func)
+        dist_func = torch.exp(rv.log_prob(disc_support.to(device)))
+        axs[i, 1].plot(disc_support.cpu(), dist_func.cpu())
         axs[i, 1].scatter(imgs_to_plot_true[i], 0, color="black", marker="*", s=50, zorder=100)
 
     plt.savefig(os.path.join(log_dir, "input_images.png"))
 
     # compute MCMD
-    Y_prime = torch.cat(Y_prime, dim=0)
+    Y_prime = torch.cat(Y_prime, dim=0).to(device)
 
     with torch.inference_mode():
-        x_prime = X.repeat_interleave(m, dim=0)
+        x_prime = X.repeat_interleave(m, dim=0).to(device)
         print(x_prime.shape, Y_prime.shape)
 
         mcmd_vals = compute_mcmd_torch(
