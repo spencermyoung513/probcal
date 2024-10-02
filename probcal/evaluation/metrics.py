@@ -213,29 +213,27 @@ def compute_mcmd_torch(
     I_n = torch.eye(n, device=device)
     I_m = torch.eye(m, device=device)
 
-    with torch.autocast(device_type=device.type):
-        K_X = x_kernel(x, x)
-        K_X_prime = x_kernel(x_prime, x_prime)
+    K_X = x_kernel(x, x)
+    K_X_prime = x_kernel(x_prime, x_prime)
 
-        L = torch.linalg.cholesky(K_X + n * lmbda * I_n)
-        L_prime = torch.linalg.cholesky(K_X_prime + m * lmbda * I_m)
-        W_X = torch.cholesky_inverse(L)
-        W_X_prime = torch.cholesky_inverse(L_prime)
+    L = torch.linalg.cholesky(K_X + n * lmbda * I_n)
+    L_prime = torch.linalg.cholesky(K_X_prime + m * lmbda * I_m)
+    W_X = torch.cholesky_inverse(L)
+    W_X_prime = torch.cholesky_inverse(L_prime)
 
-        K_Y = y_kernel(y, y)
-        K_Y_prime = y_kernel(y_prime, y_prime)
-        K_Y_Y_prime = y_kernel(y, y_prime)
+    K_Y = y_kernel(y, y)
+    K_Y_prime = y_kernel(y_prime, y_prime)
+    K_Y_Y_prime = y_kernel(y, y_prime)
 
-        k_X = x_kernel(x, grid)
-        k_X_prime = x_kernel(x_prime, grid)
+    k_X = x_kernel(x, grid)
+    k_X_prime = x_kernel(x_prime, grid)
 
-        A_1 = W_X @ K_Y @ W_X.T
-        A_2 = W_X @ K_Y_Y_prime @ W_X_prime.T
-        A_3 = W_X_prime @ K_Y_prime @ W_X_prime.T
+    A_1 = W_X @ K_Y @ W_X.T
+    A_2 = W_X @ K_Y_Y_prime @ W_X_prime.T
+    A_3 = W_X_prime @ K_Y_prime @ W_X_prime.T
 
-        first_term = torch.einsum("ij,jk,ki->i", k_X.T, A_1, k_X)
-        second_term = 2 * torch.einsum("ij,jk,ki->i", k_X.T, A_2, k_X_prime)
-        third_term = torch.einsum("ij,jk,ki->i", k_X_prime.T, A_3, k_X_prime)
-        output = first_term - second_term + third_term
+    first_term = torch.einsum("ij,jk,ki->i", k_X.T, A_1, k_X)
+    second_term = 2 * torch.einsum("ij,jk,ki->i", k_X.T, A_2, k_X_prime)
+    third_term = torch.einsum("ij,jk,ki->i", k_X_prime.T, A_3, k_X_prime)
 
-    return output
+    return first_term - second_term + third_term
