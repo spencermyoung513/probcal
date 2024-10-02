@@ -97,6 +97,8 @@ def main(cfg: dict) -> None:
 
     n = cfg["data"]["test_examples"] if cfg["data"]["test_examples"] else len(test_loader)
     m = cfg["data"]["n_samples"]
+    logging.info(f"Processing {n} test examples")
+    logging.info(f"Sampling {m} times from model")
     X = torch.zeros((n, 512), device=device)  # image embeddings
     Y_true = torch.zeros((n, 1), device=device)  # true labels
     Y_prime = []  # sampled model outputs
