@@ -70,6 +70,7 @@ def main(cfg: dict) -> None:
     datamodule = get_datamodule(
         DatasetType.IMAGE, ImageDatasetName(cfg["data"]["module"]), 1, num_workers=0
     )
+    logging.info(f"DataModule: {type(datamodule)}")
     if cfg["data"]["module"] == ImageDatasetName.COCO_PEOPLE.value:
         datamodule.setup(stage="test")
     else:
