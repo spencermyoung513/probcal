@@ -143,6 +143,14 @@ def main(cfg: dict) -> None:
 
     plt.savefig(os.path.join(log_dir, "input_images.png"))
 
+    # free up memory allocated to models
+    logging.info(f"GPU memory allocated: {torch.cuda.memory_allocated()/1024.0/1024.0} MB")
+    del model
+    del embedder
+    torch.cuda.empty_cache()
+    logging.info("Model and embedder removed")
+    logging.info(f"GPU memory allocated: {torch.cuda.memory_allocated()/1024.0/1024.0} MB")
+
     # compute MCMD
     Y_prime = torch.cat(Y_prime, dim=0).to(device)
 
