@@ -159,13 +159,13 @@ def main(cfg: dict) -> None:
         print(x_prime.shape, Y_prime.shape)
 
         mcmd_vals = compute_mcmd_torch(
-            grid=X,
-            x=X,
-            y=Y_true.float(),
-            x_prime=x_prime,
-            y_prime=Y_prime.float(),
+            grid=X.bfloat16(),
+            x=X.bfloat16(),
+            y=Y_true.float().bfloat16(),
+            x_prime=x_prime.bfloat16(),
+            y_prime=Y_prime.float().bfloat16(),
             x_kernel=polynomial_kernel,
-            y_kernel=get_y_kernel(Y_true, cfg["hyperparams"]["y_kernel_gamma"]),
+            y_kernel=get_y_kernel(Y_true.bfloat16(), cfg["hyperparams"]["y_kernel_gamma"]),
             lmbda=cfg["hyperparams"]["lmbda"],
         )
 
