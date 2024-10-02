@@ -1,6 +1,6 @@
-experiment_name: aaf_nbinom
+experiment_name: aaf_gaussian_beta
 random_seed: 1998
-head_type: negative_binomial
+head_type: gaussian
 dataset:
   type: image
   spec: aaf
@@ -22,7 +22,12 @@ training:
       T_max: 200
       eta_min: 0
       last_epoch: -1
+  beta_scheduler:
+    type: linear
+    kwargs:
+      beta_0: 0.5
+      beta_1: 0.5
+      last_epoch: -1
 evaluation:
   num_trials: 1
   log_dir: logs
-  chkp_eval: best_loss

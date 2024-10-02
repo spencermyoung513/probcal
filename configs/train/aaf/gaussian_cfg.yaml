@@ -1,6 +1,6 @@
-experiment_name: aaf_dp
+experiment_name: aaf_gaussian
 random_seed: 1998
-head_type: double_poisson
+head_type: gaussian
 dataset:
   type: image
   spec: aaf
@@ -25,4 +25,3 @@ training:
 evaluation:
   num_trials: 1
   log_dir: logs
-  chkp_eval: best_loss

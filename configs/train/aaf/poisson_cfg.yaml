@@ -1,6 +1,6 @@
-experiment_name: aaf_natural_gaussian
+experiment_name: aaf_poisson
 random_seed: 1998
-head_type: natural_gaussian
+head_type: poisson
 dataset:
   type: image
   spec: aaf
@@ -25,4 +25,3 @@ training:
 evaluation:
   num_trials: 1
   log_dir: logs
-  chkp_eval: best_loss
