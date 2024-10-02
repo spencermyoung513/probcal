@@ -13,4 +13,5 @@ ignore/
 */logs
 data/
 
-!data/discrete_sine_wave
+# Specific exceptions
+!data/discrete_sine_wave/
