@@ -105,7 +105,7 @@ def main(cfg: dict) -> None:
 
     for i, (x, y) in tqdm(enumerate(test_loader), total=n):
         with torch.no_grad():
-            img_features = embedder.encode_image(x.to(device), normalize=True)
+            img_features = embedder.encode_image(x.to(device), normalize=False)
             pred = model._predict_impl(x.to(device))
             samples = model._sample_impl(pred, training=False, num_samples=m)
             # point_pred = model._point_prediction_impl(pred, training=False)
