@@ -3,7 +3,6 @@ import os
 
 import matplotlib.pyplot as plt
 import pandas as pd
-import seaborn as sns
 
 OUTPUT_DIR = os.path.join("probcal", "figures", "artifacts")
 
@@ -31,21 +30,21 @@ def main(fpath: str) -> None:
     )
 
     for ood_type, dta in df.groupby("OOD type"):
-        # Plot the results
-        sns.set(style="whitegrid")
-        # Create a custom color palette
-        palette = sns.color_palette("deep")
         plt.figure(figsize=(6, 6))
-        sns.scatterplot(
-            data=dta,
-            x="Perturbation",
-            y="MCMD",
-            hue="Head",
-            style="Head",
-            markers="o",
-            alpha=0.7,
-            palette=palette,
-        )
+        plt.grid(True)
+        for head, head_dta in dta.groupby("Head"):
+            plt.scatter(
+                head_dta["Perturbation"],
+                head_dta["MCMD"],
+                label=head,
+                marker="o",
+                s=150,
+                alpha=0.5,
+                edgecolor="black",
+            )
+        plt.xlabel("Perturbation", fontsize=16)
+        plt.ylabel("MCMD", fontsize=16)
+        plt.legend(loc="best", fontsize=16)
         plt.savefig(os.path.join(OUTPUT_DIR, f"ood_scatter_{ood_type}.pdf"))
 
 
