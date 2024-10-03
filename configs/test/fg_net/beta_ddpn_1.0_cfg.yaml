@@ -8,7 +8,3 @@ batch_size: 4
 accelerator: cpu
 log_dir: logs/eval/fg_net_beta_ddpn_1.0
 model_ckpt_path: chkp/fg_net_beta_ddpn_1.0/version_0/best_loss.ckpt
-mcmd_num_trials: 5
-mcmd_input_kernel: polynomial
-mcmd_output_kernel: laplacian
-mcmd_lambda: 0.1
