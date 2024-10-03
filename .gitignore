@@ -9,7 +9,9 @@ chkp/
 ignore/
 */mnist
 */coco_people
+*/eva
 */logs
 data/
 
-!data/discrete_sine_wave
+# Specific exceptions
+!data/discrete_sine_wave/
