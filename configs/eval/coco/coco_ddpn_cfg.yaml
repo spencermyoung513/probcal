@@ -5,6 +5,7 @@ dataset:
   type: image
   spec: coco_people
 batch_size: 4
-accelerator: cpu
+accelerator: cuda
 log_dir: logs/coco/ddpn_results
 model_ckpt_path: chkp/coco/ddpn/best_loss.ckpt
+mcmd_num_trials: 5

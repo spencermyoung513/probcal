@@ -1,4 +1,4 @@
-experiment_name: coco_seitzer
+experiment_name: coco_immer
 random_seed: 1998
 head_type: gaussian
 dataset:
@@ -6,6 +6,6 @@ dataset:
   spec: coco_people
 batch_size: 4
 accelerator: cuda
-log_dir: logs/coco/seitzer_results
-model_ckpt_path: chkp/coco/seitzer/best_loss.ckpt
+log_dir: logs/coco/gaussian_results
+model_ckpt_path: chkp/coco/gaussian/best_loss.ckpt
 mcmd_num_trials: 5

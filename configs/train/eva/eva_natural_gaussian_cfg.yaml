@@ -1,9 +1,9 @@
-experiment_name: aaf
+experiment_name: eva_natural_gaussian
 random_seed: 1998
-head_type: gaussian
+head_type: natural_gaussian
 dataset:
   type: image
-  spec: aaf
+  spec: eva
 training:
   accelerator: gpu
   batch_size: 32
