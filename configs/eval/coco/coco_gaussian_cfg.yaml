@@ -1,11 +1,11 @@
 experiment_name: coco_immer
 random_seed: 1998
-head_type: natural_gaussian
+head_type: gaussian
 dataset:
   type: image
   spec: coco_people
 batch_size: 4
 accelerator: cuda
-log_dir: logs/coco/immer_results
-model_ckpt_path: chkp/coco/immer/best_loss.ckpt
+log_dir: logs/coco/gaussian_results
+model_ckpt_path: chkp/coco/gaussian/best_loss.ckpt
 mcmd_num_trials: 5
