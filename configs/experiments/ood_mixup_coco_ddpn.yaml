@@ -1,9 +1,9 @@
 exp:
-  name: ood_mixup_coco_people_gaussian
+  name: ood_mixup_coco_people_ddpn
   log_dir: logs
 model:
-  weights: weights/coco_people_gaussian/version_0/state_dict_best_loss.ckpt
-  test_cfg: configs/test/coco_gaussian_cfg.yaml
+  weights: weights/coco_people_ddpn/version_0/state_dict_best_loss.ckpt
+  test_cfg: configs/test/coco_ddpn_cfg.yaml
 data:
   test_examples: Null
   n_samples: 1
