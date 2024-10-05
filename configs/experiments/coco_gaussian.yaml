@@ -2,7 +2,7 @@ exp:
   name: coco_people_gaussian
   log_dir: logs
 model:
-  weights: weights/coco_people_gaussian/version_0/state_dict_best_mae.ckpt
+  weights: weights/coco_people_gaussian/version_0/state_dict_best_loss.ckpt
   test_cfg: configs/test/coco_gaussian_cfg.yaml
 data:
   test_examples: Null

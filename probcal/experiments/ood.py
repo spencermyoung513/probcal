@@ -1,6 +1,7 @@
 import argparse
 import logging
 import os.path
+from datetime import datetime
 from functools import partial
 
 import matplotlib.pyplot as plt
@@ -30,8 +31,10 @@ def mk_log_dir(log_dir, exp_name):
     Returns:
         None: This function does not return a value but creates directories as needed.
     """
-
-    log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), log_dir, exp_name)
+    ts = str(datetime.now())
+    log_dir = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), log_dir, exp_name + "_" + ts
+    )
     log_file = os.path.join(log_dir, "log.txt")
     if not os.path.exists("logs"):
         os.makedirs("logs")
