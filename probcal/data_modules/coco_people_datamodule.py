@@ -31,7 +31,7 @@ class COCOPeopleDataModule(L.LightningDataModule):
         batch_size: int,
         num_workers: int,
         persistent_workers: bool,
-        surface_image_path: bool = False,
+        surface_image_path: bool = True,  # Testing Purposes
     ):
         super().__init__()
         self.root_dir = Path(root_dir)

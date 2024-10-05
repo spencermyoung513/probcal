@@ -1,3 +1,4 @@
+import json
 import os
 from argparse import ArgumentParser
 from functools import partial
@@ -73,9 +74,13 @@ def main(config_path: Path):
         yaml.safe_dump(metrics, f)
     results.save(config.log_dir / "calibration_results.npz")
 
+    with open(config.log_dir / "mcmd_results.json", "w") as f:
+        json.dump(results.file_to_result_dict, f, indent=4)
+
 
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("--config", type=str, help="Path to evaluation config.yaml.")
     args = parser.parse_args()
+    print(args)
     main(config_path=Path(args.config))

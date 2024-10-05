@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
 from typing import Callable
+from typing import List
 from typing import Literal
 from typing import Sequence
 from typing import TypeAlias
@@ -41,6 +42,7 @@ class CalibrationResults:
     regression_targets: np.ndarray
     mcmd_results: list[MCMDResult]
     ece: float
+    file_to_result_dict: dict
 
     def save(self, filepath: str | Path):
         if not str(filepath).endswith(".npz"):
@@ -123,11 +125,11 @@ class CalibrationEvaluator:
 
         print(f"Running {self.settings.mcmd_num_trials} MCMD computation(s)...")
         mcmd_results = []
+        file_to_mcmd = {}
         for i in range(self.settings.mcmd_num_trials):
-            mcmd_vals, grid, targets = self.compute_mcmd(
+            mcmd_vals, grid, targets, paths = self.compute_mcmd(
                 model, test_dataloader, return_grid=True, return_targets=True
             )
-
             # We only need to save the input grid / regression targets once.
             if i == 0:
                 if self.settings.dataset_type == DatasetType.TABULAR:
@@ -144,14 +146,22 @@ class CalibrationEvaluator:
                 )
             )
 
+            print("Constructing file path to mcmd val dictionary...")
+            for idx, path in enumerate(paths):
+                file_to_mcmd[path] = mcmd_vals[idx].item()
+
         print("Computing ECE...")
         ece = self.compute_ece(model, test_dataloader)
+
+        print("Sorting path to mcmd value map...")
+        file_to_mcmd = sorted(file_to_mcmd.items(), key=lambda item: item[1])
 
         return CalibrationResults(
             input_grid_2d=grid_2d,
             regression_targets=regression_targets,
             mcmd_results=mcmd_results,
             ece=ece,
+            file_to_result_dict=file_to_mcmd,
         )
 
     def compute_mcmd(
@@ -162,7 +172,7 @@ class CalibrationEvaluator:
         return_targets: bool = False,
     ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor] | tuple[
         torch.Tensor, torch.Tensor, torch.Tensor
-    ]:
+    ] | tuple[torch.Tensor, List[str]] | any:
         """Compute the MCMD between samples drawn from the given model and the data spanned by the data loader.
 
         Args:
@@ -174,7 +184,7 @@ class CalibrationEvaluator:
         Returns:
             torch.Tensor | tuple[torch.Tensor, torch.Tensor] | tuple[torch.Tensor, torch.Tensor, torch.Tensor]: The computed MCMD values, along with the grid of inputs these values correspond to (if return_grid is True) and the regression targets (if return_targets is True).
         """
-        x, y, x_prime, y_prime = self._get_samples_for_mcmd(model, data_loader)
+        x, y, x_prime, y_prime, image_paths = self._get_samples_for_mcmd(model, data_loader)
         x_kernel, y_kernel = self._get_kernel_functions(y)
         mcmd_vals = compute_mcmd_torch(
             grid=x,
@@ -191,6 +201,8 @@ class CalibrationEvaluator:
             return_obj.append(x)
         if return_targets:
             return_obj.append(y)
+        if image_paths:
+            return_obj.append(image_paths)
         if len(return_obj) == 1:
             return return_obj[0]
         else:
@@ -212,7 +224,13 @@ class CalibrationEvaluator:
             data_loader, desc="Getting posterior predictive dists for MCMD..."
         ):
             all_outputs.append(model.predict(inputs.to(self.device)))
-            all_targets.append(targets.to(self.device))
+            if isinstance(targets, (tuple, list)) and len(targets) == 2:
+                image_paths, counts = targets
+            else:
+                counts = targets
+            if not isinstance(counts, torch.Tensor):
+                counts = torch.tensor(counts)
+            all_targets.append(counts.to(self.device))
 
         all_targets = torch.cat(all_targets).detach().cpu().numpy()
         all_outputs = torch.cat(all_outputs, dim=0)
@@ -280,11 +298,12 @@ class CalibrationEvaluator:
 
     def _get_samples_for_mcmd(
         self, model: DiscreteRegressionNN, data_loader: DataLoader
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, list]:
         x = []
         y = []
         x_prime = []
         y_prime = []
+        image_paths_list = []
         for inputs, targets in tqdm(data_loader, desc="Sampling from posteriors for MCMD..."):
             if self.settings.dataset_type == DatasetType.TABULAR:
                 x.append(inputs)
@@ -292,7 +311,14 @@ class CalibrationEvaluator:
                 x.append(self.clip_model.encode_image(inputs.to(self.device), normalize=False))
             elif self.settings.dataset_type == DatasetType.TEXT:
                 x.append(self.clip_model.encode_text(inputs.to(self.device), normalize=False))
-            y.append(targets.to(self.device))
+            if isinstance(targets, (tuple, list)) and len(targets) == 2:
+                image_paths, counts = targets
+                image_paths_list.extend(image_paths)
+            else:
+                counts = targets
+            if not isinstance(counts, torch.Tensor):
+                counts = torch.tensor(counts)
+            y.append(counts.to(self.device))
             y_hat = model.predict(inputs.to(self.device))
             x_prime.append(
                 torch.repeat_interleave(x[-1], repeats=self.settings.mcmd_num_samples, dim=0)
@@ -306,7 +332,7 @@ class CalibrationEvaluator:
         x_prime = torch.cat(x_prime, dim=0)
         y_prime = torch.cat(y_prime).float()
 
-        return x, y, x_prime, y_prime
+        return x, y, x_prime, y_prime, image_paths_list
 
     def _get_kernel_functions(self, y: torch.Tensor) -> tuple[KernelFunction, KernelFunction]:
         if self.settings.mcmd_input_kernel == "polynomial":

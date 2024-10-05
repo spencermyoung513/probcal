@@ -6,6 +6,6 @@ dataset:
   spec: coco_people
 batch_size: 4
 accelerator: cuda
-log_dir: logs/coco/gaussian_results
+log_dir: logs/coco/gaussian_results/testing
 model_ckpt_path: chkp/coco/gaussian/best_loss.ckpt
-mcmd_num_trials: 5
+mcmd_num_trials: 1
