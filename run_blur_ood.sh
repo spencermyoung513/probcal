@@ -7,7 +7,6 @@ m=5
 echo "No Blur - Gaussian Baseline"
 for ((i=1; i<=n; i++))
 do
-  echo "Running iteration $i..."
   python3 probcal/experiments/ood.py --cfg-path configs/experiments/coco_gaussian.yaml
 done
 
@@ -26,7 +25,6 @@ done
 echo "No Blur - Poisson Baseline$"
 for ((i=1; i<=n; i++))
 do
-  echo "Running iteration $i..."
   python3 probcal/experiments/ood.py --cfg-path configs/experiments/coco_poisson.yaml
 done
 
@@ -44,7 +42,6 @@ done
 echo "No Blur - DDPN Baseline"
 for ((i=1; i<=n; i++))
 do
-  echo "Running iteration $i..."
   python3 probcal/experiments/ood.py --cfg-path configs/experiments/coco_ddpn.yaml
 done
 
