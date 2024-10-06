@@ -6,6 +6,7 @@ m=5
 # GAUSSIAN
 echo "No Blur - Gaussian Baseline"
 for ((i=1; i<=n; i++))
+do
   echo "Running iteration $i..."
   python3 probcal/experiments/ood.py --cfg-path configs/experiments/coco_gaussian.yaml
 done
