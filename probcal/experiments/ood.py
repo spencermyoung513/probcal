@@ -31,7 +31,8 @@ def mk_log_dir(log_dir, exp_name):
     Returns:
         None: This function does not return a value but creates directories as needed.
     """
-    ts = str(datetime.now())
+    now = datetime.now()
+    ts = now.strftime("%Y-%m-%d %H:%M").replace(" ", "-")
     log_dir = os.path.join(
         os.path.dirname(os.path.abspath(__file__)), log_dir, exp_name + "_" + ts
     )
@@ -68,7 +69,6 @@ def main(cfg: dict) -> None:
     logging.info(f"Data Config: {cfg['data']}")
     logging.info(f"Hyperparam Config: {cfg['hyperparams']}")
     logging.info(f"Device for experiment: {device}")
-
     # build dataset and data loader
     datamodule = get_datamodule(
         DatasetType.IMAGE, ImageDatasetName(cfg["data"]["module"]), 1, num_workers=0
@@ -180,5 +180,7 @@ if __name__ == "__main__":
     args = args.parse_args()
 
     cfg = from_yaml(args.cfg_path)
-
-    main(cfg)
+    try:
+        main(cfg)
+    except Exception as e:
+        logging.exception(e)
