@@ -8,4 +8,4 @@ batch_size: 4
 accelerator: cuda
 log_dir: logs/coco/nbinom_results
 model_ckpt_path: chkp/coco/nbinom/best_loss.ckpt
-mcmd_num_trials: 5
+mcmd_num_trials: 1

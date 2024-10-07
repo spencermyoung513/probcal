@@ -7,7 +7,6 @@ from typing import Type
 
 import lightning as L
 import torch
-import yaml
 
 from probcal.enums import DatasetType
 from probcal.evaluation.calibration_evaluator import CalibrationEvaluator
@@ -17,6 +16,8 @@ from probcal.models.discrete_regression_nn import DiscreteRegressionNN
 from probcal.utils.configs import EvaluationConfig
 from probcal.utils.experiment_utils import get_datamodule
 from probcal.utils.experiment_utils import get_model
+
+# import yaml
 
 
 def main(config_path: Path):
@@ -75,16 +76,14 @@ def main(config_path: Path):
     #     yaml.safe_dump(metrics, f)
     # results.save(config.log_dir / "calibration_results.npz")
 
-
     with open(config.log_dir / "mcmd_results.json", "w") as f:
         json.dump(results.file_to_result_dict, f, indent=4)
 
     summary_dict = {}
-    file_to_result_dict = results.file_to_result_dict
-    sorted_files = sorted(file_to_result_dict, key=lambda x: file_to_result_dict[x].mcmd)
-    summary_dict["lowest"] = file_to_result_dict[sorted_files[0]].mcmd
-    summary_dict["highest"] = file_to_result_dict[sorted_files[-1]].mcmd
-    summary_dict["evenly_spaced"] = [file_to_result_dict[sorted_files[int(i * len(sorted_files) / 10)]].mcmd for i in range(10)]
+    # file_to_result_dict = results.file_to_result_dict
+    # results to file dict is already an orderd dict
+    # create a new summary dict that is the lowest value mcmd (thats the value), the highest mcmd value, and 10 evenly spaced middle values
+
     with open(config.log_dir / "mcmd_summary.json", "w") as f:
         json.dump(summary_dict, f, indent=4)
 
