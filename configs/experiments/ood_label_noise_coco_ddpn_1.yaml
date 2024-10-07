@@ -1,5 +1,5 @@
 exp:
-  name: ood_labelnoise_coco_people_poisson_0
+  name: ood_labelnoise_coco_people_ddpn_0
   log_dir: logs
 model:
   weights: weights/coco_people_poisson/state_dict_best_loss.ckpt
