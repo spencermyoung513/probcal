@@ -154,14 +154,16 @@ class CalibrationEvaluator:
         ece = self.compute_ece(model, test_dataloader)
 
         print("Sorting path to mcmd value map...")
-        file_to_mcmd = sorted(file_to_mcmd.items(), key=lambda item: item[1])
+        sorted_file_to_mcmd = dict(
+            sorted(file_to_mcmd.items(), key=lambda item: item[1], reverse=True)
+        )
 
         return CalibrationResults(
             input_grid_2d=grid_2d,
             regression_targets=regression_targets,
             mcmd_results=mcmd_results,
             ece=ece,
-            file_to_result_dict=file_to_mcmd,
+            file_to_result_dict=sorted_file_to_mcmd,
         )
 
     def compute_mcmd(
