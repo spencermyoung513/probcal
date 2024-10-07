@@ -83,6 +83,20 @@ def main(config_path: Path):
     # file_to_result_dict = results.file_to_result_dict
     # results to file dict is already an orderd dict
     # create a new summary dict that is the lowest value mcmd (thats the value), the highest mcmd value, and 10 evenly spaced middle values
+    sorted_mcmd_dict = results.file_to_result_dict
+    highest = sorted_mcmd_dict.popitem(last=True)
+    summary_dict[highest[0]] = highest[1]
+    lowest = sorted_mcmd_dict.popitem(last=False)
+    summary_dict[lowest[0]] = lowest[1]
+    num_middle = 10
+    all_keys = list(sorted_mcmd_dict.keys())
+    #10 evenly spaced middle values key is path, value is mcmd
+    for i in range(1, num_middle+1):
+        index = int(i/num_middle * len(all_keys))
+        key = all_keys[index]
+        summary_dict[key] = sorted_mcmd_dict[key]
+    
+    
 
     with open(config.log_dir / "mcmd_summary.json", "w") as f:
         json.dump(summary_dict, f, indent=4)
