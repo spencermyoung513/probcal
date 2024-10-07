@@ -70,25 +70,21 @@ def main(config_path: Path):
         mean_mcmd=[float(result.mean_mcmd) for result in results.mcmd_results],
         ece=float(results.ece),
     )
-    with open(config.log_dir / "test_metrics.yaml", "w") as f:
-        yaml.safe_dump(metrics, f)
-    results.save(config.log_dir / "calibration_results.npz")
+    # -- we arent logging results with this test --!
+    # with open(config.log_dir / "test_metrics.yaml", "w") as f:
+    #     yaml.safe_dump(metrics, f)
+    # results.save(config.log_dir / "calibration_results.npz")
 
 
     with open(config.log_dir / "mcmd_results.json", "w") as f:
         json.dump(results.file_to_result_dict, f, indent=4)
 
-    #create a summary of the file_to_result_dict
-    #there is roughly 12480 files, get the lowest value, the highst value, and 10 evenenly spaced values
     summary_dict = {}
     file_to_result_dict = results.file_to_result_dict
     sorted_files = sorted(file_to_result_dict, key=lambda x: file_to_result_dict[x].mcmd)
     summary_dict["lowest"] = file_to_result_dict[sorted_files[0]].mcmd
     summary_dict["highest"] = file_to_result_dict[sorted_files[-1]].mcmd
     summary_dict["evenly_spaced"] = [file_to_result_dict[sorted_files[int(i * len(sorted_files) / 10)]].mcmd for i in range(10)]
-    #awsome now in a folder make a new folder that has the actual image using the image path (which is the key for the dictionary), and then a txt file with the mcmd value
-    #give the sub folders appropriate names so i know which is wich
-    #also make a summary of the summary dict
     with open(config.log_dir / "mcmd_summary.json", "w") as f:
         json.dump(summary_dict, f, indent=4)
 
