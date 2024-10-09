@@ -1,5 +1,5 @@
 #!/bin/bash
-export PYTHONPATH=/Users/porterjenkins/code/probcal
+export PYTHONPATH=/home/porter/code/probcal
 
 n=4
 m=5
