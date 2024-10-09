@@ -7,5 +7,5 @@ dataset:
 batch_size: 4
 accelerator: cuda
 log_dir: logs/coco/seitzer_results
-model_ckpt_path: chkp/coco/seitzer/best_mae.ckpt
-mcmd_num_trials: 5
+model_ckpt_path: chkp/coco/seitzer/best_loss.ckpt
+mcmd_num_trials: 1

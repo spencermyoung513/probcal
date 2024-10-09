@@ -8,4 +8,4 @@ batch_size: 4
 accelerator: cuda
 log_dir: logs/coco/ddpn_results
 model_ckpt_path: chkp/coco/ddpn/best_loss.ckpt
-mcmd_num_trials: 5
+mcmd_num_trials: 1

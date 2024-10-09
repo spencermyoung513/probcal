@@ -91,9 +91,10 @@ def main(config_path: Path):
     all_keys = list(sorted_mcmd_dict.keys())
     # 10 evenly spaced middle values key is path, value is mcmd
     for i in range(1, num_middle + 1):
-        index = int(i / num_middle * len(all_keys))
+        index = int(i / num_middle * (len(all_keys) - 1))
         key = all_keys[index]
         summary_dict[key] = sorted_mcmd_dict[key]
+    print("finished dict", summary_dict)
 
     with open(config.log_dir / "mcmd_summary.json", "w") as f:
         json.dump(summary_dict, f, indent=4)
