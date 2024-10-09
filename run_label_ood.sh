@@ -1,7 +1,7 @@
 #!/bin/bash
 export PYTHONPATH=/home/porter/code/probcal
 
-n=1
+n=4
 m=5
 
 
