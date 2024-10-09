@@ -99,6 +99,8 @@ def main(config_path: Path):
     with open(config.log_dir / "mcmd_summary.json", "w") as f:
         json.dump(summary_dict, f, indent=4)
 
+    print('result dict size is', len(results.file_to_result_dict))
+
 
 if __name__ == "__main__":
     parser = ArgumentParser()

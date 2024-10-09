@@ -129,7 +129,7 @@ class CalibrationEvaluator:
         file_to_mcmd = {}
         for i in range(self.settings.mcmd_num_trials):
             mcmd_vals, grid, targets, paths = self.compute_mcmd(
-                model, val_dataloader,  test_dataloader, return_grid=True, return_targets=True
+                model, val_loader=val_dataloader,  test_loader=test_dataloader, return_grid=True, return_targets=True
             )
             # We only need to save the input grid / regression targets once.
             if i == 0:
@@ -204,6 +204,7 @@ class CalibrationEvaluator:
             y_kernel=y_kernel,
             lmbda=self.settings.mcmd_lambda,
         )
+        print("compute mcmd image paths length", len(image_paths))
         return_obj = [mcmd_vals]
         if return_grid:
             return_obj.append(x)
