@@ -129,7 +129,11 @@ class CalibrationEvaluator:
         file_to_mcmd = {}
         for i in range(self.settings.mcmd_num_trials):
             mcmd_vals, grid, targets, paths = self.compute_mcmd(
-                model, val_loader=val_dataloader,  test_loader=test_dataloader, return_grid=True, return_targets=True
+                model,
+                val_loader=val_dataloader,
+                test_loader=test_dataloader,
+                return_grid=True,
+                return_targets=True,
             )
             # We only need to save the input grid / regression targets once.
             if i == 0:
@@ -191,7 +195,10 @@ class CalibrationEvaluator:
         x, y, x_prime, y_prime, image_paths = self._get_samples_for_mcmd(model, val_loader)
         x_kernel, y_kernel = self._get_kernel_functions(y)
         grid = torch.cat(
-            [self.clip_model.encode_image(inputs.to(self.device), normalize=False) for inputs, _ in test_loader],
+            [
+                self.clip_model.encode_image(inputs.to(self.device), normalize=False)
+                for inputs, _ in test_loader
+            ],
             dim=0,
         )
         mcmd_vals = compute_mcmd_torch(
@@ -207,7 +214,7 @@ class CalibrationEvaluator:
         print("compute mcmd image paths length", len(image_paths))
         return_obj = [mcmd_vals]
         if return_grid:
-            return_obj.append(x)
+            return_obj.append(grid)
         if return_targets:
             return_obj.append(y)
         if image_paths:
@@ -216,7 +223,7 @@ class CalibrationEvaluator:
             return return_obj[0]
         else:
             return tuple(return_obj)
-        
+
     # def compute_mcmd(
     #     self,
     #     model: DiscreteRegressionNN,
