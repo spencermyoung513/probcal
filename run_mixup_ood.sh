@@ -1,16 +1,16 @@
 #!/bin/bash
 export PYTHONPATH=/Users/porterjenkins/code/probcal
 
-n=5
+n=4
 m=5
 
 
-echo "OOD Gaussian"
+echo "OOD seitzer Gaussian"
 for ((i=0; i<n; i++))
 do
   for ((j=0; j<m; j++))
     do
-    python3 probcal/experiments/ood.py --cfg-path configs/experiments/ood_mixup_coco_gaussian_${j}.yaml
+    python3 probcal/experiments/ood.py --cfg-path configs/experiments/ood_mixup_coco_seitzer_${j}.yaml
     done
 done
 
@@ -22,7 +22,8 @@ for ((i=0; i<n; i++))
 do
   for ((j=0; j<m; j++))
     do
-    python3 probcal/experiments/ood.py --cfg-path configs/experiments/ood_mixup_coco_poisson_${j}.yaml
+    echo "SKIP"
+    #python3 probcal/experiments/ood.py --cfg-path configs/experiments/ood_mixup_coco_poisson_${j}.yaml
     done
 done
 
@@ -33,6 +34,7 @@ for ((i=0; i<n; i++))
 do
   for ((j=0; j<m; j++))
     do
-    python3 probcal/experiments/ood.py --cfg-path configs/experiments/ood_mixup_coco_ddpn_${j}.yaml
+    echo "SKIP"
+    #python3 probcal/experiments/ood.py --cfg-path configs/experiments/ood_mixup_coco_ddpn_${j}.yaml
     done
 done
