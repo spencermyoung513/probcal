@@ -150,6 +150,7 @@ class CalibrationEvaluator:
                     mean_mcmd=mcmd_vals.mean().item(),
                 )
             )
+            testLoaderImagePaths = test_dataloader.dataset.image_paths
 
             print("Constructing file path to mcmd val dictionary...")
             for idx, path in enumerate(paths):
@@ -193,6 +194,7 @@ class CalibrationEvaluator:
             torch.Tensor | tuple[torch.Tensor, torch.Tensor] | tuple[torch.Tensor, torch.Tensor, torch.Tensor]: The computed MCMD values, along with the grid of inputs these values correspond to (if return_grid is True) and the regression targets (if return_targets is True).
         """
         x, y, x_prime, y_prime, image_paths = self._get_samples_for_mcmd(model, val_loader)
+        a, b, c, d, image_paths_2 = self._get_samples_for_mcmd(model, test_loader)
         x_kernel, y_kernel = self._get_kernel_functions(y)
         grid = torch.cat(
             [
@@ -211,14 +213,14 @@ class CalibrationEvaluator:
             y_kernel=y_kernel,
             lmbda=self.settings.mcmd_lambda,
         )
-        print("compute mcmd image paths length", len(image_paths))
+        print("compute mcmd image paths length", len(image_paths_2))
         return_obj = [mcmd_vals]
         if return_grid:
             return_obj.append(grid)
         if return_targets:
             return_obj.append(y)
-        if image_paths:
-            return_obj.append(image_paths)
+        if image_paths_2:
+            return_obj.append(image_paths_2)
         if len(return_obj) == 1:
             return return_obj[0]
         else:
