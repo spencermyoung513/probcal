@@ -122,13 +122,14 @@ class CalibrationEvaluator:
         data_module.prepare_data()
         data_module.setup("test")
         test_dataloader = data_module.test_dataloader()
+        val_dataloader = data_module.val_dataloader()
 
         print(f"Running {self.settings.mcmd_num_trials} MCMD computation(s)...")
         mcmd_results = []
         file_to_mcmd = {}
         for i in range(self.settings.mcmd_num_trials):
             mcmd_vals, grid, targets, paths = self.compute_mcmd(
-                model, test_dataloader, return_grid=True, return_targets=True
+                model, val_dataloader,  test_dataloader, return_grid=True, return_targets=True
             )
             # We only need to save the input grid / regression targets once.
             if i == 0:
@@ -169,7 +170,8 @@ class CalibrationEvaluator:
     def compute_mcmd(
         self,
         model: DiscreteRegressionNN,
-        data_loader: DataLoader,
+        val_loader: DataLoader,
+        test_loader: DataLoader,
         return_grid: bool = False,
         return_targets: bool = False,
     ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor] | tuple[
@@ -186,10 +188,14 @@ class CalibrationEvaluator:
         Returns:
             torch.Tensor | tuple[torch.Tensor, torch.Tensor] | tuple[torch.Tensor, torch.Tensor, torch.Tensor]: The computed MCMD values, along with the grid of inputs these values correspond to (if return_grid is True) and the regression targets (if return_targets is True).
         """
-        x, y, x_prime, y_prime, image_paths = self._get_samples_for_mcmd(model, data_loader)
+        x, y, x_prime, y_prime, image_paths = self._get_samples_for_mcmd(model, val_loader)
         x_kernel, y_kernel = self._get_kernel_functions(y)
+        grid = torch.cat(
+            [self.clip_model.encode_image(inputs.to(self.device), normalize=False) for inputs, _ in test_loader],
+            dim=0,
+        )
         mcmd_vals = compute_mcmd_torch(
-            grid=x,
+            grid=grid,
             x=x,
             y=y,
             x_prime=x_prime,
@@ -209,6 +215,53 @@ class CalibrationEvaluator:
             return return_obj[0]
         else:
             return tuple(return_obj)
+        
+    # def compute_mcmd(
+    #     self,
+    #     model: DiscreteRegressionNN,
+    #     val_loader: DataLoader,
+    #     test_loader: DataLoader,
+    #     return_grid: bool = False,
+    #     return_targets: bool = False,
+    # ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor] | tuple[
+    #     torch.Tensor, torch.Tensor, torch.Tensor
+    # ]:
+    #     """Compute the MCMD between samples drawn from the given model and the data spanned by the data loader.
+
+    #     Args:
+    #         model (DiscreteRegressionNN): Probabilistic regression model to compute the MCMD for.
+    #         data_loader (DataLoader): DataLoader with the test data to compute MCMD over.
+    #         return_grid (bool, optional): Whether/not to return the grid of values the MCMD was computed over. Defaults to False.
+    #         return_targets (bool, optional): Whether/not to return the regression targets the MCMD was computed against. Defaults to False.
+
+    #     Returns:
+    #         torch.Tensor | tuple[torch.Tensor, torch.Tensor] | tuple[torch.Tensor, torch.Tensor, torch.Tensor]: The computed MCMD values, along with the grid of inputs these values correspond to (if return_grid is True) and the regression targets (if return_targets is True).
+    #     """
+    #     x, y, x_prime, y_prime = self._get_samples_for_mcmd(model, val_loader)
+    #     x_kernel, y_kernel = self._get_kernel_functions(y)
+    #     grid = torch.cat(
+    #         [self.clip_model.encode_image(inputs.to(self.device), normalize=False) for inputs, _ in test_loader],
+    #         dim=0,
+    #     )
+    #     mcmd_vals = compute_mcmd_torch(
+    #         grid=grid,
+    #         x=x,
+    #         y=y,
+    #         x_prime=x_prime,
+    #         y_prime=y_prime,
+    #         x_kernel=x_kernel,
+    #         y_kernel=y_kernel,
+    #         lmbda=self.settings.mcmd_lambda,
+    #     )
+    #     return_obj = [mcmd_vals]
+    #     if return_grid:
+    #         return_obj.append(x)
+    #     if return_targets:
+    #         return_obj.append(y)
+    #     if len(return_obj) == 1:
+    #         return return_obj[0]
+    #     else:
+    #         return tuple(return_obj)
 
     def compute_ece(self, model: DiscreteRegressionNN, data_loader: DataLoader) -> float:
         """Compute the regression ECE of the given model over the dataset spanned by the data loader.
