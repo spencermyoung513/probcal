@@ -154,7 +154,10 @@ def get_datamodule(
             )
         elif dataset_path_or_spec == ImageDatasetName.OOD_LABEL_NOISE_COCO_PEOPLE:
             return OodLabelNoiseCocoPeopleDataModule(
-                root_dir=os.path.join(GLOBAL_DATA_DIR, "coco_people")
+                root_dir=os.path.join(GLOBAL_DATA_DIR, "coco_people"),
+                batch_size=batch_size,
+                num_workers=num_workers,
+                persistent_workers=True if num_workers > 0 else False,
             )
         elif dataset_path_or_spec == ImageDatasetName.AAF:
             return AAFDataModule(
