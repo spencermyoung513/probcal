@@ -8,4 +8,4 @@ batch_size: 4
 accelerator: cpu
 log_dir: logs/eval/fg_net_seitzer
 model_ckpt_path: chkp/fg_net_seitzer/version_0/best_loss.ckpt
-mcmd_num_trials: 5
+cce_num_trials: 5
