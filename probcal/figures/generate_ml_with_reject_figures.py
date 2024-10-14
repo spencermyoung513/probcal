@@ -7,11 +7,11 @@ from matplotlib import pyplot as plt
 from probcal.evaluation.kernels import rbf_kernel
 from probcal.evaluation.metrics import compute_mcmd_torch
 from probcal.models import GaussianNN
-from probcal.models.discrete_regression_nn import DiscreteRegressionNN
+from probcal.models.regression_nn import RegressionNN
 
 
 def compute_mae_and_nll_with_thresholded_reject(
-    model: DiscreteRegressionNN,
+    model: RegressionNN,
     threshold: float,
     thresholded_values: torch.Tensor,
     y_test: torch.Tensor,

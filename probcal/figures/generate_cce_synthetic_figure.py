@@ -12,21 +12,21 @@ from scipy.stats import poisson
 
 from probcal.data_modules import TabularDataModule
 from probcal.enums import DatasetType
-from probcal.evaluation.calibration_evaluator import CalibrationEvaluator
-from probcal.evaluation.calibration_evaluator import CalibrationEvaluatorSettings
 from probcal.evaluation.kernels import rbf_kernel
 from probcal.evaluation.plotting import plot_posterior_predictive
+from probcal.evaluation.probabilistic_evaluator import ProbabilisticEvaluator
+from probcal.evaluation.probabilistic_evaluator import ProbabilisticEvaluatorSettings
 from probcal.models import DoublePoissonNN
 from probcal.models import GaussianNN
 from probcal.models import NegBinomNN
 from probcal.models import PoissonNN
-from probcal.models.discrete_regression_nn import DiscreteRegressionNN
+from probcal.models.regression_nn import RegressionNN
 from probcal.random_variables import DoublePoisson
 from probcal.utils.multiple_formatter import multiple_formatter
 
 
 def produce_figure(
-    models: list[DiscreteRegressionNN],
+    models: list[RegressionNN],
     names: list[str],
     save_path: Path | str,
     dataset_path: Path | str,
@@ -57,14 +57,14 @@ def produce_figure(
     data_module = TabularDataModule(
         dataset_path, batch_size=16, num_workers=0, persistent_workers=False
     )
-    settings = CalibrationEvaluatorSettings(
+    settings = ProbabilisticEvaluatorSettings(
         dataset_type=DatasetType.TABULAR,
-        mcmd_input_kernel=x_kernel,
-        mcmd_output_kernel="rbf",
-        mcmd_num_samples=1,
-        mcmd_num_trials=1,
+        cce_input_kernel=x_kernel,
+        cce_output_kernel="rbf",
+        cce_num_samples=1,
+        cce_num_trials=1,
     )
-    evaluator = CalibrationEvaluator(settings=settings)
+    evaluator = ProbabilisticEvaluator(settings=settings)
 
     for i, (model, model_name) in enumerate(zip(models, names)):
         posterior_ax: plt.Axes = axs[0, i]
@@ -116,7 +116,7 @@ def produce_figure(
             error_color="gray",
         )
         results = evaluator(model, data_module)
-        mcmd_results = results.mcmd_results[0]
+        mcmd_results = results.cce_results[0]
         posterior_ax.set_title(model_name)
         posterior_ax.annotate(f"ECE: {results.ece:.3f}", (0.2, 41))
         posterior_ax.annotate(f"NLL: {nll:.3f}", (0.2, 37))
@@ -125,12 +125,12 @@ def produce_figure(
         posterior_ax.set_xlabel(None)
         posterior_ax.set_ylabel(None)
 
-        mcmd_vals = mcmd_results.mcmd_vals
+        mcmd_vals = mcmd_results.cce_vals
         sorted_indices = np.argsort(X)
         mcmd_ax.plot(X[sorted_indices], mcmd_vals[sorted_indices])
         mcmd_ax.set_ylim(-0.01, 0.5)
         mcmd_ax.annotate(
-            rf"$\overline{{\mathrm{{CCE}}}}$: {mcmd_results.mean_mcmd:.4f}",
+            rf"$\overline{{\mathrm{{CCE}}}}$: {mcmd_results.mean_cce:.4f}",
             (X.min() + 0.1, mcmd_ax.get_ylim()[1] * 0.8),
         )
 

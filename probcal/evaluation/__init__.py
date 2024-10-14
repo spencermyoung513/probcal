@@ -1,2 +1,2 @@
-from .calibration_evaluator import CalibrationEvaluator
-from .calibration_evaluator import CalibrationEvaluatorSettings
+from .probabilistic_evaluator import ProbabilisticEvaluator
+from .probabilistic_evaluator import ProbabilisticEvaluatorSettings

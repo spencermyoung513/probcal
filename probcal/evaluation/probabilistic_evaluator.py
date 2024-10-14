@@ -26,20 +26,20 @@ from probcal.evaluation.kernels import polynomial_kernel
 from probcal.evaluation.kernels import rbf_kernel
 from probcal.evaluation.metrics import compute_mcmd_torch
 from probcal.evaluation.metrics import compute_regression_ece
-from probcal.models.discrete_regression_nn import DiscreteRegressionNN
+from probcal.models.regression_nn import RegressionNN
 
 
 @dataclass
-class MCMDResult:
-    mcmd_vals: np.ndarray
-    mean_mcmd: float
+class CCEResult:
+    cce_vals: np.ndarray
+    mean_cce: float
 
 
 @dataclass
-class CalibrationResults:
+class EvaluationResults:
     input_grid_2d: np.ndarray
     regression_targets: np.ndarray
-    mcmd_results: list[MCMDResult]
+    cce_results: list[CCEResult]
     ece: float
 
     def save(self, filepath: str | Path):
@@ -51,36 +51,30 @@ class CalibrationResults:
             "ece": self.ece,
         }
         save_dict.update(
-            {
-                f"mcmd_vals_{i}": self.mcmd_results[i].mcmd_vals
-                for i in range(len(self.mcmd_results))
-            }
+            {f"cce_vals_{i}": self.cce_results[i].cce_vals for i in range(len(self.cce_results))}
         )
         save_dict.update(
-            {
-                f"mean_mcmd_{i}": self.mcmd_results[i].mean_mcmd
-                for i in range(len(self.mcmd_results))
-            }
+            {f"mean_cce_{i}": self.cce_results[i].mean_cce for i in range(len(self.cce_results))}
         )
         np.savez(filepath, **save_dict)
 
     @staticmethod
-    def load(filepath: str | Path) -> CalibrationResults:
+    def load(filepath: str | Path) -> EvaluationResults:
         data: dict[str, np.ndarray] = np.load(filepath)
         num_trials = max(
-            int(k.split("mean_mcmd_")[-1]) + 1 for k in data.keys() if k.startswith("mean_mcmd_")
+            int(k.split("mean_cce_")[-1]) + 1 for k in data.keys() if k.startswith("mean_cce_")
         )
-        mcmd_results = [
-            MCMDResult(
-                mcmd_vals=data[f"mcmd_vals_{i}"],
-                mean_mcmd=data[f"mean_mcmd_{i}"],
+        cce_results = [
+            CCEResult(
+                cce_vals=data[f"cce_vals_{i}"],
+                mean_cce=data[f"mean_cce_{i}"],
             )
             for i in range(num_trials)
         ]
-        return CalibrationResults(
+        return EvaluationResults(
             input_grid_2d=data["input_grid_2d"],
             regression_targets=data["regression_targets"],
-            mcmd_results=mcmd_results,
+            cce_results=cce_results,
             ece=data["ece"].item(),
         )
 
@@ -89,23 +83,24 @@ KernelFunction: TypeAlias = Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
 
 
 @dataclass
-class CalibrationEvaluatorSettings:
+class ProbabilisticEvaluatorSettings:
     dataset_type: DatasetType = DatasetType.IMAGE
     device: torch.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    mcmd_num_trials: int = 5
-    mcmd_input_kernel: Literal["polynomial"] | KernelFunction = "polynomial"
-    mcmd_output_kernel: Literal["rbf", "laplacian"] | KernelFunction = "rbf"
-    mcmd_lambda: float = 0.1
-    mcmd_num_samples: int = 1
+    cce_use_val_split_for_S: bool = False
+    cce_num_trials: int = 5
+    cce_input_kernel: Literal["polynomial"] | KernelFunction = "polynomial"
+    cce_output_kernel: Literal["rbf", "laplacian"] | KernelFunction = "rbf"
+    cce_lambda: float = 0.1
+    cce_num_samples: int = 1
     ece_bins: int = 50
     ece_weights: Literal["uniform", "frequency"] = "frequency"
     ece_alpha: float = 1.0
 
 
-class CalibrationEvaluator:
-    """Helper object to evaluate the calibration of a neural net."""
+class ProbabilisticEvaluator:
+    """Helper object to evaluate the probabilistic fit of a neural net."""
 
-    def __init__(self, settings: CalibrationEvaluatorSettings):
+    def __init__(self, settings: ProbabilisticEvaluatorSettings):
         self.settings = settings
         self.device = settings.device
         self._clip_model = None
@@ -114,18 +109,25 @@ class CalibrationEvaluator:
 
     @torch.inference_mode()
     def __call__(
-        self, model: DiscreteRegressionNN, data_module: L.LightningDataModule
-    ) -> CalibrationResults:
+        self, model: RegressionNN, data_module: L.LightningDataModule
+    ) -> EvaluationResults:
         model.to(self.device)
         data_module.prepare_data()
         data_module.setup("test")
+        val_dataloader = data_module.val_dataloader()
         test_dataloader = data_module.test_dataloader()
 
-        print(f"Running {self.settings.mcmd_num_trials} MCMD computation(s)...")
-        mcmd_results = []
-        for i in range(self.settings.mcmd_num_trials):
-            mcmd_vals, grid, targets = self.compute_mcmd(
-                model, test_dataloader, return_grid=True, return_targets=True
+        print(f"Running {self.settings.cce_num_trials} CCE computation(s)...")
+        cce_results = []
+        for i in range(self.settings.cce_num_trials):
+            cce_vals, grid, targets = self.compute_cce(
+                model=model,
+                grid_loader=test_dataloader,
+                sample_loader=val_dataloader
+                if self.settings.cce_use_val_split_for_S
+                else test_dataloader,
+                return_grid=True,
+                return_targets=True,
             )
 
             # We only need to save the input grid / regression targets once.
@@ -137,58 +139,67 @@ class CalibrationEvaluator:
                     grid_2d = TSNE().fit_transform(grid.detach().cpu().numpy())
                 regression_targets = targets.detach().cpu().numpy()
 
-            mcmd_results.append(
-                MCMDResult(
-                    mcmd_vals=mcmd_vals.detach().cpu().numpy(),
-                    mean_mcmd=mcmd_vals.mean().item(),
+            cce_results.append(
+                CCEResult(
+                    cce_vals=cce_vals.detach().cpu().numpy(),
+                    mean_cce=cce_vals.mean().item(),
                 )
             )
 
         print("Computing ECE...")
         ece = self.compute_ece(model, test_dataloader)
 
-        return CalibrationResults(
+        return EvaluationResults(
             input_grid_2d=grid_2d,
             regression_targets=regression_targets,
-            mcmd_results=mcmd_results,
+            cce_results=cce_results,
             ece=ece,
         )
 
-    def compute_mcmd(
+    def compute_cce(
         self,
-        model: DiscreteRegressionNN,
-        data_loader: DataLoader,
+        model: RegressionNN,
+        grid_loader: DataLoader,
+        sample_loader: DataLoader,
         return_grid: bool = False,
         return_targets: bool = False,
     ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor] | tuple[
         torch.Tensor, torch.Tensor, torch.Tensor
     ]:
-        """Compute the MCMD between samples drawn from the given model and the data spanned by the data loader.
+        """Compute the CCE between the given model and data samples.
 
         Args:
-            model (DiscreteRegressionNN): Probabilistic regression model to compute the MCMD for.
-            data_loader (DataLoader): DataLoader with the test data to compute MCMD over.
-            return_grid (bool, optional): Whether/not to return the grid of values the MCMD was computed over. Defaults to False.
-            return_targets (bool, optional): Whether/not to return the regression targets the MCMD was computed against. Defaults to False.
+            model (DiscreteRegressionNN): Probabilistic regression model to compute the CCE for.
+            grid_loader (DataLoader): DataLoader with the data inputs to compute CCE over.
+            sample_loader (DataLoader): DataLoader with the data inputs/outputs that define S (from which we form our two samples).
+            return_grid (bool, optional): Whether/not to return the grid of values the CCE was computed over. Defaults to False.
+            return_targets (bool, optional): Whether/not to return the regression targets the CCE was computed against. Defaults to False.
 
         Returns:
-            torch.Tensor | tuple[torch.Tensor, torch.Tensor] | tuple[torch.Tensor, torch.Tensor, torch.Tensor]: The computed MCMD values, along with the grid of inputs these values correspond to (if return_grid is True) and the regression targets (if return_targets is True).
+            torch.Tensor | tuple[torch.Tensor, torch.Tensor] | tuple[torch.Tensor, torch.Tensor, torch.Tensor]: The computed CCE values, along with the grid of inputs these values correspond to (if return_grid is True) and the regression targets (if return_targets is True).
         """
-        x, y, x_prime, y_prime = self._get_samples_for_mcmd(model, data_loader)
+        x, y, x_prime, y_prime = self._get_samples_for_mcmd(model, sample_loader)
+        grid = torch.cat(
+            [
+                self.clip_model.encode_image(inputs.to(self.device), normalize=False)
+                for inputs, _ in grid_loader
+            ],
+            dim=0,
+        )
         x_kernel, y_kernel = self._get_kernel_functions(y)
-        mcmd_vals = compute_mcmd_torch(
-            grid=x,
+        cce_vals = compute_mcmd_torch(
+            grid=grid,
             x=x,
             y=y,
             x_prime=x_prime,
             y_prime=y_prime,
             x_kernel=x_kernel,
             y_kernel=y_kernel,
-            lmbda=self.settings.mcmd_lambda,
+            lmbda=self.settings.cce_lambda,
         )
-        return_obj = [mcmd_vals]
+        return_obj = [cce_vals]
         if return_grid:
-            return_obj.append(x)
+            return_obj.append(grid)
         if return_targets:
             return_obj.append(y)
         if len(return_obj) == 1:
@@ -196,7 +207,7 @@ class CalibrationEvaluator:
         else:
             return tuple(return_obj)
 
-    def compute_ece(self, model: DiscreteRegressionNN, data_loader: DataLoader) -> float:
+    def compute_ece(self, model: RegressionNN, data_loader: DataLoader) -> float:
         """Compute the regression ECE of the given model over the dataset spanned by the data loader.
 
         Args:
@@ -209,7 +220,7 @@ class CalibrationEvaluator:
         all_outputs = []
         all_targets = []
         for inputs, targets in tqdm(
-            data_loader, desc="Getting posterior predictive dists for MCMD..."
+            data_loader, desc="Getting posterior predictive dists for ECE..."
         ):
             all_outputs.append(model.predict(inputs.to(self.device)))
             all_targets.append(targets.to(self.device))
@@ -227,28 +238,28 @@ class CalibrationEvaluator:
         )
         return ece
 
-    def plot_mcmd_results(
+    def plot_cce_results(
         self,
-        calibration_results: CalibrationResults,
+        results: EvaluationResults,
         gridsize: int = 100,
         trial_index: int = 0,
         show: bool = False,
     ) -> plt.Figure:
-        """Given a set of calibration results and an existing axes, plot the MCMD values against their 2d input projections on a hexbin grid.
+        """Given a set of evaluation results and an existing axes, plot the CCE values against their 2d input projections on a hexbin grid.
 
         Args:
-            calibration_results (CalibrationResults): Calibration results from a CalibrationEvaluator.
+            results (EvaluationResults): Results from a ProbabilsticEvaluator.
             ax (plt.Axes): The axes to draw the plot on.
             gridsize (int, optional): Determines the granularity of the contour plot (higher numbers are more granular). Defaults to 100.
-            trial_index (int, optional): Which MCMD computation to use for the plot (since multiple trials are possible). Defaults to 0 (the first).
+            trial_index (int, optional): Which CCE computation to use for the plot (since multiple trials are possible). Defaults to 0 (the first).
             show (bool, optional): Whether/not to show the resultant figure with plt.show(). Defaults to False.
 
         Returns:
-            Figure: Matplotlib figure with the visualized MCMD values.
+            Figure: Matplotlib figure with the visualized CCE values.
         """
-        mcmd_vals = calibration_results.mcmd_results[trial_index].mcmd_vals
-        mean_mcmd = calibration_results.mcmd_results[trial_index].mean_mcmd
-        input_grid_2d = calibration_results.input_grid_2d
+        cce_vals = results.cce_results[trial_index].cce_vals
+        mean_cce = results.cce_results[trial_index].mean_cce
+        input_grid_2d = results.input_grid_2d
 
         fig, axs = plt.subplots(1, 2, figsize=(10, 4))
         axs: Sequence[plt.Axes]
@@ -260,16 +271,16 @@ class CalibrationEvaluator:
         axs[0].set_title("Data")
         grid_data = griddata(
             input_grid_2d,
-            calibration_results.regression_targets,
+            results.regression_targets,
             (grid_x, grid_y),
             method="linear",
         )
         mappable_0 = axs[0].contourf(grid_x, grid_y, grid_data, levels=5, cmap="viridis")
         fig.colorbar(mappable_0, ax=axs[0])
 
-        axs[1].set_title(f"Mean MCMD: {mean_mcmd:.4f}")
-        grid_mcmd = griddata(input_grid_2d, mcmd_vals, (grid_x, grid_y), method="linear")
-        mappable_1 = axs[1].contourf(grid_x, grid_y, grid_mcmd, levels=5, cmap="viridis")
+        axs[1].set_title(f"Mean CCE: {mean_cce:.4f}")
+        grid_cce = griddata(input_grid_2d, cce_vals, (grid_x, grid_y), method="linear")
+        mappable_1 = axs[1].contourf(grid_x, grid_y, grid_cce, levels=5, cmap="viridis")
         fig.colorbar(mappable_1, ax=axs[1])
 
         fig.tight_layout()
@@ -279,13 +290,15 @@ class CalibrationEvaluator:
         return fig
 
     def _get_samples_for_mcmd(
-        self, model: DiscreteRegressionNN, data_loader: DataLoader
+        self, model: RegressionNN, data_loader: DataLoader
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         x = []
         y = []
         x_prime = []
         y_prime = []
-        for inputs, targets in tqdm(data_loader, desc="Sampling from posteriors for MCMD..."):
+        for inputs, targets in tqdm(
+            data_loader, desc="Sampling from posteriors for MCMD computation..."
+        ):
             if self.settings.dataset_type == DatasetType.TABULAR:
                 x.append(inputs)
             elif self.settings.dataset_type == DatasetType.IMAGE:
@@ -295,10 +308,10 @@ class CalibrationEvaluator:
             y.append(targets.to(self.device))
             y_hat = model.predict(inputs.to(self.device))
             x_prime.append(
-                torch.repeat_interleave(x[-1], repeats=self.settings.mcmd_num_samples, dim=0)
+                torch.repeat_interleave(x[-1], repeats=self.settings.cce_num_samples, dim=0)
             )
             y_prime.append(
-                model.sample(y_hat, num_samples=self.settings.mcmd_num_samples).flatten()
+                model.sample(y_hat, num_samples=self.settings.cce_num_samples).flatten()
             )
 
         x = torch.cat(x, dim=0)
@@ -309,14 +322,14 @@ class CalibrationEvaluator:
         return x, y, x_prime, y_prime
 
     def _get_kernel_functions(self, y: torch.Tensor) -> tuple[KernelFunction, KernelFunction]:
-        if self.settings.mcmd_input_kernel == "polynomial":
+        if self.settings.cce_input_kernel == "polynomial":
             x_kernel = polynomial_kernel
         else:
-            x_kernel = self.settings.mcmd_input_kernel
+            x_kernel = self.settings.cce_input_kernel
 
-        if self.settings.mcmd_output_kernel == "rbf":
+        if self.settings.cce_output_kernel == "rbf":
             y_kernel = partial(rbf_kernel, gamma=(1 / (2 * y.float().var())).item())
-        elif self.settings.mcmd_output_kernel == "laplacian":
+        elif self.settings.cce_output_kernel == "laplacian":
             y_kernel = partial(laplacian_kernel, gamma=(1 / (2 * y.float().var())).item())
 
         return x_kernel, y_kernel

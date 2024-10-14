@@ -11,11 +11,11 @@ from probcal.models import DoublePoissonNN
 from probcal.models import GaussianNN
 from probcal.models import NegBinomNN
 from probcal.models import PoissonNN
-from probcal.models.discrete_regression_nn import DiscreteRegressionNN
+from probcal.models.regression_nn import RegressionNN
 
 
 def produce_figure(
-    models: list[DiscreteRegressionNN],
+    models: list[RegressionNN],
     names: list[str],
     save_path: Path | str,
     dataset_path: Path | str,
