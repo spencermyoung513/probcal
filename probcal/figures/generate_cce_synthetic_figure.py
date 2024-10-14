@@ -31,7 +31,7 @@ def produce_figure(
     save_path: Path | str,
     dataset_path: Path | str,
 ):
-    """Create a figure showcasing the MCMD's ability to identify calibrated models.
+    """Create a figure showcasing CCE's ability to identify calibrated models.
 
     Args:
         models (list[DiscreteRegressionNN]): List of models to plot posterior predictive distributions of.
@@ -68,7 +68,7 @@ def produce_figure(
 
     for i, (model, model_name) in enumerate(zip(models, names)):
         posterior_ax: plt.Axes = axs[0, i]
-        mcmd_ax: plt.Axes = axs[1, i]
+        cce_ax: plt.Axes = axs[1, i]
         y_hat = model.predict(torch.tensor(X).unsqueeze(1))
 
         if isinstance(model, GaussianNN):
@@ -116,7 +116,7 @@ def produce_figure(
             error_color="gray",
         )
         results = evaluator(model, data_module)
-        mcmd_results = results.cce_results[0]
+        cce_results = results.cce_results[0]
         posterior_ax.set_title(model_name)
         posterior_ax.annotate(f"ECE: {results.ece:.3f}", (0.2, 41))
         posterior_ax.annotate(f"NLL: {nll:.3f}", (0.2, 37))
@@ -125,13 +125,13 @@ def produce_figure(
         posterior_ax.set_xlabel(None)
         posterior_ax.set_ylabel(None)
 
-        mcmd_vals = mcmd_results.cce_vals
+        cce_vals = cce_results.cce_vals
         sorted_indices = np.argsort(X)
-        mcmd_ax.plot(X[sorted_indices], mcmd_vals[sorted_indices])
-        mcmd_ax.set_ylim(-0.01, 0.5)
-        mcmd_ax.annotate(
-            rf"$\overline{{\mathrm{{CCE}}}}$: {mcmd_results.mean_cce:.4f}",
-            (X.min() + 0.1, mcmd_ax.get_ylim()[1] * 0.8),
+        cce_ax.plot(X[sorted_indices], cce_vals[sorted_indices])
+        cce_ax.set_ylim(-0.01, 0.5)
+        cce_ax.annotate(
+            rf"$\overline{{\mathrm{{CCE}}}}$: {cce_results.mean_cce:.4f}",
+            (X.min() + 0.1, cce_ax.get_ylim()[1] * 0.8),
         )
 
     fig.tight_layout()

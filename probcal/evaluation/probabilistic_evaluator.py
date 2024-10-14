@@ -36,7 +36,7 @@ class CCEResult:
 
 
 @dataclass
-class EvaluationResults:
+class ProbabilisticResults:
     input_grid_2d: np.ndarray
     regression_targets: np.ndarray
     cce_results: list[CCEResult]
@@ -59,7 +59,7 @@ class EvaluationResults:
         np.savez(filepath, **save_dict)
 
     @staticmethod
-    def load(filepath: str | Path) -> EvaluationResults:
+    def load(filepath: str | Path) -> ProbabilisticResults:
         data: dict[str, np.ndarray] = np.load(filepath)
         num_trials = max(
             int(k.split("mean_cce_")[-1]) + 1 for k in data.keys() if k.startswith("mean_cce_")
@@ -71,7 +71,7 @@ class EvaluationResults:
             )
             for i in range(num_trials)
         ]
-        return EvaluationResults(
+        return ProbabilisticResults(
             input_grid_2d=data["input_grid_2d"],
             regression_targets=data["regression_targets"],
             cce_results=cce_results,
@@ -110,7 +110,7 @@ class ProbabilisticEvaluator:
     @torch.inference_mode()
     def __call__(
         self, model: RegressionNN, data_module: L.LightningDataModule
-    ) -> EvaluationResults:
+    ) -> ProbabilisticResults:
         model.to(self.device)
         data_module.prepare_data()
         data_module.setup("test")
@@ -149,7 +149,7 @@ class ProbabilisticEvaluator:
         print("Computing ECE...")
         ece = self.compute_ece(model, test_dataloader)
 
-        return EvaluationResults(
+        return ProbabilisticResults(
             input_grid_2d=grid_2d,
             regression_targets=regression_targets,
             cce_results=cce_results,
@@ -240,7 +240,7 @@ class ProbabilisticEvaluator:
 
     def plot_cce_results(
         self,
-        results: EvaluationResults,
+        results: ProbabilisticResults,
         gridsize: int = 100,
         trial_index: int = 0,
         show: bool = False,

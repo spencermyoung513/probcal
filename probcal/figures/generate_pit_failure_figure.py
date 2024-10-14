@@ -133,7 +133,7 @@ def plot_cce_curve(
 ):
     y_prime = np.ravel(posterior_predictive.rvs(size=(num_samples_from_posterior, len(y_true))))
     x_prime = np.tile(x, num_samples_from_posterior)
-    mcmd_vals = compute_mcmd_numpy(
+    cce_vals = compute_mcmd_numpy(
         grid=x,
         x=x,
         y=y_true,
@@ -147,13 +147,13 @@ def plot_cce_curve(
     sorted_indices = np.argsort(x)
     ax.plot(
         x[sorted_indices],
-        mcmd_vals[sorted_indices],
+        cce_vals[sorted_indices],
     )
     ax.set_ylim(-0.01, max(ax.get_ylim()[1], 0.60))
     ax.set_xticks([])
     ax.set_yticks([])
     ax.annotate(
-        rf"$\overline{{\mathrm{{CCE}}}}$: {np.mean(mcmd_vals).item():4f}",
+        rf"$\overline{{\mathrm{{CCE}}}}$: {np.mean(cce_vals).item():4f}",
         xy=(1, ax.get_ylim()[1] * 0.8),
         fontsize=6,
     )
