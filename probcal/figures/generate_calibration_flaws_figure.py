@@ -1,6 +1,7 @@
 from functools import partial
 from pathlib import Path
 
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.stats import norm
@@ -73,7 +74,7 @@ def generate_figure(alpha: float, save_dir: Path):
         weights="frequency",
         num_bins=100,
     )
-    mcmd_vals = compute_mcmd_numpy(
+    cce_vals = compute_mcmd_numpy(
         grid=x,
         x=x,
         y=y,
@@ -84,6 +85,7 @@ def generate_figure(alpha: float, save_dir: Path):
         lmbda=0.1,
     )
 
+    matplotlib.rcParams.update({"font.size": 15})
     fig_a, subplot_a = plt.subplots(1, 1, figsize=(4, 4))
     fig_b, subplot_b = plt.subplots(1, 1, figsize=(4, 4))
     fig_c, subplot_c = plt.subplots(1, 1, figsize=(4, 4))
@@ -125,14 +127,16 @@ def generate_figure(alpha: float, save_dir: Path):
     fig_c.tight_layout()
     fig_c.savefig(save_dir / "calibration_flaws_c.pdf", dpi=150)
 
-    # Plot D: Plot the MCMD values, which correctly show a large discrepancy in the distributions.
+    # Plot D: Plot the CCE values, which correctly show a large discrepancy in the distributions.
     order = np.argsort(x)
-    subplot_d.plot(x[order], mcmd_vals[order])
-    subplot_d.annotate(f"Avg. MCMD: {mcmd_vals.mean():.3f}", xy=(-2.5, mcmd_vals.max() * 1.2))
-    subplot_d.set_ylim(0, mcmd_vals.max() * 1.5)
+    subplot_d.plot(x[order], cce_vals[order])
+    subplot_d.annotate(
+        rf"$\overline{{\mathrm{{CCE}}}}$: {cce_vals.mean():.3f}", xy=(-2.5, cce_vals.max() * 1.2)
+    )
+    subplot_d.set_ylim(0, cce_vals.max() * 1.5)
     subplot_d.set_xlim(x.min(), x.max())
     subplot_d.set_xlabel("$X$")
-    subplot_d.set_ylabel("MCMD")
+    subplot_d.set_ylabel("CCE")
     fig_d.tight_layout()
     fig_d.savefig(save_dir / "calibration_flaws_d.pdf", dpi=150)
 
