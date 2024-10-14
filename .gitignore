@@ -13,4 +13,4 @@ data
 
 # Specific exceptions
 !data/discrete_sine_wave/
-!weights/*.ckpt
+!weights

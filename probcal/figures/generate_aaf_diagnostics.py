@@ -287,7 +287,7 @@ if __name__ == "__main__":
 
     main(
         model=constructor.load_from_checkpoint(args.model_ckpt),
-        embeddings_dir=Path("data/embeddings/aaf"),
+        embeddings_dir=Path("weights/embeddings/aaf"),
         save_folder=Path(args.save_dir) / args.model_type,
         num_highest_lowest_cce=args.n,
     )
