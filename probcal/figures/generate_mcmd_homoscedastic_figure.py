@@ -80,9 +80,8 @@ def generate_figure(save_path: str):
         "Different Shape",
     ]
 
-    gamma = 0.5
-    x_kernel = partial(rbf_kernel, gamma=gamma)
-    y_kernel = partial(rbf_kernel, gamma=gamma)
+    x_kernel = partial(rbf_kernel, gamma=1)
+    y_kernel = partial(rbf_kernel, gamma=1 / (2 * y.var(ddof=1)))
 
     fig, axs = plt.subplots(
         nrows=2,
@@ -114,10 +113,10 @@ def generate_figure(save_path: str):
         scatter_ax.set_ylim(-7, 7)
         scatter_ax.xaxis.set_major_locator(MultipleLocator(np.pi))
         scatter_ax.xaxis.set_major_formatter(FuncFormatter(multiple_formatter()))
-        mcmd_vals = compute_mcmd_numpy(grid, x, y, x_prime, y_prime, x_kernel, y_kernel)
+        mcmd_vals = compute_mcmd_numpy(grid, x, y, x_prime, y_prime, x_kernel, y_kernel, lmbda=0.1)
 
         mcmd_ax.plot(grid, mcmd_vals)
-        mcmd_ax.set_ylim(-0.1, 2.5)
+        mcmd_ax.set_ylim(-0.1, 1.5)
         mcmd_ax.annotate(
             f"Mean MCMD: {np.mean(mcmd_vals):.4f}",
             (0.1, 0.8 * mcmd_ax.get_ylim()[1]),
