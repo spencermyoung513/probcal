@@ -8,4 +8,4 @@ batch_size: 4
 accelerator: cpu
 log_dir: logs/eval/aaf_faithful_gaussian
 model_ckpt_path: chkp/aaf_faithful_gaussian/version_0/best_loss.ckpt
-mcmd_num_trials: 5
+cce_num_trials: 5
