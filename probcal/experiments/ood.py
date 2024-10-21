@@ -111,7 +111,6 @@ def main(cfg: dict) -> None:
             img_features = embedder.encode_image(x.to(device), normalize=False)
             pred = model._predict_impl(x.to(device))
             samples = model._sample_impl(pred, training=False, num_samples=m)
-            # point_pred = model._point_prediction_impl(pred, training=False)
 
         X[i] = img_features
         Y_true[i] = y.to(device)
