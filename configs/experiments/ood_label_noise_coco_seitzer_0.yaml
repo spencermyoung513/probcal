@@ -1,9 +1,9 @@
 exp:
-  name: ood_labelnoise_coco_people_gaussian
+  name: ood_labelnoise_coco_people_seitzer_0
   log_dir: logs
 model:
-  weights: weights/coco_people_gaussian/state_dict_best_loss.ckpt
-  test_cfg: configs/test/coco_gaussian_cfg.yaml
+  weights: weights/coco_people_seitzer/state_dict_best_loss.ckpt
+  test_cfg: configs/test/coco_seitzer_cfg.yaml
 data:
   test_examples: Null
   n_samples: 1

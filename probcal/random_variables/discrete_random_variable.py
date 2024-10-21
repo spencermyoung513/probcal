@@ -160,11 +160,9 @@ class DiscreteRandomVariable:
 
         if self.use_torch:
             draws = draws.long()
-            is_scalar_draw = draws.numel() == 1
         else:
             draws = draws.astype(int)
-            is_scalar_draw = draws.size == 1
-        return draws.item() if is_scalar_draw else draws
+        return draws
 
     @property
     def pmf_vals(self) -> np.ndarray | torch.Tensor:
