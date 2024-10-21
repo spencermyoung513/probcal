@@ -8,10 +8,9 @@ logs
 chkp/
 ignore/
 */mnist
-*/coco_people
-*/eva
 */logs
 data
 
 # Specific exceptions
 !data/discrete_sine_wave/
+!weights

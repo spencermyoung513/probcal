@@ -9,11 +9,11 @@ from probcal.enums import LRSchedulerType
 from probcal.enums import OptimizerType
 from probcal.evaluation.custom_torchmetrics import AverageNLL
 from probcal.models.backbones import Backbone
-from probcal.models.discrete_regression_nn import DiscreteRegressionNN
+from probcal.models.regression_nn import RegressionNN
 from probcal.training.losses import natural_gaussian_nll
 
 
-class NaturalGaussianNN(DiscreteRegressionNN):
+class NaturalGaussianNN(RegressionNN):
     """A neural network that learns the natural parameters of a Gaussian distribution over each regression target (conditioned on the input).
 
     Attributes:
