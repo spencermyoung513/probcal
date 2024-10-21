@@ -132,7 +132,7 @@ def main(cfg: dict) -> None:
     imgs_to_plot_true = torch.cat(imgs_to_plot_true, dim=0)
     for i in range(cfg["plot"]["num_img_to_plot"]):
         axs[i, 0].imshow(imgs_to_plot[i])
-        axs[i, 0].set_title(f"Image: {i+1}")
+        axs[i, 0].set_title(f"Image: {i + 1}")
         axs[i, 0].axis("off")
 
         rv = model._posterior_predictive_impl(imgs_to_plot_preds[i], training=False)
@@ -144,21 +144,21 @@ def main(cfg: dict) -> None:
     plt.savefig(os.path.join(log_dir, "input_images.png"))
 
     # free up memory allocated to models
-    logging.info(f"GPU memory allocated: {torch.cuda.memory_allocated()/1024.0/1024.0} MB")
+    logging.info(f"GPU memory allocated: {torch.cuda.memory_allocated() / 1024.0 / 1024.0} MB")
     del model
     del embedder
     torch.cuda.empty_cache()
     logging.info("Model and embedder removed")
-    logging.info(f"GPU memory allocated: {torch.cuda.memory_allocated()/1024.0/1024.0} MB")
+    logging.info(f"GPU memory allocated: {torch.cuda.memory_allocated() / 1024.0 / 1024.0} MB")
 
-    # compute MCMD
+    # compute CCE
     Y_prime = torch.cat(Y_prime, dim=0).to(device)
 
     with torch.inference_mode():
         x_prime = X.repeat_interleave(m, dim=0).to(device)
         print(x_prime.shape, Y_prime.shape)
 
-        mcmd_vals = compute_mcmd_torch(
+        cce_vals = compute_mcmd_torch(
             grid=X,
             x=X,
             y=Y_true.float(),
@@ -169,8 +169,8 @@ def main(cfg: dict) -> None:
             lmbda=cfg["hyperparams"]["lmbda"],
         )
 
-    print(mcmd_vals.mean())
-    logging.info(f"Final MCMD: {mcmd_vals.mean()}")
+    print(cce_vals.mean())
+    logging.info(f"Final CCE: {cce_vals.mean()}")
 
 
 if __name__ == "__main__":
