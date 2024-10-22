@@ -2,6 +2,7 @@ from pathlib import Path
 
 import lightning as L
 import torch
+from matplotlib import pyplot as plt
 from torch.utils.data import DataLoader
 from torch.utils.data import random_split
 from torchvision.datasets import MNIST
@@ -70,3 +71,24 @@ class MNISTDataModule(L.LightningDataModule):
             persistent_workers=self.persistent_workers,
             shuffle=False,
         )
+
+
+dataset = MNISTDataModule("../../data/mnist", 8, 1, False)
+dataset.setup("stage")
+train = dataset.mnist_train
+
+# Get the first image and label
+image, label = train[0]
+
+# The image tensor will be in the format (1, 28, 28)
+# We need to squeeze it to remove the channel dimension
+image = image.squeeze()
+
+print(image)
+
+# Create a figure and display the image
+plt.figure(figsize=(6, 6))
+plt.imshow(image, cmap="gray")
+plt.title(f"Label: {label}")
+plt.axis("off")
+plt.show()

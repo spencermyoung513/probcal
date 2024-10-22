@@ -1,0 +1,10 @@
+experiment_name: mnist_gaussian
+random_seed: 1998
+head_type: gaussian
+dataset:
+  type: image
+  spec: mnist
+batch_size: 4
+accelerator: cpu
+log_dir: logs/mnist_results
+model_ckpt_path: chkp/mnist_gaussian/version_0/best_loss.ckpt
