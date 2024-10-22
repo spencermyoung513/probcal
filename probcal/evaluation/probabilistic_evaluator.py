@@ -90,7 +90,7 @@ class ProbabilisticEvaluatorSettings:
     cce_use_val_split_for_S: bool = False
     cce_num_trials: int = 5
     cce_input_kernel: Literal["polynomial"] | KernelFunction = "polynomial"
-    cce_output_kernel: Literal["rbf", "laplacian"] | KernelFunction = "rbf"
+    cce_output_kernel: Literal["rbf", "laplacian", "bhatt"] | KernelFunction = "rbf"
     cce_lambda: float = 0.1
     cce_num_samples: int = 1
     ece_bins: int = 50
