@@ -21,6 +21,7 @@ from torchvision.transforms import Compose
 from tqdm import tqdm
 
 from probcal.enums import DatasetType
+from probcal.evaluation.kernels import bhattacharyya_kernel
 from probcal.evaluation.kernels import laplacian_kernel
 from probcal.evaluation.kernels import polynomial_kernel
 from probcal.evaluation.kernels import rbf_kernel
@@ -331,6 +332,8 @@ class ProbabilisticEvaluator:
             y_kernel = partial(rbf_kernel, gamma=(1 / (2 * y.float().var())).item())
         elif self.settings.cce_output_kernel == "laplacian":
             y_kernel = partial(laplacian_kernel, gamma=(1 / (2 * y.float().var())).item())
+        elif self.settings.cce_output_kernel == "bhatt":
+            y_kernel = bhattacharyya_kernel
 
         return x_kernel, y_kernel
 
