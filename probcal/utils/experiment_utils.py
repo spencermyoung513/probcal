@@ -14,6 +14,7 @@ from probcal.data_modules import AAFDataModule
 from probcal.data_modules import COCOPeopleDataModule
 from probcal.data_modules import EVADataModule
 from probcal.data_modules import FGNetDataModule
+from probcal.data_modules import MNISTDataModule
 from probcal.data_modules import OodBlurCocoPeopleDataModule
 from probcal.data_modules import OodLabelNoiseCocoPeopleDataModule
 from probcal.data_modules import OodMixupCocoPeopleDataModule
@@ -130,7 +131,12 @@ def get_datamodule(
         )
     elif dataset_type == DatasetType.IMAGE:
         if dataset_path_or_spec == ImageDatasetName.MNIST:
-            return ValueError("MNIST not supported.")
+            return MNISTDataModule(
+                root_dir=os.path.join(GLOBAL_DATA_DIR, "mnist"),
+                batch_size=batch_size,
+                num_workers=num_workers,
+                persistent_workers=True if num_workers > 0 else False,
+            )
         elif dataset_path_or_spec == ImageDatasetName.COCO_PEOPLE:
             return COCOPeopleDataModule(
                 root_dir=os.path.join(GLOBAL_DATA_DIR, "coco_people"),
