@@ -1,18 +1,16 @@
-# Quantifying the Calibration of Probabilistic Regression Models
+# Assessing the Probabilistic Fit of Neural Regressors
 
-This repository contains the official implementation of "A General Method for Measuring Calibration of Probabilistic Neural Regressors".
+This repository contains the official implementation of "Beyond Calibration: Assessing the Probabilistic Fit of Neural Regressors via Conditional Congruence".
+
+Our repository name, `probcal`, is a portmanteau of "problems" and "calibration", i.e. we address existing problems with using calibration to evaluate neural nets.
 
 ## Important Links
 
 Important figures used in the paper, along with the code that generated them, can be found in [this directory](probcal/figures).
 
-Our implementations of the probabilistic neural networks referenced in the paper can be found at the following locations:
+Our implementations of the probabilistic neural networks referenced in the paper can be found in [this directory](probcal/models).
 
-- [Gaussian DNN](probcal/models/gaussian_nn.py)
-- [Poisson DNN](probcal/models/poisson_nn.py)
-- [NB DNN](probcal/models/neg_binom_nn.py)
-
-Saved model weights can be found [here](weights), and dataset files can be found [here](data). Configs to reproduce the models referenced in the paper are saved in the [configs](configs) directory.
+Saved model weights can be found [here](weights), and synthetic dataset files can be found [here](data). Configs to reproduce the models referenced in the paper are saved in the [configs](configs) directory.
 
 ## Install Project Dependencies
 
@@ -48,7 +46,7 @@ If fitting a model on tabular data, the training script assumes the dataset will
 
 ### Adding New Models
 
-All regression models should inherit from the `DiscreteRegressionNN` class (found [here](probcal/models/discrete_regression_nn.py)). This base class is a `lightning` module, which allows for a lot of typical NN boilerplate code to be abstracted away. Beyond setting a few class attributes like `loss_fn` while calling the super-initializer, the only methods you need to actually write to make a new module are:
+All regression models should inherit from the `RegressionNN` class (found [here](probcal/models/regression_nn.py)). This base class is a `lightning` module, which allows for a lot of typical NN boilerplate code to be abstracted away. Beyond setting a few class attributes like `loss_fn` while calling the super-initializer, the only methods you need to actually write to make a new module are:
 
 - `_forward_impl` (defines a forward pass through the network)
 - `_predict_impl` (defines how to make predictions with the network, including any transformations on the output of the forward pass)
@@ -71,41 +69,41 @@ python probcal/evaluation/eval_model.py --config path/to/eval/config.yaml
 
 Two results files will be saved to the `log_dir` you specify in your config:
 
-- A `test_metrics.yaml` with metrics like MAE, RMSE, etc. and a summary of the calibration results (such as the mean MCMDs for each specified trial)
-- A `calibration_results.npz` file which can be loaded into a `CalibrationResults` object to see granular MCMD and ECE results.
+- A `test_metrics.yaml` with metrics like MAE, RMSE, etc. and a summary of the probabilistic results (such as the mean CCE values for each specified trial)
+- A `probabilistic_results.npz` file which can be loaded into a `ProbabilisticResults` object to see granular CCE and ECE results.
 
-## Measuring Calibration
+## Measuring Probabilistic Fit
 
-Once a `DiscreteRegressionNN` subclass is trained, its calibration can be measured on a dataset via the `CalibrationEvaluator`. Example usage:
+Once a `RegressionNN` subclass is trained, its probabilistic fit can be measured on a dataset via the `ProbabilisticEvaluator`. Example usage:
 
 ```python
 from probcal.data_modules import COCOPeopleDataModule
 from probcal.enums import DatasetType
-from probcal.evaluation import CalibrationEvaluator
-from probcal.evaluation import CalibrationEvaluatorSettings
+from probcal.evaluation import ProbabilisticEvaluator
+from probcal.evaluation import ProbabilisticEvaluatorSettings
 from probcal.models import GaussianNN
 
 
-# You can customize the settings for the MCMD / ECE computation.
-settings = CalibrationEvaluatorSettings(
+# You can customize the settings for the CCE / ECE computation.
+settings = ProbabilisticEvaluatorSettings(
     dataset_type=DatasetType.IMAGE,
-    mcmd_input_kernel="polynomial",
-    mcmd_output_kernel="rbf",
-    mcmd_lambda=0.1,
-    mcmd_num_samples=5,
+    cce_input_kernel="polynomial",
+    cce_output_kernel="rbf",
+    cce_lambda=0.1,
+    cce_num_samples=1,
     ece_bins=50,
     ece_weights="frequency",
     ece_alpha=1,
     # etc.
 )
-evaluator = CalibrationEvaluator(settings)
+evaluator = ProbabilisticEvaluator(settings)
 
 model = GaussianNN.load_from_checkpoint("path/to/model.ckpt")
 
 # You can use any lightning data module (preferably, the one with the dataset the model was trained on).
 data_module = COCOPeopleDataModule(root_dir="data", batch_size=4, num_workers=0, persistent_workers=False)
-calibration_results = evaluator(model=model, data_module=data_module)
-calibration_results.save("path/to/results.npz")
+results = evaluator(model=model, data_module=data_module)
+results.save("path/to/results.npz")
 ```
 
-Invoking the `CalibrationEvaluator`'s `__call__` method (as above) kicks off an extensive evaluation wherein MCMD and ECE are computed for the specified model. This passes back a `CalibrationResults` object, which will contain the computed metrics and other helpful variables for further analysis.
+Invoking the `ProbabilisticEvaluator`'s `__call__` method (as above) kicks off an extensive evaluation wherein CCE and ECE are computed for the specified model. This passes back an `ProbabilisticResults` object, which will contain the computed metrics and other helpful variables for further analysis.

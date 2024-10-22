@@ -244,10 +244,10 @@ class EvaluationConfig(BaseConfig):
         accelerator_type: AcceleratorType,
         log_dir: Path,
         model_ckpt_path: Path,
-        mcmd_num_trials: int,
-        mcmd_output_kernel: Literal["rbf", "laplacian"],
-        mcmd_lambda: float,
-        mcmd_num_samples: int,
+        cce_num_trials: int,
+        cce_output_kernel: Literal["rbf", "laplacian"],
+        cce_lambda: float,
+        cce_num_samples: int,
         ece_bins: int,
         ece_weights: Literal["uniform", "frequency"],
         ece_alpha: float,
@@ -265,10 +265,10 @@ class EvaluationConfig(BaseConfig):
             log_dir=log_dir,
         )
         self.model_ckpt_path = model_ckpt_path
-        self.mcmd_num_trials = mcmd_num_trials
-        self.mcmd_output_kernel = mcmd_output_kernel
-        self.mcmd_lambda = mcmd_lambda
-        self.mcmd_num_samples = mcmd_num_samples
+        self.cce_num_trials = cce_num_trials
+        self.cce_output_kernel = cce_output_kernel
+        self.cce_lambda = cce_lambda
+        self.cce_num_samples = cce_num_samples
         self.ece_bins = ece_bins
         self.ece_weights = ece_weights
         self.ece_alpha = ece_alpha
@@ -289,6 +289,7 @@ class EvaluationConfig(BaseConfig):
         # Required arguments.
         head_type = HeadType(config_dict["head_type"])
         dataset_type = DatasetType(config_dict["dataset"]["type"])
+
         log_dir = Path(config_dict["log_dir"])
         model_ckpt_path = Path(config_dict["model_ckpt_path"])
         dataset_path_or_spec = TrainingConfig.get_dataset_path_or_spec(config_dict["dataset"])
@@ -298,12 +299,12 @@ class EvaluationConfig(BaseConfig):
         hidden_dim = config_dict.get("hidden_dim", 64)
         batch_size = config_dict.get("batch_size", 1)
         accelerator_type = AcceleratorType(config_dict.get("accelerator", "cpu"))
-        mcmd_num_trials = config_dict.get("mcmd_num_trials", 1)
-        mcmd_output_kernel = config_dict.get("mcmd_output_kernel", "rbf")
-        if mcmd_output_kernel not in ("rbf", "laplacian"):
-            raise ValueError("mcmd_output_kernel must be either 'rbf' or 'laplacian'.")
-        mcmd_lambda = config_dict.get("mcmd_lambda", 0.1)
-        mcmd_num_samples = config_dict.get("mcmd_num_samples", 1)
+        cce_num_trials = config_dict.get("cce_num_trials", 1)
+        cce_output_kernel = config_dict.get("cce_output_kernel", "rbf")
+        if cce_output_kernel not in ("rbf", "laplacian"):
+            raise ValueError("cce_output_kernel must be either 'rbf' or 'laplacian'.")
+        cce_lambda = config_dict.get("cce_lambda", 0.1)
+        cce_num_samples = config_dict.get("cce_num_samples", 1)
         ece_bins = config_dict.get("ece_bins", 50)
         ece_weights = config_dict.get("ece_weights", "frequency")
         if ece_weights not in ("frequency", "uniform"):
@@ -322,10 +323,10 @@ class EvaluationConfig(BaseConfig):
             accelerator_type=accelerator_type,
             log_dir=log_dir,
             model_ckpt_path=model_ckpt_path,
-            mcmd_num_trials=mcmd_num_trials,
-            mcmd_output_kernel=mcmd_output_kernel,
-            mcmd_lambda=mcmd_lambda,
-            mcmd_num_samples=mcmd_num_samples,
+            cce_num_trials=cce_num_trials,
+            cce_output_kernel=cce_output_kernel,
+            cce_lambda=cce_lambda,
+            cce_num_samples=cce_num_samples,
             ece_bins=ece_bins,
             ece_weights=ece_weights,
             ece_alpha=ece_alpha,

@@ -1,6 +1,7 @@
 import argparse
 import logging
 import os.path
+from datetime import datetime
 from functools import partial
 
 import matplotlib.pyplot as plt
@@ -30,8 +31,11 @@ def mk_log_dir(log_dir, exp_name):
     Returns:
         None: This function does not return a value but creates directories as needed.
     """
-
-    log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), log_dir, exp_name)
+    now = datetime.now()
+    ts = now.strftime("%Y-%m-%d %H:%M").replace(" ", "-")
+    log_dir = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), log_dir, exp_name + "_" + ts
+    )
     log_file = os.path.join(log_dir, "log.txt")
     if not os.path.exists("logs"):
         os.makedirs("logs")
@@ -64,11 +68,12 @@ def main(cfg: dict) -> None:
     print(f"Getting models weights: {cfg['model']['weights']}")
     logging.info(f"Data Config: {cfg['data']}")
     logging.info(f"Hyperparam Config: {cfg['hyperparams']}")
-
+    logging.info(f"Device for experiment: {device}")
     # build dataset and data loader
     datamodule = get_datamodule(
         DatasetType.IMAGE, ImageDatasetName(cfg["data"]["module"]), 1, num_workers=0
     )
+    logging.info(f"DataModule: {type(datamodule)}")
     if cfg["data"]["module"] == ImageDatasetName.COCO_PEOPLE.value:
         datamodule.setup(stage="test")
     else:
@@ -77,9 +82,9 @@ def main(cfg: dict) -> None:
 
     # instantiate model
     model_cfg = EvaluationConfig.from_yaml(cfg["model"]["test_cfg"])
-    model = get_model(model_cfg)
+    model = get_model(model_cfg).to(device)
     weights_fpath = cfg["model"]["weights"]
-    state_dict = torch.load(weights_fpath, map_location=device)
+    state_dict = torch.load(weights_fpath, map_location=device, weights_only=True)
     model.load_state_dict(state_dict)
 
     # get embeder
@@ -92,8 +97,10 @@ def main(cfg: dict) -> None:
 
     n = cfg["data"]["test_examples"] if cfg["data"]["test_examples"] else len(test_loader)
     m = cfg["data"]["n_samples"]
-    X = torch.zeros((n, 512))  # image embeddings
-    Y_true = torch.zeros((n, 1))  # true labels
+    logging.info(f"Processing {n} test examples")
+    logging.info(f"Sampling {m} times from model")
+    X = torch.zeros((n, 512), device=device)  # image embeddings
+    Y_true = torch.zeros((n, 1), device=device)  # true labels
     Y_prime = []  # sampled model outputs
     imgs_to_plot = []
     imgs_to_plot_preds = []
@@ -101,12 +108,12 @@ def main(cfg: dict) -> None:
 
     for i, (x, y) in tqdm(enumerate(test_loader), total=n):
         with torch.no_grad():
-            img_features = embedder.encode_image(x, normalize=True)
-            pred = model._predict_impl(x)
+            img_features = embedder.encode_image(x.to(device), normalize=False)
+            pred = model._predict_impl(x.to(device))
             samples = model._sample_impl(pred, training=False, num_samples=m)
 
         X[i] = img_features
-        Y_true[i] = y
+        Y_true[i] = y.to(device)
         Y_prime.append(samples.T)
 
         if i < cfg["plot"]["num_img_to_plot"]:
@@ -125,25 +132,33 @@ def main(cfg: dict) -> None:
     imgs_to_plot_true = torch.cat(imgs_to_plot_true, dim=0)
     for i in range(cfg["plot"]["num_img_to_plot"]):
         axs[i, 0].imshow(imgs_to_plot[i])
-        axs[i, 0].set_title(f"Image: {i+1}")
+        axs[i, 0].set_title(f"Image: {i + 1}")
         axs[i, 0].axis("off")
 
         rv = model._posterior_predictive_impl(imgs_to_plot_preds[i], training=False)
         disc_support = torch.arange(0, imgs_to_plot_true.max() + 5)
-        dist_func = torch.exp(rv.log_prob(disc_support))
-        axs[i, 1].plot(disc_support, dist_func)
+        dist_func = torch.exp(rv.log_prob(disc_support.to(device)))
+        axs[i, 1].plot(disc_support.cpu(), dist_func.cpu())
         axs[i, 1].scatter(imgs_to_plot_true[i], 0, color="black", marker="*", s=50, zorder=100)
 
     plt.savefig(os.path.join(log_dir, "input_images.png"))
 
-    # compute MCMD
-    Y_prime = torch.cat(Y_prime, dim=0)
+    # free up memory allocated to models
+    logging.info(f"GPU memory allocated: {torch.cuda.memory_allocated() / 1024.0 / 1024.0} MB")
+    del model
+    del embedder
+    torch.cuda.empty_cache()
+    logging.info("Model and embedder removed")
+    logging.info(f"GPU memory allocated: {torch.cuda.memory_allocated() / 1024.0 / 1024.0} MB")
+
+    # compute CCE
+    Y_prime = torch.cat(Y_prime, dim=0).to(device)
 
     with torch.inference_mode():
-        x_prime = X.repeat_interleave(m, dim=0)
+        x_prime = X.repeat_interleave(m, dim=0).to(device)
         print(x_prime.shape, Y_prime.shape)
 
-        mcmd_vals = compute_mcmd_torch(
+        cce_vals = compute_mcmd_torch(
             grid=X,
             x=X,
             y=Y_true.float(),
@@ -154,8 +169,8 @@ def main(cfg: dict) -> None:
             lmbda=cfg["hyperparams"]["lmbda"],
         )
 
-    print(mcmd_vals.mean())
-    logging.info(f"Final MCMD: {mcmd_vals.mean()}")
+    print(cce_vals.mean())
+    logging.info(f"Final CCE: {cce_vals.mean()}")
 
 
 if __name__ == "__main__":
@@ -164,5 +179,7 @@ if __name__ == "__main__":
     args = args.parse_args()
 
     cfg = from_yaml(args.cfg_path)
-
-    main(cfg)
+    try:
+        main(cfg)
+    except Exception as e:
+        logging.exception(e)

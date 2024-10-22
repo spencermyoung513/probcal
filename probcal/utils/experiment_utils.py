@@ -34,7 +34,7 @@ from probcal.models.backbones import MLP
 from probcal.models.backbones import MNISTCNN
 from probcal.models.backbones import MobileNetV3
 from probcal.models.backbones import ViT
-from probcal.models.discrete_regression_nn import DiscreteRegressionNN
+from probcal.models.regression_nn import RegressionNN
 from probcal.utils.configs import EvaluationConfig
 from probcal.utils.configs import TrainingConfig
 from probcal.utils.generic_utils import partialclass
@@ -44,9 +44,9 @@ GLOBAL_DATA_DIR = "data"
 
 def get_model(
     config: TrainingConfig | EvaluationConfig, return_initializer: bool = False
-) -> DiscreteRegressionNN:
+) -> RegressionNN:
 
-    initializer: Type[DiscreteRegressionNN]
+    initializer: Type[RegressionNN]
 
     if config.head_type == HeadType.GAUSSIAN:
         if hasattr(config, "beta_scheduler_type") and config.beta_scheduler_type is not None:
@@ -154,7 +154,10 @@ def get_datamodule(
             )
         elif dataset_path_or_spec == ImageDatasetName.OOD_LABEL_NOISE_COCO_PEOPLE:
             return OodLabelNoiseCocoPeopleDataModule(
-                root_dir=os.path.join(GLOBAL_DATA_DIR, "coco_people")
+                root_dir=os.path.join(GLOBAL_DATA_DIR, "coco_people"),
+                batch_size=batch_size,
+                num_workers=num_workers,
+                persistent_workers=True if num_workers > 0 else False,
             )
         elif dataset_path_or_spec == ImageDatasetName.AAF:
             return AAFDataModule(
