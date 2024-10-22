@@ -107,3 +107,33 @@ def polynomial_kernel(
     K += coef0
     K **= degree
     return K
+
+
+def bhattacharyya_kernel(x: torch.Tensor, x_prime: torch.Tensor) -> torch.Tensor:
+    """Pytorch implementation of the bhattacharyya kernel.
+
+    The bhattacharyya kernel compares multinomial probability distributions and is computed as follows:
+
+    B(x, x') = sum(sqrt(x_i, x'_i) for all i)
+
+    (where we sum over each discrete event represented by the multinomial distributions)
+
+    Args:
+        x (torch.Tensor): A (n,d) tensor of multinomial probabilities. Each row should sum to 1.
+        x_prime (torch.Tensor): A (m,d) tensor of multinomial probabilities. Each row should sum to 1.
+
+    Raises:
+        ValueError: If all rows in either `x` or `x_prime` do not sum to 1.
+
+    Returns:
+        torch.Tensor: (n,m) Gram tensor.
+    """
+    one_tensor = torch.ones(1, device=x.device)
+    if not torch.allclose(x.sum(dim=1), one_tensor) or not torch.allclose(
+        x_prime.sum(dim=1), one_tensor
+    ):
+        raise ValueError(
+            "The rows of x or x_prime do not sum to 1, so the Bhattacharrya kernel is not applicable."
+        )
+
+    return torch.matmul(x.sqrt(), x_prime.T.sqrt())
