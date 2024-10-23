@@ -117,14 +117,16 @@ class ProbabilisticEvaluator:
         data_module.setup("test")
         val_dataloader = data_module.val_dataloader()
         test_dataloader = data_module.test_dataloader()
+        file_to_cce = {}
 
         print(f"Running {self.settings.cce_num_trials} CCE computation(s)...")
         cce_results = []
         for i in range(self.settings.cce_num_trials):
-            cce_vals, grid, targets = self.compute_cce(
+            cce_vals, grid, targets, image_paths = self.compute_cce(
                 model=model,
                 grid_loader=test_dataloader,
-                sample_loader=val_dataloader
+                sample_loader=val_dataloader,
+                test_loader=test_dataloader
                 if self.settings.cce_use_val_split_for_S
                 else test_dataloader,
                 return_grid=True,
@@ -150,6 +152,9 @@ class ProbabilisticEvaluator:
         print("Computing ECE...")
         ece = self.compute_ece(model, test_dataloader)
 
+        for idx, path in enumerate(image_paths):
+                file_to_cce[path] = cce_vals[idx].item()
+
         return ProbabilisticResults(
             input_grid_2d=grid_2d,
             regression_targets=regression_targets,
@@ -162,6 +167,7 @@ class ProbabilisticEvaluator:
         model: RegressionNN,
         grid_loader: DataLoader,
         sample_loader: DataLoader,
+        test_loader: DataLoader,
         return_grid: bool = False,
         return_targets: bool = False,
     ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor] | tuple[
@@ -179,7 +185,8 @@ class ProbabilisticEvaluator:
         Returns:
             torch.Tensor | tuple[torch.Tensor, torch.Tensor] | tuple[torch.Tensor, torch.Tensor, torch.Tensor]: The computed CCE values, along with the grid of inputs these values correspond to (if return_grid is True) and the regression targets (if return_targets is True).
         """
-        x, y, x_prime, y_prime, image_paths = self._get_samples_for_mcmd(model, sample_loader)
+        x, y, x_prime, y_prime, zz = self._get_samples_for_mcmd(model, sample_loader)
+        a, b, c, d, e, image_paths = self._get_samples_for_mcmd(model, test_loader)
         grid = torch.cat(
             [
                 self.clip_model.encode_image(inputs.to(self.device), normalize=False)
