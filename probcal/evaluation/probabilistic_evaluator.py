@@ -155,6 +155,8 @@ class ProbabilisticEvaluator:
         for idx, path in enumerate(image_paths):
                 file_to_cce[path] = cce_vals[idx].item()
 
+        print("we successfully got the cce values for each image", file_to_cce)
+
         return ProbabilisticResults(
             input_grid_2d=grid_2d,
             regression_targets=regression_targets,
