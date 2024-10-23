@@ -9,4 +9,3 @@ accelerator: cpu
 log_dir: logs/mnist_results
 model_ckpt_path: chkp/mnist_gaussian/version_0/best_loss.ckpt
 cce_output_kernel: bhatt
-cce_num_trials: 1
