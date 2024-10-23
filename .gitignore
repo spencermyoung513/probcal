@@ -10,6 +10,7 @@ ignore/
 */mnist
 */logs
 data
+*.png
 
 # Specific exceptions
 !data/discrete_sine_wave/
