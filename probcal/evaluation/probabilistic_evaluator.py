@@ -117,14 +117,16 @@ class ProbabilisticEvaluator:
         data_module.setup("test")
         val_dataloader = data_module.val_dataloader()
         test_dataloader = data_module.test_dataloader()
+        file_to_cce = {}
 
         print(f"Running {self.settings.cce_num_trials} CCE computation(s)...")
         cce_results = []
         for i in range(self.settings.cce_num_trials):
-            cce_vals, grid, targets = self.compute_cce(
+            cce_vals, grid, targets, image_paths = self.compute_cce(
                 model=model,
                 grid_loader=test_dataloader,
-                sample_loader=val_dataloader
+                sample_loader=val_dataloader,
+                test_loader=test_dataloader
                 if self.settings.cce_use_val_split_for_S
                 else test_dataloader,
                 return_grid=True,
@@ -150,6 +152,11 @@ class ProbabilisticEvaluator:
         print("Computing ECE...")
         ece = self.compute_ece(model, test_dataloader)
 
+        for idx, path in enumerate(image_paths):
+                file_to_cce[path] = cce_vals[idx].item()
+
+        print("we successfully got the cce values for each image", file_to_cce)
+
         return ProbabilisticResults(
             input_grid_2d=grid_2d,
             regression_targets=regression_targets,
@@ -162,6 +169,7 @@ class ProbabilisticEvaluator:
         model: RegressionNN,
         grid_loader: DataLoader,
         sample_loader: DataLoader,
+        test_loader: DataLoader,
         return_grid: bool = False,
         return_targets: bool = False,
     ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor] | tuple[
@@ -179,7 +187,8 @@ class ProbabilisticEvaluator:
         Returns:
             torch.Tensor | tuple[torch.Tensor, torch.Tensor] | tuple[torch.Tensor, torch.Tensor, torch.Tensor]: The computed CCE values, along with the grid of inputs these values correspond to (if return_grid is True) and the regression targets (if return_targets is True).
         """
-        x, y, x_prime, y_prime = self._get_samples_for_mcmd(model, sample_loader)
+        x, y, x_prime, y_prime, zz = self._get_samples_for_mcmd(model, sample_loader)
+        a, b, c, d, e, image_paths = self._get_samples_for_mcmd(model, test_loader)
         grid = torch.cat(
             [
                 self.clip_model.encode_image(inputs.to(self.device), normalize=False)
@@ -203,6 +212,8 @@ class ProbabilisticEvaluator:
             return_obj.append(grid)
         if return_targets:
             return_obj.append(y)
+        if image_paths:
+            return_obj.append(image_paths)
         if len(return_obj) == 1:
             return return_obj[0]
         else:
@@ -292,11 +303,12 @@ class ProbabilisticEvaluator:
 
     def _get_samples_for_mcmd(
         self, model: RegressionNN, data_loader: DataLoader
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, list]:
         x = []
         y = []
         x_prime = []
         y_prime = []
+        image_paths_list = []
         for inputs, targets in tqdm(
             data_loader, desc="Sampling from posteriors for MCMD computation..."
         ):
@@ -306,6 +318,9 @@ class ProbabilisticEvaluator:
                 x.append(self.clip_model.encode_image(inputs.to(self.device), normalize=False))
             elif self.settings.dataset_type == DatasetType.TEXT:
                 x.append(self.clip_model.encode_text(inputs.to(self.device), normalize=False))
+            if isinstance(targets, (tuple, list)) and len(targets) == 2:
+                image_paths, counts = targets
+                image_paths_list.extend(image_paths)
             y.append(targets.to(self.device))
             y_hat = model.predict(inputs.to(self.device))
             x_prime.append(
@@ -320,7 +335,7 @@ class ProbabilisticEvaluator:
         x_prime = torch.cat(x_prime, dim=0)
         y_prime = torch.cat(y_prime).float()
 
-        return x, y, x_prime, y_prime
+        return x, y, x_prime, y_prime, image_paths_list
 
     def _get_kernel_functions(self, y: torch.Tensor) -> tuple[KernelFunction, KernelFunction]:
         if self.settings.cce_input_kernel == "polynomial":
