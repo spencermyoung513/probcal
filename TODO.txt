@@ -1,0 +1,4 @@
+TODO: train a model on the MNIST dataset
+ -> the current config only has one epoch on it so make sure to change that
+TODO: evaluate the newly trained model with the eval script
+TODO: get some example images of when the CCE is good vs bad from the data
