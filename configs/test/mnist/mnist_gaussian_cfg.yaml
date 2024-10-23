@@ -58,6 +58,7 @@ cce_output_kernel: bhatt
 # Given groups=1, weight of size [768, 3, 32, 32], expected input[4, 1, 28, 28] to have 3 channels, but got 1 channels instead
 #
 # FIXME: the channels dim is incorrect for the MNIST images, because they are B&W.
+# Also the images are 28x28 and CLIP expects 224x224
 # Here is the encode_image method from open_clip:
 # def encode_image(self, image, normalize: bool = False):
 #   features = self.visual(image)
@@ -69,3 +70,5 @@ cce_output_kernel: bhatt
 # - figure out how to get the open_clip encode_image to take a B&W image <- this is what the best would be
 #   > this would also probably require some additional code for configuring if the image data is B&W or not
 # - scrap MNIST and just try this on CIFAR-10 or another dataset
+#
+#
