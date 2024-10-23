@@ -11,6 +11,7 @@ ignore/
 */logs
 data
 *.png
+TODO.txt
 
 # Specific exceptions
 !data/discrete_sine_wave/
