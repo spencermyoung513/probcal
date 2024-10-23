@@ -18,6 +18,7 @@ from scipy.interpolate import griddata
 from sklearn.manifold import TSNE
 from torch.utils.data import DataLoader
 from torchvision.transforms import Compose
+from torchvision.transforms import functional as F
 from tqdm import tqdm
 
 from probcal.enums import DatasetType
@@ -153,7 +154,7 @@ class ProbabilisticEvaluator:
         ece = self.compute_ece(model, test_dataloader)
 
         for idx, path in enumerate(image_paths):
-                file_to_cce[path] = cce_vals[idx].item()
+            file_to_cce[path] = cce_vals[idx].item()
 
         print("we successfully got the cce values for each image", file_to_cce)
 
@@ -187,11 +188,16 @@ class ProbabilisticEvaluator:
         Returns:
             torch.Tensor | tuple[torch.Tensor, torch.Tensor] | tuple[torch.Tensor, torch.Tensor, torch.Tensor]: The computed CCE values, along with the grid of inputs these values correspond to (if return_grid is True) and the regression targets (if return_targets is True).
         """
-        x, y, x_prime, y_prime, zz = self._get_samples_for_mcmd(model, sample_loader)
-        a, b, c, d, e, image_paths = self._get_samples_for_mcmd(model, test_loader)
+        x, y, x_prime, y_prime, _ = self._get_samples_for_mcmd(model, sample_loader)
+        _, _, _, _, image_paths = self._get_samples_for_mcmd(model, test_loader)
         grid = torch.cat(
             [
-                self.clip_model.encode_image(inputs.to(self.device), normalize=False)
+                self.clip_model.encode_image(
+                    F.resize(inputs.repeat(1, 3, 1, 1), size=[224, 244], antialias=True).to(
+                        self.device
+                    ),
+                    normalize=False,
+                )
                 for inputs, _ in grid_loader
             ],
             dim=0,
@@ -315,7 +321,13 @@ class ProbabilisticEvaluator:
             if self.settings.dataset_type == DatasetType.TABULAR:
                 x.append(inputs)
             elif self.settings.dataset_type == DatasetType.IMAGE:
-                x.append(self.clip_model.encode_image(inputs.to(self.device), normalize=False))
+                inputs_3channel = inputs.repeat(1, 3, 1, 1)  # Convert [B,1,28,28] to [B,3,28,28]
+                inputs_resized = F.resize(
+                    inputs_3channel, size=[224, 224], antialias=True
+                )  # Resize to 224x224
+                x.append(
+                    self.clip_model.encode_image(inputs_resized.to(self.device), normalize=False)
+                )
             elif self.settings.dataset_type == DatasetType.TEXT:
                 x.append(self.clip_model.encode_text(inputs.to(self.device), normalize=False))
             if isinstance(targets, (tuple, list)) and len(targets) == 2:
