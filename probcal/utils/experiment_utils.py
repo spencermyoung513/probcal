@@ -9,6 +9,7 @@ import numpy as np
 import torch
 import yaml
 from lightning.pytorch.callbacks import ModelCheckpoint
+from torch import nn
 
 from probcal.data_modules import AAFDataModule
 from probcal.data_modules import COCOPeopleDataModule
@@ -35,6 +36,7 @@ from probcal.models.backbones import MLP
 from probcal.models.backbones import MNISTCNN
 from probcal.models.backbones import MobileNetV3
 from probcal.models.backbones import ViT
+from probcal.models.multi_class_nn import MultiClassNN
 from probcal.models.regression_nn import RegressionNN
 from probcal.utils.configs import EvaluationConfig
 from probcal.utils.configs import TrainingConfig
@@ -104,6 +106,53 @@ def get_model(
         )
     elif isinstance(config, EvaluationConfig):
         model = initializer(
+            backbone_type=backbone_type,
+            backbone_kwargs=backbone_kwargs,
+        )
+    else:
+        raise ValueError("Config must be either TrainingConfig or TestConfig.")
+
+    if return_initializer:
+        return model, initializer
+    else:
+        return model
+
+
+def get_multi_class_model(
+    config: TrainingConfig | EvaluationConfig, return_initializer: bool = False
+) -> MultiClassNN:
+
+    initializer: Type[MultiClassNN]
+
+    if config.head_type == HeadType.MULTI_CLASS:
+        initializer = MultiClassNN
+    else:
+        raise ValueError(f"Head type {config.head_type} not recognized.")
+
+    if config.dataset_type == DatasetType.IMAGE:
+        if config.dataset_path_or_spec == ImageDatasetName.MNIST:
+            backbone_type = MNISTCNN
+            classes = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
+        else:
+            raise ValueError("Only MNIST works right now.")
+        backbone_kwargs = {}
+
+    backbone_kwargs["output_dim"] = config.hidden_dim
+
+    if isinstance(config, TrainingConfig):
+        model = initializer(
+            loss_fn=nn.CrossEntropyLoss(label_smoothing=0.1),
+            classes=classes,
+            backbone_type=backbone_type,
+            backbone_kwargs=backbone_kwargs,
+            optim_type=config.optim_type,
+            optim_kwargs=config.optim_kwargs,
+            lr_scheduler_type=config.lr_scheduler_type,
+            lr_scheduler_kwargs=config.lr_scheduler_kwargs,
+        )
+    elif isinstance(config, EvaluationConfig):
+        model = initializer(
+            classes=classes,
             backbone_type=backbone_type,
             backbone_kwargs=backbone_kwargs,
         )
@@ -226,6 +275,28 @@ def get_chkp_callbacks(chkp_dir: Path, chkp_freq: int) -> list[ModelCheckpoint]:
         temporal_checkpoint_callback,
         best_loss_checkpoint_callback,
         best_mae_checkpoint_callback,
+    ]
+
+
+def get_chkp_callbacks_no_mae(chkp_dir: Path, chkp_freq: int) -> list[ModelCheckpoint]:
+    temporal_checkpoint_callback = ModelCheckpoint(
+        dirpath=chkp_dir,
+        every_n_epochs=chkp_freq,
+        filename="{epoch}",
+        save_top_k=-1,
+        save_last=True,
+    )
+    best_loss_checkpoint_callback = ModelCheckpoint(
+        dirpath=chkp_dir,
+        monitor="val_loss",
+        every_n_epochs=1,
+        filename="best_loss",
+        save_top_k=1,
+        enable_version_counter=False,
+    )
+    return [
+        temporal_checkpoint_callback,
+        best_loss_checkpoint_callback,
     ]
 
 
