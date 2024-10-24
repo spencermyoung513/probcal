@@ -1,3 +1,6 @@
+TODO: add the MultiClassNN to the repo
+TODO: modify the get_model method so that it returns the MultiClassNN
+TODO: fix the MultiClassNN class so that it can have the MCME calculated from it
 TODO: train a model on the MNIST dataset
  -> the current config only has one epoch on it so make sure to change that
 TODO: evaluate the newly trained model with the eval script
