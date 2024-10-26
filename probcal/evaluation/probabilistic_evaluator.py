@@ -161,6 +161,7 @@ class ProbabilisticEvaluator:
         model: RegressionNN,
         grid_loader: DataLoader,
         sample_loader: DataLoader,
+        complex_inputs: bool = True,
         return_grid: bool = False,
         return_targets: bool = False,
     ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor] | tuple[
@@ -179,13 +180,18 @@ class ProbabilisticEvaluator:
             torch.Tensor | tuple[torch.Tensor, torch.Tensor] | tuple[torch.Tensor, torch.Tensor, torch.Tensor]: The computed CCE values, along with the grid of inputs these values correspond to (if return_grid is True) and the regression targets (if return_targets is True).
         """
         x, y, x_prime, y_prime = self._get_samples_for_mcmd(model, sample_loader)
-        grid = torch.cat(
-            [
-                self.clip_model.encode_image(inputs.to(self.device), normalize=False)
-                for inputs, _ in grid_loader
-            ],
-            dim=0,
-        )
+        
+        if complex_inputs:
+            grid = torch.cat(
+                [
+                    self.clip_model.encode_image(inputs.to(self.device), normalize=False)
+                    for inputs, _ in grid_loader
+                ],
+                dim=0,
+            )
+        else:
+            grid = torch.cat([inputs for inputs, _ in grid_loader], dim=0)
+
         x_kernel, y_kernel = self._get_kernel_functions(y)
         cce_vals = compute_mcmd_torch(
             grid=grid,

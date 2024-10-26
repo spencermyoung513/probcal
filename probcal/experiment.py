@@ -70,7 +70,7 @@ def train_model(ModelClass: RegressionNN):
 
     num_epochs = 100
     trainer = L.Trainer(
-        accelerator="gpu",
+        accelerator="cpu",
         min_epochs=num_epochs,
         max_epochs=num_epochs,
         log_every_n_steps=5,
@@ -96,13 +96,7 @@ def generate_figure(ModelClass):
     )
     model.eval()
 
-    device = torch.device(
-        "mps"
-        if torch.backends.mps.is_available()
-        else "cuda"
-        if torch.cuda.is_available()
-        else "cpu"
-    )
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = model.to(device)
 
     data = np.load(DATASET_PATH)
@@ -147,7 +141,7 @@ def generate_figure(ModelClass):
 
 
 def gaussian_nll_cce(
-    model: GaussianNN,inputs: torch.Tensor, outputs: torch.Tensor, targets: torch.Tensor, beta: float | None = None, lmbda: float = 0.1,
+    model: GaussianNN, inputs: torch.Tensor, outputs: torch.Tensor, targets: torch.Tensor, beta: float | None = None, lmbda: float = 0.1,
 ) -> torch.Tensor:
 
     if targets.size(1) != 1:
@@ -157,17 +151,16 @@ def gaussian_nll_cce(
     if beta is not None:
         if beta < 0 or beta > 1:
             raise ValueError(f"Invalid value of beta specified. Must be in [0, 1]. Got {beta}")
-        
-    sample_dataset = TensorDataset(inputs, outputs)
+    
+    mu, logvar = torch.split(outputs, [1, 1], dim=-1)
+    sample_dataset = TensorDataset(inputs, mu)
     grid_dataset = TensorDataset(inputs, targets)
 
     sample_loader = DataLoader(sample_dataset, batch_size=64, shuffle=True)
     grid_loader = DataLoader(grid_dataset, batch_size=64, shuffle=True)
 
     device = torch.device(
-        "mps"
-        if torch.backends.mps.is_available()
-        else "cuda"
+        "cuda"
         if torch.cuda.is_available()
         else "cpu"
     )
@@ -189,13 +182,13 @@ def gaussian_nll_cce(
         ece_alpha=1.0
     )
 
-    mu, logvar = torch.split(outputs, [1, 1], dim=-1)
     nll = 0.5 * (torch.exp(-logvar) * (targets - mu) ** 2 + logvar)
     evaluator = ProbabilisticEvaluator(prob_eval_settings)
     cce_vals  = evaluator.compute_cce(
         model=model,
         grid_loader=grid_loader,
-        sample_loader=sample_loader
+        sample_loader=sample_loader,
+        complex_inputs=False
     )
     mean_cce = cce_vals.mean().item()
     
@@ -280,4 +273,4 @@ class RegularizedGaussianNN(GaussianNN):
 if __name__ == "__main__":
     if not os.path.exists(f"{CHKP_DIR}/last.ckpt"):
         train_model(RegularizedGaussianNN)
-    generate_figure()
+    generate_figure(RegularizedGaussianNN)
