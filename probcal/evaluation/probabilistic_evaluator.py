@@ -160,7 +160,7 @@ class ProbabilisticEvaluator:
                 )
             )
 
-        print("Computing ECE...")
+        # print("Computing ECE...")
         # ece = self.compute_ece(model, test_dataloader)
 
         # for idx, path in enumerate(image_paths):
@@ -237,7 +237,7 @@ class ProbabilisticEvaluator:
             return_obj.append(grid)
         if return_targets:
             return_obj.append(y)
-        if images:
+        if images is not None:
             return_obj.append(images)
         if len(return_obj) == 1:
             return return_obj[0]
