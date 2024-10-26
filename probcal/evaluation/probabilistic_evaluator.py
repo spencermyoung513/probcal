@@ -315,12 +315,11 @@ class ProbabilisticEvaluator:
 
     def _get_samples_for_mcmd(
         self, model: RegressionNN, data_loader: DataLoader
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, list]:
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         x = []
         y = []
         x_prime = []
         y_prime = []
-        image_paths_list = []
         for inputs, targets in tqdm(
             data_loader, desc="Sampling from posteriors for MCMD computation..."
         ):
@@ -349,7 +348,7 @@ class ProbabilisticEvaluator:
         x_prime = torch.cat(x_prime, dim=0)
         y_prime = torch.cat(y_prime).float()
 
-        return x, y, x_prime, y_prime, image_paths_list
+        return x, y, x_prime, y_prime
 
     def _get_kernel_functions(self, y: torch.Tensor) -> tuple[KernelFunction, KernelFunction]:
         if self.settings.cce_input_kernel == "polynomial":
