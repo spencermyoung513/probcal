@@ -9,13 +9,16 @@ import torch
 import yaml
 
 from probcal.enums import DatasetType
+from probcal.enums import HeadType
 from probcal.evaluation.kernels import rbf_kernel
 from probcal.evaluation.probabilistic_evaluator import ProbabilisticEvaluator
 from probcal.evaluation.probabilistic_evaluator import ProbabilisticEvaluatorSettings
+from probcal.models.multi_class_nn import MultiClassNN
 from probcal.models.regression_nn import RegressionNN
 from probcal.utils.configs import EvaluationConfig
 from probcal.utils.experiment_utils import get_datamodule
 from probcal.utils.experiment_utils import get_model
+from probcal.utils.experiment_utils import get_multi_class_model
 
 
 def main(config_path: Path):
@@ -30,17 +33,30 @@ def main(config_path: Path):
         config.batch_size,
     )
 
-    initializer: Type[RegressionNN] = get_model(config, return_initializer=True)[1]
-    model = initializer.load_from_checkpoint(config.model_ckpt_path)
-    evaluator = L.Trainer(
-        accelerator=config.accelerator_type.value,
-        enable_model_summary=False,
-        logger=False,
-        devices=1,
-        num_nodes=1,
-    )
-    metrics: dict = evaluator.test(model=model, datamodule=datamodule)[0]
-    metrics = {k: float(v) for k, v in metrics.items()}
+    if config.head_type == HeadType.MULTI_CLASS:
+        initializer: Type[MultiClassNN] = get_multi_class_model(config, return_initializer=True)[1]
+        model = initializer.load_from_checkpoint(config.model_ckpt_path)
+        evaluator = L.Trainer(
+            accelerator=config.accelerator_type.value,
+            enable_model_summary=False,
+            logger=False,
+            devices=1,
+            num_nodes=1,
+        )
+        metrics: dict = evaluator.test(model=model, datamodule=datamodule)[0]
+        metrics = {k: float(v) for k, v in metrics.items()}
+    else:
+        initializer: Type[RegressionNN] = get_model(config, return_initializer=True)[1]
+        model = initializer.load_from_checkpoint(config.model_ckpt_path)
+        evaluator = L.Trainer(
+            accelerator=config.accelerator_type.value,
+            enable_model_summary=False,
+            logger=False,
+            devices=1,
+            num_nodes=1,
+        )
+        metrics: dict = evaluator.test(model=model, datamodule=datamodule)[0]
+        metrics = {k: float(v) for k, v in metrics.items()}
 
     if config.dataset_type == DatasetType.TABULAR and config.input_dim == 1:
         x_vals = torch.cat([x for x, _ in datamodule.test_dataloader()], dim=0)
@@ -61,6 +77,7 @@ def main(config_path: Path):
         ece_weights=config.ece_weights,
         ece_alpha=config.ece_alpha,
     )
+
     prob_evaluator = ProbabilisticEvaluator(settings=prob_eval_settings)
     print("Evaluating probabilistic fit...")
     results = prob_evaluator(model=model, data_module=datamodule)

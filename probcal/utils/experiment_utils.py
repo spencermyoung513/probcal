@@ -152,6 +152,7 @@ def get_multi_class_model(
         )
     elif isinstance(config, EvaluationConfig):
         model = initializer(
+            loss_fn=nn.CrossEntropyLoss(label_smoothing=0.1),
             classes=classes,
             backbone_type=backbone_type,
             backbone_kwargs=backbone_kwargs,

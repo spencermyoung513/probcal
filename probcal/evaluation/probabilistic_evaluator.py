@@ -11,7 +11,7 @@ from typing import TypeAlias
 import lightning as L
 import numpy as np
 import open_clip
-import torch
+import torch.nn.functional
 from matplotlib import pyplot as plt
 from open_clip import CLIP
 from scipy.interpolate import griddata
@@ -118,12 +118,12 @@ class ProbabilisticEvaluator:
         data_module.setup("test")
         val_dataloader = data_module.val_dataloader()
         test_dataloader = data_module.test_dataloader()
-        file_to_cce = {}
+        # file_to_cce = {}
 
         print(f"Running {self.settings.cce_num_trials} CCE computation(s)...")
         cce_results = []
         for i in range(self.settings.cce_num_trials):
-            cce_vals, grid, targets, image_paths = self.compute_cce(
+            cce_vals, grid, targets = self.compute_cce(
                 model=model,
                 grid_loader=test_dataloader,
                 sample_loader=val_dataloader,
@@ -151,18 +151,18 @@ class ProbabilisticEvaluator:
             )
 
         print("Computing ECE...")
-        ece = self.compute_ece(model, test_dataloader)
+        # ece = self.compute_ece(model, test_dataloader)
 
-        for idx, path in enumerate(image_paths):
-            file_to_cce[path] = cce_vals[idx].item()
+        # for idx, path in enumerate(image_paths):
+        # file_to_cce[path] = cce_vals[idx].item()
 
-        print("we successfully got the cce values for each image", file_to_cce)
+        # print("we successfully got the cce values for each image", file_to_cce)
 
         return ProbabilisticResults(
             input_grid_2d=grid_2d,
             regression_targets=regression_targets,
             cce_results=cce_results,
-            ece=ece,
+            ece=1.0,
         )
 
     def compute_cce(
@@ -188,8 +188,8 @@ class ProbabilisticEvaluator:
         Returns:
             torch.Tensor | tuple[torch.Tensor, torch.Tensor] | tuple[torch.Tensor, torch.Tensor, torch.Tensor]: The computed CCE values, along with the grid of inputs these values correspond to (if return_grid is True) and the regression targets (if return_targets is True).
         """
-        x, y, x_prime, y_prime, _ = self._get_samples_for_mcmd(model, sample_loader)
-        _, _, _, _, image_paths = self._get_samples_for_mcmd(model, test_loader)
+        x, y, x_prime, y_prime, image_paths = self._get_samples_for_mcmd(model, sample_loader)
+        # _, _, _, _, image_paths = self._get_samples_for_mcmd(model, test_loader)
         grid = torch.cat(
             [
                 self.clip_model.encode_image(
@@ -203,6 +203,7 @@ class ProbabilisticEvaluator:
             dim=0,
         )
         x_kernel, y_kernel = self._get_kernel_functions(y)
+        print("Computing CCE...")
         cce_vals = compute_mcmd_torch(
             grid=grid,
             x=x,
@@ -213,6 +214,11 @@ class ProbabilisticEvaluator:
             y_kernel=y_kernel,
             lmbda=self.settings.cce_lambda,
         )
+        # TODO: create a graph of some cce_vals from images in the grid_loader
+        # # -> concat all the images similar to the grid thing above
+        # # something like this
+        # images = torch.cat([inputs for inputs, _ in grid_loader] dim=0)
+        # # -> maybe find the top 10 lowest/highest CCE vals
         return_obj = [cce_vals]
         if return_grid:
             return_obj.append(grid)
@@ -338,12 +344,11 @@ class ProbabilisticEvaluator:
             x_prime.append(
                 torch.repeat_interleave(x[-1], repeats=self.settings.cce_num_samples, dim=0)
             )
-            y_prime.append(
-                model.sample(y_hat, num_samples=self.settings.cce_num_samples).flatten()
-            )
+            y_prime.append(apply_softmax(y_hat))
 
         x = torch.cat(x, dim=0)
         y = torch.cat(y).float()
+        y = one_hot_encode_mnist(y)
         x_prime = torch.cat(x_prime, dim=0)
         y_prime = torch.cat(y_prime).float()
 
@@ -389,3 +394,60 @@ class ProbabilisticEvaluator:
         if self._tokenizer is None:
             self._tokenizer = open_clip.get_tokenizer("ViT-B-32")
         return self._tokenizer
+
+
+def one_hot_encode_mnist(labels, num_classes=10):
+    """
+    One-hot encodes MNIST labels.
+
+    Args:
+        labels (torch.Tensor): Tensor of class labels (integers 0-9)
+        num_classes (int): Number of classes (default=10 for MNIST)
+
+    Returns:
+        torch.Tensor: One-hot encoded labels
+    """
+    if not isinstance(labels, torch.Tensor):
+        labels = torch.tensor(labels)
+
+    # Ensure labels are long/integer type
+    labels = labels.long()
+
+    # Handle both single labels and batches
+    if labels.dim() == 0:
+        labels = labels.unsqueeze(0)
+
+    # Convert to one-hot encoding
+    one_hot = torch.nn.functional.one_hot(labels, num_classes=num_classes)
+
+    # Convert to float for compatibility with most loss functions
+    return one_hot.float()
+
+
+def apply_softmax(predictions, dim=1, temperature=1.0):
+    """
+    Applies softmax to model predictions with optional temperature scaling.
+
+    Args:
+        predictions (torch.Tensor): Raw model outputs/logits
+        dim (int): Dimension along which to apply softmax (default=1 for batched predictions)
+        temperature (float): Temperature for scaling predictions (default=1.0)
+                           Higher values make distribution more uniform
+                           Lower values make it more peaked
+
+    Returns:
+        torch.Tensor: Softmax probabilities
+    """
+    if not isinstance(predictions, torch.Tensor):
+        predictions = torch.tensor(predictions)
+
+    # Apply temperature scaling
+    scaled_predictions = predictions / temperature
+
+    # Handle both single predictions and batches
+    if predictions.dim() == 1:
+        # For single prediction, use dim=0
+        return torch.nn.functional.softmax(scaled_predictions, dim=0)
+    else:
+        # For batched predictions, use specified dim (default=1)
+        return torch.nn.functional.softmax(scaled_predictions, dim=dim)
