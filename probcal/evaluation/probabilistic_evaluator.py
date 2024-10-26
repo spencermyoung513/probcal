@@ -157,6 +157,8 @@ class ProbabilisticEvaluator:
         # file_to_cce[path] = cce_vals[idx].item()
 
         # print("we successfully got the cce values for each image", file_to_cce)
+        print('input grid 2d', grid_2d)
+        print('cce results', cce_results)
 
         return ProbabilisticResults(
             input_grid_2d=grid_2d,
