@@ -219,7 +219,8 @@ class ProbabilisticEvaluator:
         # TODO: create a graph of some cce_vals from images in the grid_loader
         # # -> concat all the images similar to the grid thing above
         # # something like this
-        # images = torch.cat([inputs for inputs, _ in grid_loader] dim=0)
+        images = torch.cat([inputs for inputs, _ in grid_loader], dim=0)
+        print("images", images)
         # # -> maybe find the top 10 lowest/highest CCE vals
         return_obj = [cce_vals]
         if return_grid:
