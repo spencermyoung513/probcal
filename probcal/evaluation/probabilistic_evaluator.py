@@ -123,7 +123,7 @@ class ProbabilisticEvaluator:
         print(f"Running {self.settings.cce_num_trials} CCE computation(s)...")
         cce_results = []
         for i in range(self.settings.cce_num_trials):
-            cce_vals, grid, targets = self.compute_cce(
+            cce_vals, grid, targets, images = self.compute_cce(
                 model=model,
                 grid_loader=test_dataloader,
                 sample_loader=val_dataloader,
@@ -133,6 +133,16 @@ class ProbabilisticEvaluator:
                 return_grid=True,
                 return_targets=True,
             )
+            print("this is images", images)
+            test = images[
+                0, 0
+            ]  # Select the first image in the batch, assuming channels = 1 for grayscale
+
+            # Plot the image
+            plt.imshow(test, cmap="gray")
+            plt.title("MNIST Image")
+            plt.axis("off")  # Hide axes for clarity
+            plt.show()
 
             # We only need to save the input grid / regression targets once.
             if i == 0:
@@ -219,14 +229,16 @@ class ProbabilisticEvaluator:
         # TODO: create a graph of some cce_vals from images in the grid_loader
         # # -> concat all the images similar to the grid thing above
         # # something like this
+        print("getting tensor grid of test image greyscale values")
         images = torch.cat([inputs for inputs, _ in grid_loader], dim=0)
-        print("images", images)
         # # -> maybe find the top 10 lowest/highest CCE vals
         return_obj = [cce_vals]
         if return_grid:
             return_obj.append(grid)
         if return_targets:
             return_obj.append(y)
+        if images:
+            return_obj.append(images)
         if len(return_obj) == 1:
             return return_obj[0]
         else:
