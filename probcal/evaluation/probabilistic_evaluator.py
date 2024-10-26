@@ -157,8 +157,8 @@ class ProbabilisticEvaluator:
         # file_to_cce[path] = cce_vals[idx].item()
 
         # print("we successfully got the cce values for each image", file_to_cce)
-        print('input grid 2d', grid_2d)
-        print('cce results', cce_results)
+        print("input grid 2d", grid_2d)
+        print("cce results", cce_results)
 
         return ProbabilisticResults(
             input_grid_2d=grid_2d,
@@ -190,7 +190,7 @@ class ProbabilisticEvaluator:
         Returns:
             torch.Tensor | tuple[torch.Tensor, torch.Tensor] | tuple[torch.Tensor, torch.Tensor, torch.Tensor]: The computed CCE values, along with the grid of inputs these values correspond to (if return_grid is True) and the regression targets (if return_targets is True).
         """
-        x, y, x_prime, y_prime, image_paths = self._get_samples_for_mcmd(model, sample_loader)
+        x, y, x_prime, y_prime = self._get_samples_for_mcmd(model, sample_loader)
         # _, _, _, _, image_paths = self._get_samples_for_mcmd(model, test_loader)
         grid = torch.cat(
             [
@@ -226,8 +226,6 @@ class ProbabilisticEvaluator:
             return_obj.append(grid)
         if return_targets:
             return_obj.append(y)
-        if image_paths:
-            return_obj.append(image_paths)
         if len(return_obj) == 1:
             return return_obj[0]
         else:
