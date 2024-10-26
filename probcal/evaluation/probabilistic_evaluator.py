@@ -336,9 +336,6 @@ class ProbabilisticEvaluator:
                 )
             elif self.settings.dataset_type == DatasetType.TEXT:
                 x.append(self.clip_model.encode_text(inputs.to(self.device), normalize=False))
-            if isinstance(targets, (tuple, list)) and len(targets) == 2:
-                image_paths, counts = targets
-                image_paths_list.extend(image_paths)
             y.append(targets.to(self.device))
             y_hat = model.predict(inputs.to(self.device))
             x_prime.append(
