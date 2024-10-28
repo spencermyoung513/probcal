@@ -39,16 +39,24 @@ def produce_figure(
         save_path (Path | str): Path to save figure to.
         dataset_path (Path | str): Path with dataset models were fit on.
     """
-    plt.rc("text", usetex=True)
+    # plt.rc("text", usetex=True)
     plt.rc("font", family="serif")
+
+    if len(models) == 1:
+        figsize = (8,4)
+        squeeze = False
+    else:
+        figsize=(2.5 * len(models), 4)
+        squeeze = True
 
     fig, axs = plt.subplots(
         2,
         len(models),
-        figsize=(2.5 * len(models), 4),
+        figsize=figsize,
         sharey="row",
         sharex="col",
         gridspec_kw={"height_ratios": (2, 1)},
+        squeeze=squeeze
     )
     data: dict[str, np.ndarray] = np.load(dataset_path)
     X = data["X_test"].flatten()

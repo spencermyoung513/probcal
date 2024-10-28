@@ -33,6 +33,8 @@ from probcal.training.beta_schedulers import CosineAnnealingBetaScheduler
 from probcal.training.beta_schedulers import LinearBetaScheduler
 from probcal.evaluation.kernels import rbf_kernel
 
+from probcal.figures.generate_cce_synthetic_figure import produce_figure
+
 BACKBONE_TYPE = MLP
 BACKBONE_KWARGS = {"input_dim": 1}
 OPTIM_TYPE = OptimizerType.ADAM_W
@@ -68,7 +70,7 @@ def train_model(ModelClass: RegressionNN):
     chkp_callbacks = get_chkp_callbacks(CHKP_DIR, chkp_freq)
     logger = CSVLogger(save_dir=log_dir, name=experiment_name)
 
-    num_epochs = 100
+    num_epochs = 250
     trainer = L.Trainer(
         accelerator="cpu",
         min_epochs=num_epochs,
@@ -83,7 +85,7 @@ def train_model(ModelClass: RegressionNN):
     trainer.fit(model=model, datamodule=datamodule)
 
 
-def generate_figure(ModelClass):
+def generate_figure(ModelClass, inlcude_cce_graph = False):
 
     model = ModelClass.load_from_checkpoint(
         f"{CHKP_DIR}/last.ckpt",
@@ -139,6 +141,23 @@ def generate_figure(ModelClass):
     plt.savefig("probcal/experiment_results.png", dpi=300, bbox_inches="tight")
     plt.close()
 
+    if inlcude_cce_graph:
+        save_path = "probcal/experiment_results_cce.pdf"
+        dataset_path = "data/discrete_sine_wave/discrete_sine_wave.npz"
+        models = [
+            RegularizedGaussianNN.load_from_checkpoint(
+                f"{CHKP_DIR}/last.ckpt",
+                backbone_type=BACKBONE_TYPE,
+                backbone_kwargs=BACKBONE_KWARGS,
+                optim_type=OPTIM_TYPE,
+                optim_kwargs=OPTIM_KWARGS,
+                lr_scheduler_type=LR_SCHEDULER_TYPE,
+                lr_scheduler_kwargs=LR_SCHEDULER_KWARGS,
+            )
+        ]
+        names = ["Regularized Gaussian NN"]
+        produce_figure(models, names, save_path, dataset_path)
+
 
 def gaussian_nll_cce(
     model: GaussianNN, inputs: torch.Tensor, outputs: torch.Tensor, targets: torch.Tensor, beta: float | None = None, lmbda: float = 0.1,
@@ -159,12 +178,7 @@ def gaussian_nll_cce(
     sample_loader = DataLoader(sample_dataset, batch_size=64, shuffle=True)
     grid_loader = DataLoader(grid_dataset, batch_size=64, shuffle=True)
 
-    device = torch.device(
-        "cuda"
-        if torch.cuda.is_available()
-        else "cpu"
-    )
-
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     x_vals = torch.cat([x for x, _ in sample_loader], dim=0)
     gamma = (1 / (2 * x_vals.var())).item()
     cce_input_kernel = partial(rbf_kernel, gamma=gamma)
@@ -188,7 +202,8 @@ def gaussian_nll_cce(
         model=model,
         grid_loader=grid_loader,
         sample_loader=sample_loader,
-        complex_inputs=False
+        complex_inputs=False, 
+        train=True
     )
     mean_cce = cce_vals.mean().item()
     
@@ -273,4 +288,4 @@ class RegularizedGaussianNN(GaussianNN):
 if __name__ == "__main__":
     if not os.path.exists(f"{CHKP_DIR}/last.ckpt"):
         train_model(RegularizedGaussianNN)
-    generate_figure(RegularizedGaussianNN)
+    generate_figure(RegularizedGaussianNN, inlcude_cce_graph=True)
