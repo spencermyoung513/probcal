@@ -59,13 +59,13 @@ def train_model(ModelClass: RegressionNN, chkp_dir):
         lr_scheduler_kwargs=LR_SCHEDULER_KWARGS,
     )
 
-    chkp_freq = 25
+    chkp_freq = 50
     log_dir = "logs"
     experiment_name = "cce_reg"
     chkp_callbacks = get_chkp_callbacks(chkp_dir, chkp_freq)
     logger = CSVLogger(save_dir=log_dir, name=experiment_name)
 
-    num_epochs = 250
+    num_epochs = 200
     trainer = L.Trainer(
         accelerator=DEVICE,
         min_epochs=num_epochs,
