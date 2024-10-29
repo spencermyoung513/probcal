@@ -187,11 +187,10 @@ def gaussian_nll_cce(
     )
 
     nll = 0.5 * (torch.exp(-logvar) * (targets - mu) ** 2 + logvar)
-    mean_cce = cce_vals.mean().item()
+    mean_cce = cce_vals.mean()
 
-    losses = nll + lmbda * mean_cce
-
-    return losses.mean()
+    loss = nll.mean() + lmbda * mean_cce
+    return loss
 
 
 # ------------------------------------ GaussianNN With CCE Regularization ------------------------------------#
