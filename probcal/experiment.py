@@ -11,16 +11,13 @@ import numpy as np
 import torch
 from lightning.pytorch.loggers import CSVLogger
 from torch import nn
-from torch.utils.data import DataLoader
-from torch.utils.data import TensorDataset
 
 from probcal.enums import DatasetType
 from probcal.enums import LRSchedulerType
 from probcal.enums import OptimizerType
 from probcal.evaluation.custom_torchmetrics import AverageNLL
 from probcal.evaluation.kernels import rbf_kernel
-from probcal.evaluation.probabilistic_evaluator import ProbabilisticEvaluator
-from probcal.evaluation.probabilistic_evaluator import ProbabilisticEvaluatorSettings
+from probcal.evaluation.metrics import compute_mcmd_torch
 from probcal.figures.generate_cce_synthetic_figure import produce_figure
 from probcal.models import GaussianNN
 from probcal.models.backbones import Backbone
@@ -158,7 +155,6 @@ def gen_cce_plot(ModelClasses, model_names):
 
 # ------------------------------------ CCE Regularization Loss Function ------------------------------------#
 def gaussian_nll_cce(
-    model: GaussianNN,
     inputs: torch.Tensor,
     outputs: torch.Tensor,
     targets: torch.Tensor,
@@ -171,38 +167,26 @@ def gaussian_nll_cce(
         )
 
     mu, logvar = torch.split(outputs, [1, 1], dim=-1)
-    sample_dataset = TensorDataset(inputs, mu)
-    grid_dataset = TensorDataset(inputs, targets)
+    stdev = (0.5 * logvar).exp()
 
-    sample_loader = DataLoader(sample_dataset, batch_size=64, shuffle=True)
-    grid_loader = DataLoader(grid_dataset, batch_size=64, shuffle=True)
+    # Use the reparametrization trick to obtain 1 sample from the model's predictive distribution for each target.
+    eps = torch.randn_like(stdev)
+    y_prime = mu + eps * stdev
 
-    x_vals = torch.cat([x for x, _ in sample_loader], dim=0)
-    gamma = (1 / (2 * x_vals.var())).item()
-    cce_input_kernel = partial(rbf_kernel, gamma=gamma)
-
-    prob_eval_settings = ProbabilisticEvaluatorSettings(
-        dataset_type=DatasetType.TABULAR,
-        device=DEVICE,
-        cce_num_trials=5,
-        cce_input_kernel=cce_input_kernel,
-        cce_output_kernel="rbf",
-        cce_lambda=0.1,
-        cce_num_samples=1,
-        ece_bins=50,
-        ece_weights="frequency",
-        ece_alpha=1.0,
+    x_gamma = (1 / (2 * inputs.var())).item()
+    y_gamma = (1 / (2 * targets.var())).item()
+    cce_vals = compute_mcmd_torch(
+        grid=inputs,
+        x=inputs,
+        y=targets,
+        x_prime=inputs,
+        y_prime=y_prime,
+        x_kernel=partial(rbf_kernel, gamma=x_gamma),
+        y_kernel=partial(rbf_kernel, gamma=y_gamma),
+        lmbda=0.1,
     )
 
     nll = 0.5 * (torch.exp(-logvar) * (targets - mu) ** 2 + logvar)
-    evaluator = ProbabilisticEvaluator(prob_eval_settings)
-    cce_vals = evaluator.compute_cce(
-        model=model,
-        grid_loader=grid_loader,
-        sample_loader=sample_loader,
-        complex_inputs=False,
-        train=True,
-    )
     mean_cce = cce_vals.mean().item()
 
     losses = nll + lmbda * mean_cce
@@ -240,7 +224,7 @@ class RegularizedGaussianNN(GaussianNN):
         x, y = batch
         y_hat = self(x)
         loss = self.loss_fn(
-            model=self, inputs=x.view(-1, 1).float(), outputs=y_hat, targets=y.view(-1, 1).float()
+            inputs=x.view(-1, 1).float(), outputs=y_hat, targets=y.view(-1, 1).float()
         )
         self.log("train_loss", loss, prog_bar=True, on_epoch=True)
 
@@ -257,7 +241,7 @@ class RegularizedGaussianNN(GaussianNN):
         x, y = batch
         y_hat = self(x)
         loss = self.loss_fn(
-            model=self, inputs=x.view(-1, 1).float(), outputs=y_hat, targets=y.view(-1, 1).float()
+            inputs=x.view(-1, 1).float(), outputs=y_hat, targets=y.view(-1, 1).float()
         )
         self.log("val_loss", loss, prog_bar=True, on_epoch=True, sync_dist=True)
 
