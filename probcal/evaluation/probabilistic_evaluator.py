@@ -239,19 +239,25 @@ class ProbabilisticEvaluator:
             torch.Tensor | tuple[torch.Tensor, torch.Tensor] | tuple[torch.Tensor, torch.Tensor, torch.Tensor]: The computed CCE values, along with the grid of inputs these values correspond to (if return_grid is True) and the regression targets (if return_targets is True).
         """
         x, y, x_prime, y_prime = self._get_samples_for_mcmd(model, sample_loader)
-        # _, _, _, _, image_paths = self._get_samples_for_mcmd(model, test_loader)
-        grid = torch.cat(
-            [
-                self.clip_model.encode_image(
-                    F.resize(inputs.repeat(1, 3, 1, 1), size=[224, 244], antialias=True).to(
-                        self.device
-                    ),
-                    normalize=False,
-                )
-                for inputs, _ in grid_loader
-            ],
-            dim=0,
-        )
+        # Converting using Torch for Greyscale to RGB
+        # grid = torch.cat(
+        #     [
+        #         self.clip_model.encode_image(
+        #             F.resize(inputs.repeat(1, 3, 1, 1), size=[224, 244], antialias=True).to(
+        #                 self.device
+        #             ),
+        #             normalize=False,
+        #         )
+        #         for inputs, _ in grid_loader
+        #     ],
+        #     dim=0,
+        # )\
+        # Converting using TSNE
+        grid = TSNE(
+            n_components=2,
+            random_state=1990,
+        ).fit_transform(x)
+
         x_kernel, y_kernel = self._get_kernel_functions(y)
         print("Computing CCE...")
         cce_vals = compute_mcmd_torch(
