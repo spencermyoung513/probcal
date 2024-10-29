@@ -5,7 +5,7 @@ dataset:
   type: image
   spec: mnist
 batch_size: 4
-accelerator: cpu
+accelerator: cuda
 log_dir: logs/mnist_results
 model_ckpt_path: chkp/mnist_multi_class/version_0/best_loss.ckpt
 cce_output_kernel: bhatt
