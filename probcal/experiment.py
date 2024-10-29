@@ -14,7 +14,6 @@ from torch import nn
 from torch.utils.data import DataLoader
 from torch.utils.data import TensorDataset
 
-from probcal.enums import BetaSchedulerType
 from probcal.enums import DatasetType
 from probcal.enums import LRSchedulerType
 from probcal.enums import OptimizerType
@@ -22,49 +21,30 @@ from probcal.evaluation.custom_torchmetrics import AverageNLL
 from probcal.evaluation.kernels import rbf_kernel
 from probcal.evaluation.probabilistic_evaluator import ProbabilisticEvaluator
 from probcal.evaluation.probabilistic_evaluator import ProbabilisticEvaluatorSettings
+from probcal.figures.generate_cce_synthetic_figure import produce_figure
 from probcal.models import GaussianNN
 from probcal.models.backbones import Backbone
 from probcal.models.backbones import MLP
 from probcal.models.regression_nn import RegressionNN
-from probcal.training.beta_schedulers import CosineAnnealingBetaScheduler
-from probcal.training.beta_schedulers import LinearBetaScheduler
 from probcal.utils.experiment_utils import fix_random_seed
 from probcal.utils.experiment_utils import get_chkp_callbacks
 from probcal.utils.experiment_utils import get_datamodule
 
-from probcal.evaluation.probabilistic_evaluator import ProbabilisticEvaluator, ProbabilisticEvaluatorSettings
-from probcal.enums import BetaSchedulerType
-from probcal.enums import LRSchedulerType
-from probcal.enums import OptimizerType
-from probcal.evaluation.custom_torchmetrics import AverageNLL
-from probcal.models.backbones import Backbone
-from probcal.models.regression_nn import RegressionNN
-from probcal.training.beta_schedulers import CosineAnnealingBetaScheduler
-from probcal.training.beta_schedulers import LinearBetaScheduler
-from probcal.evaluation.kernels import rbf_kernel
-
-from probcal.figures.generate_cce_synthetic_figure import produce_figure
-
-# ------------------------------------ Training Parameters ------------------------------------#
+# ------------------------------------ Global Variables ------------------------------------#
 BACKBONE_TYPE = MLP
 BACKBONE_KWARGS = {"input_dim": 1}
 OPTIM_TYPE = OptimizerType.ADAM_W
 OPTIM_KWARGS = {"lr": 0.001, "weight_decay": 0.00001}
 LR_SCHEDULER_TYPE = LRSchedulerType.COSINE_ANNEALING
 LR_SCHEDULER_KWARGS = {"T_max": 200, "eta_min": 0, "last_epoch": -1}
-
-# ------------------------------------ File Paths ------------------------------------#
 DATASET_PATH = "data/discrete_sine_wave/discrete_sine_wave.npz"
-CHKP_DIR = "chkp/gauss_reg"
-DEVICE = (
-    "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
-)
+DEVICE = "cpu"  # "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
 
 
 # ------------------------------------ Training Function ------------------------------------#
-def train_model(ModelClass: RegressionNN):
+def train_model(ModelClass: RegressionNN, chkp_dir):
 
-    fix_random_seed(1124)
+    fix_random_seed(1998)
 
     dataset_type = DatasetType.TABULAR
     batch_size = 32
@@ -82,7 +62,7 @@ def train_model(ModelClass: RegressionNN):
     chkp_freq = 25
     log_dir = "logs"
     experiment_name = "cce_reg"
-    chkp_callbacks = get_chkp_callbacks(CHKP_DIR, chkp_freq)
+    chkp_callbacks = get_chkp_callbacks(chkp_dir, chkp_freq)
     logger = CSVLogger(save_dir=log_dir, name=experiment_name)
 
     num_epochs = 250
@@ -100,11 +80,11 @@ def train_model(ModelClass: RegressionNN):
     trainer.fit(model=model, datamodule=datamodule)
 
 
-def generate_figure(ModelClass, inlcude_cce_graph = False):
-# ------------------------------------ Experiment Results Function ------------------------------------#
+def gen_model_fit_plot(ModelClass, model_name):
+    # ------------------------------------ Experiment Results Function ------------------------------------#
 
     model = ModelClass.load_from_checkpoint(
-        f"{CHKP_DIR}/last.ckpt",
+        f"{chkp_dir}/last.ckpt",
         backbone_type=BACKBONE_TYPE,
         backbone_kwargs=BACKBONE_KWARGS,
         optim_type=OPTIM_TYPE,
@@ -153,25 +133,27 @@ def generate_figure(ModelClass, inlcude_cce_graph = False):
     plt.legend()
     plt.grid(True, alpha=0.3)
 
-    plt.savefig("probcal/experiment_results.png", dpi=300, bbox_inches="tight")
+    plt.savefig(f"probcal/{model_name}_fit.png", dpi=300, bbox_inches="tight")
     plt.close()
 
-    if inlcude_cce_graph:
-        save_path = "probcal/experiment_results_cce.pdf"
-        dataset_path = "data/discrete_sine_wave/discrete_sine_wave.npz"
-        models = [
-            ModelClass.load_from_checkpoint(
-                f"{CHKP_DIR}/last.ckpt",
-                backbone_type=BACKBONE_TYPE,
-                backbone_kwargs=BACKBONE_KWARGS,
-                optim_type=OPTIM_TYPE,
-                optim_kwargs=OPTIM_KWARGS,
-                lr_scheduler_type=LR_SCHEDULER_TYPE,
-                lr_scheduler_kwargs=LR_SCHEDULER_KWARGS,
-            )
-        ]
-        names = ["Regularized Gaussian NN"]
-        produce_figure(models, names, save_path, dataset_path)
+
+def gen_cce_plot(ModelClasses, model_names):
+    model_names = [model.replace("_", " ").capitalize() for model in model_names]
+    save_path = f"probcal/{model_name}_cce.pdf"
+    dataset_path = DATASET_PATH
+    models = [
+        ModelClass.load_from_checkpoint(
+            f"{chkp_dir}/last.ckpt",
+            backbone_type=BACKBONE_TYPE,
+            backbone_kwargs=BACKBONE_KWARGS,
+            optim_type=OPTIM_TYPE,
+            optim_kwargs=OPTIM_KWARGS,
+            lr_scheduler_type=LR_SCHEDULER_TYPE,
+            lr_scheduler_kwargs=LR_SCHEDULER_KWARGS,
+        )
+        for ModelClass in ModelClasses
+    ]
+    produce_figure(models, model_names, save_path, dataset_path)
 
 
 # ------------------------------------ CCE Regularization Loss Function ------------------------------------#
@@ -180,7 +162,6 @@ def gaussian_nll_cce(
     inputs: torch.Tensor,
     outputs: torch.Tensor,
     targets: torch.Tensor,
-    beta: float | None = None,
     lmbda: float = 0.1,
 ) -> torch.Tensor:
 
@@ -188,9 +169,6 @@ def gaussian_nll_cce(
         warnings.warn(
             f"Targets tensor for `gaussian_nll` expected to be of shape (n, 1) but got shape {targets.shape}. This may result in unexpected training behavior."
         )
-    if beta is not None:
-        if beta < 0 or beta > 1:
-            raise ValueError(f"Invalid value of beta specified. Must be in [0, 1]. Got {beta}")
 
     mu, logvar = torch.split(outputs, [1, 1], dim=-1)
     sample_dataset = TensorDataset(inputs, mu)
@@ -218,20 +196,16 @@ def gaussian_nll_cce(
 
     nll = 0.5 * (torch.exp(-logvar) * (targets - mu) ** 2 + logvar)
     evaluator = ProbabilisticEvaluator(prob_eval_settings)
-    cce_vals  = evaluator.compute_cce(
+    cce_vals = evaluator.compute_cce(
         model=model,
         grid_loader=grid_loader,
         sample_loader=sample_loader,
-        complex_inputs=False, 
-        train=True
+        complex_inputs=False,
+        train=True,
     )
     mean_cce = cce_vals.mean().item()
 
     losses = nll + lmbda * mean_cce
-
-    if beta is not None and beta != 0:
-        var = torch.exp(logvar)
-        losses = torch.pow(var.detach(), beta) * losses
 
     return losses.mean()
 
@@ -246,24 +220,11 @@ class RegularizedGaussianNN(GaussianNN):
         optim_kwargs: Optional[dict] = None,
         lr_scheduler_type: Optional[LRSchedulerType] = None,
         lr_scheduler_kwargs: Optional[dict] = None,
-        beta_scheduler_type: BetaSchedulerType | None = None,
-        beta_scheduler_kwargs: dict | None = None,
     ):
-
-        if beta_scheduler_type == BetaSchedulerType.COSINE_ANNEALING:
-            self.beta_scheduler = CosineAnnealingBetaScheduler(**beta_scheduler_kwargs)
-        elif beta_scheduler_type == BetaSchedulerType.LINEAR:
-            self.beta_scheduler = LinearBetaScheduler(**beta_scheduler_kwargs)
-        else:
-            self.beta_scheduler = None
+        self.beta_scheduler = None
 
         super(GaussianNN, self).__init__(
-            loss_fn=partial(
-                gaussian_nll_cce,
-                beta=(
-                    self.beta_scheduler.current_value if self.beta_scheduler is not None else None
-                ),
-            ),
+            loss_fn=gaussian_nll_cce,
             backbone_type=backbone_type,
             backbone_kwargs=backbone_kwargs,
             optim_type=optim_type,
@@ -311,6 +272,19 @@ class RegularizedGaussianNN(GaussianNN):
 
 
 if __name__ == "__main__":
-    if not os.path.exists(f"{CHKP_DIR}/last.ckpt"):
-        train_model(RegularizedGaussianNN)
-    generate_figure(RegularizedGaussianNN, inlcude_cce_graph=True)
+
+    model_names = ["gaussian", "regularized_gaussian"]
+    ModelClasses = [GaussianNN, RegularizedGaussianNN]
+
+    for model_name, ModelClass in zip(model_names, ModelClasses):
+        chkp_dir = f"chkp/{model_name}"
+
+        # Train model if it hasn't been trained already
+        if not os.path.exists(f"{chkp_dir}/last.ckpt"):
+            train_model(ModelClass, chkp_dir)
+
+        # Generate model fit plots
+        gen_model_fit_plot(ModelClass, model_name)
+
+    # Generate side by side cce plot
+    gen_cce_plot(ModelClasses, model_names)
