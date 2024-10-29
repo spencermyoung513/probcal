@@ -56,7 +56,7 @@ def train_model(ModelClass: RegressionNN, chkp_dir):
         lr_scheduler_kwargs=LR_SCHEDULER_KWARGS,
     )
 
-    chkp_freq = 50
+    chkp_freq = 200
     log_dir = "logs"
     experiment_name = "cce_reg"
     chkp_callbacks = get_chkp_callbacks(chkp_dir, chkp_freq)
@@ -77,7 +77,7 @@ def train_model(ModelClass: RegressionNN, chkp_dir):
     trainer.fit(model=model, datamodule=datamodule)
 
 
-def gen_model_fit_plot(ModelClass, model_name):
+def gen_model_fit_plot(ModelClass, model_name, chkp_dir):
     # ------------------------------------ Experiment Results Function ------------------------------------#
 
     model = ModelClass.load_from_checkpoint(
@@ -134,13 +134,12 @@ def gen_model_fit_plot(ModelClass, model_name):
     plt.close()
 
 
-def gen_cce_plot(ModelClasses, model_names):
-    model_names = [model.replace("_", " ").capitalize() for model in model_names]
+def gen_cce_plot(ModelClasses, model_names, chkp_dir):
     save_path = f"probcal/{model_name}_cce.pdf"
     dataset_path = DATASET_PATH
     models = [
         ModelClass.load_from_checkpoint(
-            f"{chkp_dir}/last.ckpt",
+            f"{chkp_dir}/{model_name}/last.ckpt",
             backbone_type=BACKBONE_TYPE,
             backbone_kwargs=BACKBONE_KWARGS,
             optim_type=OPTIM_TYPE,
@@ -148,8 +147,9 @@ def gen_cce_plot(ModelClasses, model_names):
             lr_scheduler_type=LR_SCHEDULER_TYPE,
             lr_scheduler_kwargs=LR_SCHEDULER_KWARGS,
         )
-        for ModelClass in ModelClasses
+        for ModelClass, model_name in zip(ModelClasses, model_names)
     ]
+    model_names = [model.replace("_", " ").capitalize() for model in model_names]
     produce_figure(models, model_names, save_path, dataset_path)
 
 
@@ -267,7 +267,7 @@ if __name__ == "__main__":
             train_model(ModelClass, chkp_dir)
 
         # Generate model fit plots
-        gen_model_fit_plot(ModelClass, model_name)
+        gen_model_fit_plot(ModelClass, model_name, chkp_dir)
 
     # Generate side by side cce plot
-    gen_cce_plot(ModelClasses, model_names)
+    gen_cce_plot(ModelClasses, model_names, "chkp")
