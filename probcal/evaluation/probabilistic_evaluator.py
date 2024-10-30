@@ -18,7 +18,6 @@ from scipy.interpolate import griddata
 from sklearn.manifold import TSNE
 from torch.utils.data import DataLoader
 from torchvision.transforms import Compose
-from torchvision.transforms import functional as F
 from tqdm import tqdm
 
 from probcal.enums import DatasetType
@@ -251,15 +250,25 @@ class ProbabilisticEvaluator:
         #         for inputs, _ in grid_loader
         #     ],
         #     dim=0,
-        # )\
+        # )
         # Converting using TSNE
-        grid = TSNE(
-            n_components=2,
-            random_state=1990,
-        ).fit_transform(x)
+
+        grid = torch.cat(
+            [
+                torch.Tensor(
+                    TSNE(n_components=3, random_state=1990, perplexity=5).fit_transform(
+                        inputs.reshape(inputs.shape[0], -1).numpy()
+                    )
+                )
+                for inputs, _ in grid_loader
+            ],
+        )
 
         x_kernel, y_kernel = self._get_kernel_functions(y)
         print("Computing CCE...")
+        print(grid.shape)
+        print(x.shape)
+        print(x_prime.shape)
         cce_vals = compute_mcmd_torch(
             grid=grid,
             x=x,
@@ -383,12 +392,13 @@ class ProbabilisticEvaluator:
             if self.settings.dataset_type == DatasetType.TABULAR:
                 x.append(inputs)
             elif self.settings.dataset_type == DatasetType.IMAGE:
-                inputs_3channel = inputs.repeat(1, 3, 1, 1)  # Convert [B,1,28,28] to [B,3,28,28]
-                inputs_resized = F.resize(
-                    inputs_3channel, size=[224, 224], antialias=True
-                )  # Resize to 224x224
+                flattened = inputs.reshape(inputs.shape[0], -1)
                 x.append(
-                    self.clip_model.encode_image(inputs_resized.to(self.device), normalize=False)
+                    torch.Tensor(
+                        TSNE(n_components=3, random_state=1990, perplexity=5).fit_transform(
+                            flattened.numpy()
+                        )
+                    )
                 )
             elif self.settings.dataset_type == DatasetType.TEXT:
                 x.append(self.clip_model.encode_text(inputs.to(self.device), normalize=False))
@@ -400,9 +410,11 @@ class ProbabilisticEvaluator:
             y_prime.append(apply_softmax(y_hat))
 
         x = torch.cat(x, dim=0)
+        x = (x - x.mean(dim=0)) / x.std(dim=0)
         y = torch.cat(y).float()
         y = one_hot_encode_mnist(y)
         x_prime = torch.cat(x_prime, dim=0)
+        x_prime = (x_prime - x_prime.mean(dim=0)) / x_prime.std(dim=0)
         y_prime = torch.cat(y_prime).float()
 
         return x, y, x_prime, y_prime
