@@ -9,7 +9,6 @@ from typing import Sequence
 from typing import TypeAlias
 
 import lightning as L
-import numpy as np
 import open_clip
 import torch.nn.functional
 from matplotlib import pyplot as plt
@@ -197,13 +196,10 @@ class ProbabilisticEvaluator:
                 )
             )
 
-        # print("Computing ECE...")
-        # ece = self.compute_ece(model, test_dataloader)
+        print("Computing ECE...")
+        ece = evaluate_model_calibration(model, test_dataloader)
+        print("ece", ece)
 
-        # for idx, path in enumerate(image_paths):
-        # file_to_cce[path] = cce_vals[idx].item()
-
-        # print("we successfully got the cce values for each image", file_to_cce)
         print("input grid 2d", grid_2d)
         print("cce results", cce_results)
 
@@ -211,7 +207,7 @@ class ProbabilisticEvaluator:
             input_grid_2d=grid_2d,
             regression_targets=regression_targets,
             cce_results=cce_results,
-            ece=1.0,
+            ece=ece,
         )
 
     def compute_cce(
@@ -516,3 +512,101 @@ def apply_softmax(predictions, dim=1, temperature=1.0):
     else:
         # For batched predictions, use specified dim (default=1)
         return torch.nn.functional.softmax(scaled_predictions, dim=dim)
+
+
+import torch
+import torch.nn.functional as F
+import numpy as np
+
+
+def compute_calibration_error(model, data_loader, n_bins=10, device="cpu"):
+    """
+    Computes the Expected Calibration Error (ECE) for a trained MNIST model.
+
+    Args:
+        model: The trained neural network
+        data_loader: DataLoader containing MNIST test data
+        n_bins: Number of confidence bins
+        device: Device to run computation on
+
+    Returns:
+        ece: Expected Calibration Error
+        confidences: List of confidence values for plotting
+        accuracies: List of accuracy values for plotting
+    """
+    model.eval()
+    confidences = []
+    predictions = []
+    labels = []
+
+    # Collect model predictions and confidences
+    with torch.no_grad():
+        for images, targets in data_loader:
+            images = images.to(device)
+            targets = targets.to(device)
+
+            # Get model outputs
+            logits = model(images)
+
+            # Convert logits to probabilities
+            probs = F.softmax(logits, dim=1)
+
+            # Get confidence (maximum probability)
+            conf, pred = torch.max(probs, dim=1)
+
+            confidences.extend(conf.cpu().numpy())
+            predictions.extend(pred.cpu().numpy())
+            labels.extend(targets.cpu().numpy())
+
+    confidences = np.array(confidences)
+    predictions = np.array(predictions)
+    labels = np.array(labels)
+
+    # Create confidence bins
+    bin_boundaries = np.linspace(0, 1, n_bins + 1)
+    bin_indices = np.digitize(confidences, bin_boundaries) - 1
+
+    # Initialize arrays for storing bin statistics
+    bin_accuracies = np.zeros(n_bins)
+    bin_confidences = np.zeros(n_bins)
+    bin_counts = np.zeros(n_bins)
+
+    # Compute statistics for each bin
+    for bin_idx in range(n_bins):
+        mask = bin_indices == bin_idx
+        if np.any(mask):
+            bin_accuracies[bin_idx] = np.mean(predictions[mask] == labels[mask])
+            bin_confidences[bin_idx] = np.mean(confidences[mask])
+            bin_counts[bin_idx] = np.sum(mask)
+
+    # Compute ECE
+    ece = np.sum((bin_counts / len(predictions)) * np.abs(bin_accuracies - bin_confidences))
+
+    return ece, bin_confidences, bin_accuracies
+
+
+# Example usage:
+def evaluate_model_calibration(model, test_loader, device="cpu"):
+    ece, confidences, accuracies = compute_calibration_error(
+        model, test_loader, n_bins=10, device=device
+    )
+    print(f"Expected Calibration Error: {ece:.3f}")
+
+    # Optional: Plot reliability diagram
+    plot_reliability_diagram(ece, confidences, accuracies)
+
+    return ece
+
+
+def plot_reliability_diagram(ece, confidences, accuracies):
+    import matplotlib.pyplot as plt
+
+    plt.figure(figsize=(8, 8))
+    plt.plot([0, 1], [0, 1], "r--")  # Perfect calibration line
+    plt.plot(confidences, accuracies, "b.-", label="Model")
+    plt.xlabel("Confidence")
+    plt.ylabel("Accuracy")
+    plt.title(f"Reliability Diagram For ECE : {ece:.3f}")
+    plt.legend()
+    plt.grid(True)
+    plt.savefig("cce_images/plots/reliability_diagram.png")
