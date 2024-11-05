@@ -4,8 +4,9 @@ head_type: multi_class
 dataset:
   type: image
   spec: mnist
-batch_size: 4
+batch_size: 32
 accelerator: cpu
 log_dir: logs/mnist_results
 model_ckpt_path: chkp/mnist_multi_class/version_0/best_loss.ckpt
 cce_output_kernel: bhatt
+cce_lambda: 0.01

@@ -4,6 +4,7 @@ from enum import Enum
 class AcceleratorType(Enum):
     cpu = "cpu"
     gpu = "gpu"
+    cuda = "cuda"
     mps = "mps"
     auto = "auto"
 

@@ -18,7 +18,6 @@ from scipy.interpolate import griddata
 from sklearn.manifold import TSNE
 from torch.utils.data import DataLoader
 from torchvision.transforms import Compose
-from torchvision.transforms import functional as F
 from tqdm import tqdm
 
 from probcal.enums import DatasetType
@@ -122,6 +121,11 @@ class ProbabilisticEvaluator:
 
         print(f"Running {self.settings.cce_num_trials} CCE computation(s)...")
         cce_results = []
+
+        # for saving label images with cce values
+        output_dir = Path("cce_images")
+        output_dir.mkdir(exist_ok=True)
+
         for i in range(self.settings.cce_num_trials):
             cce_vals, grid, targets, images = self.compute_cce(
                 model=model,
@@ -133,14 +137,49 @@ class ProbabilisticEvaluator:
                 return_grid=True,
                 return_targets=True,
             )
-            print("this is images", images)
-            test = images[0, 0]  # Select the first image in the batch, assuming channels = 1 for grayscale
 
-            # Plot the image
-            plt.imshow(test, cmap="gray")
-            plt.title("MNIST Image")
-            plt.axis("off")  # Hide axes for clarity
-            plt.show()
+            cce_vals_np = cce_vals.detach().cpu().numpy()
+            images = images.detach().cpu()
+
+            assert (
+                cce_vals_np.shape[0] == images.shape[0]
+            ), "CCE values and images are not aligned!"
+
+            # Get indices of the top 5 highest CCE values
+            top5_indices = np.argsort(cce_vals_np)[-5:]  # Highest CCE values
+
+            # Get indices of the bottom 5 lowest CCE values
+            bottom5_indices = np.argsort(cce_vals_np)[:5]  # Lowest CCE values
+
+            # Combine the indices
+            selected_indices = np.concatenate([bottom5_indices, top5_indices])
+
+            # Loop over selected indices to process and save images
+            for idx in selected_indices:
+                image = images[idx]  # Get the image at the index
+                cce_value = cce_vals_np[idx]
+
+                # Denormalize the image
+                mean = 0.1307
+                std = 0.3081
+                image_denorm = image * std + mean
+                image_denorm = image_denorm.clamp(0, 1)
+
+                # Convert image tensor to NumPy array
+                image_np = image_denorm.squeeze().numpy()  # Remove channel dimension if needed
+
+                # Plot the image
+                plt.figure()
+                plt.imshow(image_np, cmap="gray")
+                plt.title(f"CCE: {cce_value:.4f}")
+                plt.axis("off")
+
+                # Save the image with CCE value in the filename
+                filename = output_dir / f"cce_{cce_value:.4f}_idx_{idx}.png"
+                plt.savefig(filename)
+                plt.close()
+
+                print(f"Image saved: {filename}")
 
             # We only need to save the input grid / regression targets once.
             if i == 0:
@@ -199,6 +238,7 @@ class ProbabilisticEvaluator:
             torch.Tensor | tuple[torch.Tensor, torch.Tensor] | tuple[torch.Tensor, torch.Tensor, torch.Tensor]: The computed CCE values, along with the grid of inputs these values correspond to (if return_grid is True) and the regression targets (if return_targets is True).
         """
         x, y, x_prime, y_prime = self._get_samples_for_mcmd(model, sample_loader)
+
         grid = TSNE(
             n_components=2,
             random_state=1990,
@@ -206,6 +246,9 @@ class ProbabilisticEvaluator:
 
         x_kernel, y_kernel = self._get_kernel_functions(y)
         print("Computing CCE...")
+        print(grid.shape)
+        print(x.shape)
+        print(x_prime.shape)
         cce_vals = compute_mcmd_torch(
             grid=grid,
             x=x,
@@ -325,12 +368,13 @@ class ProbabilisticEvaluator:
             if self.settings.dataset_type == DatasetType.TABULAR:
                 x.append(inputs)
             elif self.settings.dataset_type == DatasetType.IMAGE:
-                inputs_3channel = inputs.repeat(1, 3, 1, 1)  # Convert [B,1,28,28] to [B,3,28,28]
-                inputs_resized = F.resize(
-                    inputs_3channel, size=[224, 224], antialias=True
-                )  # Resize to 224x224
+                flattened = inputs.reshape(inputs.shape[0], -1)
                 x.append(
-                    self.clip_model.encode_image(inputs_resized.to(self.device), normalize=False)
+                    torch.Tensor(
+                        TSNE(n_components=3, random_state=1990, perplexity=5).fit_transform(
+                            flattened.numpy()
+                        )
+                    )
                 )
             elif self.settings.dataset_type == DatasetType.TEXT:
                 x.append(self.clip_model.encode_text(inputs.to(self.device), normalize=False))
@@ -342,9 +386,11 @@ class ProbabilisticEvaluator:
             y_prime.append(apply_softmax(y_hat))
 
         x = torch.cat(x, dim=0)
+        x = (x - x.mean(dim=0)) / x.std(dim=0)
         y = torch.cat(y).float()
         y = one_hot_encode_mnist(y)
         x_prime = torch.cat(x_prime, dim=0)
+        x_prime = (x_prime - x_prime.mean(dim=0)) / x_prime.std(dim=0)
         y_prime = torch.cat(y_prime).float()
 
         return x, y, x_prime, y_prime
