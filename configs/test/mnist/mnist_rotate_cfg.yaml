@@ -1,0 +1,11 @@
+experiment_name: mnist_multi_class
+random_seed: 1998
+head_type: multi_class
+dataset:
+  type: image
+  spec: mnist_rotate
+batch_size: 4
+accelerator: cpu
+log_dir: logs/mnist_rotate_results
+model_ckpt_path: chkp/mnist_multi_class/version_0/best_loss.ckpt
+cce_output_kernel: bhatt

@@ -199,20 +199,6 @@ class ProbabilisticEvaluator:
             torch.Tensor | tuple[torch.Tensor, torch.Tensor] | tuple[torch.Tensor, torch.Tensor, torch.Tensor]: The computed CCE values, along with the grid of inputs these values correspond to (if return_grid is True) and the regression targets (if return_targets is True).
         """
         x, y, x_prime, y_prime = self._get_samples_for_mcmd(model, sample_loader)
-        #Converting using Torch for Greyscale to RGB
-        # grid = torch.cat(
-        #     [
-        #         self.clip_model.encode_image(
-        #             F.resize(inputs.repeat(1, 3, 1, 1), size=[224, 244], antialias=True).to(
-        #                 self.device
-        #             ),
-        #             normalize=False,
-        #         )
-        #         for inputs, _ in grid_loader
-        #     ],
-        #     dim=0,
-        # )\
-        #Converting using TSNE
         grid = TSNE(
             n_components=2,
             random_state=1990,
@@ -230,12 +216,8 @@ class ProbabilisticEvaluator:
             y_kernel=y_kernel,
             lmbda=self.settings.cce_lambda,
         )
-        # TODO: create a graph of some cce_vals from images in the grid_loader
-        # # -> concat all the images similar to the grid thing above
-        # # something like this
         print("getting tensor grid of test image greyscale values")
         images = torch.cat([inputs for inputs, _ in grid_loader], dim=0)
-        # # -> maybe find the top 10 lowest/highest CCE vals
         return_obj = [cce_vals]
         if return_grid:
             return_obj.append(grid)
