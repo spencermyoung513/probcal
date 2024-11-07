@@ -8,16 +8,21 @@ from typing import Type
 import lightning as L
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import torch
 from lightning.pytorch.loggers import CSVLogger
+from scipy.stats import norm
 from torch import nn
 
 from probcal.enums import DatasetType
 from probcal.enums import LRSchedulerType
 from probcal.enums import OptimizerType
 from probcal.evaluation.custom_torchmetrics import AverageNLL
+from probcal.evaluation.kernels import laplacian_kernel
 from probcal.evaluation.kernels import rbf_kernel
 from probcal.evaluation.metrics import compute_mcmd_torch
+from probcal.evaluation.probabilistic_evaluator import ProbabilisticEvaluator
+from probcal.evaluation.probabilistic_evaluator import ProbabilisticEvaluatorSettings
 from probcal.figures.generate_cce_synthetic_figure import produce_figure
 from probcal.models import GaussianNN
 from probcal.models.backbones import Backbone
@@ -39,7 +44,7 @@ DEVICE = "cpu"  # "cuda" if torch.cuda.is_available() else "mps" if torch.backen
 
 
 # ------------------------------------ Training Function ------------------------------------#
-def train_model(ModelClass: RegressionNN, chkp_dir):
+def train_model(ModelClass: RegressionNN, chkp_dir: str, lmbda: float = None):
 
     fix_random_seed(1998)
 
@@ -47,14 +52,25 @@ def train_model(ModelClass: RegressionNN, chkp_dir):
     batch_size = 32
     datamodule = get_datamodule(dataset_type, DATASET_PATH, batch_size)
 
-    model = ModelClass(
-        backbone_type=BACKBONE_TYPE,
-        backbone_kwargs=BACKBONE_KWARGS,
-        optim_type=OPTIM_TYPE,
-        optim_kwargs=OPTIM_KWARGS,
-        lr_scheduler_type=LR_SCHEDULER_TYPE,
-        lr_scheduler_kwargs=LR_SCHEDULER_KWARGS,
-    )
+    if ModelClass == GaussianNN:
+        model = ModelClass(
+            backbone_type=BACKBONE_TYPE,
+            backbone_kwargs=BACKBONE_KWARGS,
+            optim_type=OPTIM_TYPE,
+            optim_kwargs=OPTIM_KWARGS,
+            lr_scheduler_type=LR_SCHEDULER_TYPE,
+            lr_scheduler_kwargs=LR_SCHEDULER_KWARGS,
+        )
+    else:
+        model = ModelClass(
+            backbone_type=BACKBONE_TYPE,
+            backbone_kwargs=BACKBONE_KWARGS,
+            optim_type=OPTIM_TYPE,
+            optim_kwargs=OPTIM_KWARGS,
+            lr_scheduler_type=LR_SCHEDULER_TYPE,
+            lr_scheduler_kwargs=LR_SCHEDULER_KWARGS,
+            lmbda=lmbda,
+        )
 
     chkp_freq = 200
     log_dir = "logs"
@@ -183,7 +199,7 @@ def gaussian_nll_cce(
         y_prime=y_prime,
         x_kernel=partial(rbf_kernel, gamma=x_gamma),
         y_kernel=partial(rbf_kernel, gamma=y_gamma),
-        lmbda=0.1,
+        lmbda=0.01,
     )
 
     nll = 0.5 * (torch.exp(-logvar) * (targets - mu) ** 2 + logvar)
@@ -203,11 +219,12 @@ class RegularizedGaussianNN(GaussianNN):
         optim_kwargs: Optional[dict] = None,
         lr_scheduler_type: Optional[LRSchedulerType] = None,
         lr_scheduler_kwargs: Optional[dict] = None,
+        lmbda: float | None = None,
     ):
         self.beta_scheduler = None
 
         super(GaussianNN, self).__init__(
-            loss_fn=gaussian_nll_cce,
+            loss_fn=partial(gaussian_nll_cce, lmbda=lmbda),
             backbone_type=backbone_type,
             backbone_kwargs=backbone_kwargs,
             optim_type=optim_type,
@@ -254,20 +271,110 @@ class RegularizedGaussianNN(GaussianNN):
         return loss
 
 
+def compute_performance(ModelClass, model_name, kernel, kernel_name, chkp_dir, lmbda=None):
+    x_kernel = partial(kernel, gamma=0.5)
+
+    settings = ProbabilisticEvaluatorSettings(
+        dataset_type=DatasetType.TABULAR,
+        cce_input_kernel=x_kernel,
+        cce_output_kernel=kernel_name,
+        cce_num_samples=1,
+        cce_num_trials=1,
+    )
+    evaluator = ProbabilisticEvaluator(settings=settings)
+
+    if ModelClass == GaussianNN:
+        model = ModelClass.load_from_checkpoint(
+            f"{chkp_dir}/best_loss.ckpt",
+            backbone_type=BACKBONE_TYPE,
+            backbone_kwargs=BACKBONE_KWARGS,
+            optim_type=OPTIM_TYPE,
+            optim_kwargs=OPTIM_KWARGS,
+            lr_scheduler_type=LR_SCHEDULER_TYPE,
+            lr_scheduler_kwargs=LR_SCHEDULER_KWARGS,
+        )
+    else:
+        model = ModelClass.load_from_checkpoint(
+            f"{chkp_dir}/best_loss.ckpt",
+            backbone_type=BACKBONE_TYPE,
+            backbone_kwargs=BACKBONE_KWARGS,
+            optim_type=OPTIM_TYPE,
+            optim_kwargs=OPTIM_KWARGS,
+            lr_scheduler_type=LR_SCHEDULER_TYPE,
+            lr_scheduler_kwargs=LR_SCHEDULER_KWARGS,
+            lmbda=lmbda,
+        )
+
+    dataset_type = DatasetType.TABULAR
+    batch_size = 32
+    datamodule = get_datamodule(dataset_type, DATASET_PATH, batch_size)
+
+    results = evaluator(model, datamodule)
+    cce = results.cce_results[0].mean_cce
+    ece = results.ece
+
+    # NLL
+    data: dict[str, np.ndarray] = np.load(DATASET_PATH)
+    X = data["X_test"].flatten()
+    y = data["y_test"].flatten()
+    y_hat = model.predict(torch.tensor(X).unsqueeze(1))
+    mu, var = torch.split(y_hat, [1, 1], dim=-1)
+    mu = mu.flatten().detach().numpy()
+    std = var.sqrt().flatten().detach().numpy()
+    dist = norm(loc=mu, scale=std)
+    nll = np.mean(-np.log(dist.cdf(y + 0.5) - dist.cdf(y - 0.5)))
+
+    # MAE
+    mae = np.mean(abs(y - mu))
+
+    result = {
+        "kernel": kernel_name,
+        "model": model_name,
+        "lambda": lmbda,
+        "cce": cce,
+        "ece": ece,
+        "nll": nll,
+        "mae": mae,
+    }
+    return result
+
+
 if __name__ == "__main__":
 
+    kernels = [rbf_kernel, laplacian_kernel]
+    kernel_names = ["rbf", "laplacian"]
+    lambdas = np.linspace(0, 1, 20)  # [.001, .01, .1, 1, 10, 100]
     model_names = ["gaussian", "regularized_gaussian"]
     ModelClasses = [GaussianNN, RegularizedGaussianNN]
 
-    for model_name, ModelClass in zip(model_names, ModelClasses):
-        chkp_dir = f"chkp/{model_name}"
+    results = []
+    for kernel_name, kernel in zip(kernel_names, kernels):
+        for model_name, ModelClass in zip(model_names, ModelClasses):
 
-        # Train model if it hasn't been trained already
-        if not os.path.exists(f"{chkp_dir}/last.ckpt"):
-            train_model(ModelClass, chkp_dir)
+            # Train regularized models
+            if model_name == "regularized_gaussian":
+                for lmbda in lambdas:
+                    chkp_dir = "chkp/" + kernel_name + "_" + model_name + "_" + str(lmbda)
 
-        # Generate model fit plots
-        gen_model_fit_plot(ModelClass, model_name, chkp_dir)
+                    if not os.path.exists(f"{chkp_dir}/last.ckpt"):
+                        print(
+                            f"Training {model_name} with lambda={lmbda} and kernel={kernel_name}"
+                        )
+                        train_model(ModelClass, chkp_dir, lmbda)
+                    result = compute_performance(
+                        ModelClass, model_name, kernel, kernel_name, chkp_dir, lmbda
+                    )
+                    results.append(result)
 
-    # Generate side by side cce plot
-    gen_cce_plot(ModelClasses, model_names, "chkp")
+            # Train standard gaussian models
+            else:
+                chkp_dir = "chkp/" + kernel_name + "_" + model_name
+
+                if not os.path.exists(f"{chkp_dir}/last.ckpt"):
+                    print(f"Training {model_name} with kernel={kernel_name}")
+                    train_model(ModelClass, chkp_dir)
+                result = compute_performance(ModelClass, model_name, kernel, kernel_name, chkp_dir)
+                results.append(result)
+
+    df = pd.DataFrame(results)
+    df.to_csv("results_2.csv")
