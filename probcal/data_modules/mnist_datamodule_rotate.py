@@ -10,7 +10,7 @@ from torchvision.transforms import Normalize
 from torchvision.transforms import ToTensor
 
 
-class MNISTDataModule(L.LightningDataModule):
+class MNISTDataModuleRotate(L.LightningDataModule):
     def __init__(
         self, root_dir: str | Path, batch_size: int, num_workers: int, persistent_workers: bool
     ):
