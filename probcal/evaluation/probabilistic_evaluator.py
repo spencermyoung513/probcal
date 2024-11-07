@@ -126,7 +126,7 @@ class ProbabilisticEvaluator:
         output_dir.mkdir(exist_ok=True)
 
         for i in range(self.settings.cce_num_trials):
-            cce_vals, grid, targets, images = self.compute_cce(
+            cce_vals, grid, targets, images, labels = self.compute_cce(
                 model=model,
                 grid_loader=test_dataloader,
                 sample_loader=val_dataloader,
@@ -156,6 +156,7 @@ class ProbabilisticEvaluator:
             # Loop over selected indices to process and save images
             for idx in selected_indices:
                 image = images[idx]  # Get the image at the index
+                label = labels[idx]
                 cce_value = cce_vals_np[idx]
 
                 # Denormalize the image
@@ -170,7 +171,7 @@ class ProbabilisticEvaluator:
                 # Plot the image
                 plt.figure()
                 plt.imshow(image_np, cmap="gray")
-                plt.title(f"CCE: {cce_value:.4f}")
+                plt.title(f"CCE: {cce_value:.4f} Label: {label}")
                 plt.axis("off")
 
                 # Save the image with CCE value in the filename
@@ -186,7 +187,8 @@ class ProbabilisticEvaluator:
                     grid_2d = np.array([])
                 else:
                     print("Running TSNE to project grid to 2d...")
-                    grid_2d = TSNE().fit_transform(grid.detach().cpu().numpy())
+                    # grid_2d = TSNE().fit_transform(grid.detach().cpu().numpy())
+                    grid_2d = np.array([])
                 regression_targets = targets.detach().cpu().numpy()
 
             cce_results.append(
@@ -200,8 +202,15 @@ class ProbabilisticEvaluator:
         ece = evaluate_model_calibration(model, test_dataloader)
         print("ece", ece)
 
-        print("input grid 2d", grid_2d)
         print("cce results", cce_results)
+        # ece = self.compute_ece(model, test_dataloader)
+
+        # for idx, path in enumerate(image_paths):
+        # file_to_cce[path] = cce_vals[idx].item()
+
+        # print("we successfully got the cce values for each image", file_to_cce)
+        # print("input grid 2d", grid_2d)
+        print("ece", ece)
 
         return ProbabilisticResults(
             input_grid_2d=grid_2d,
@@ -234,37 +243,63 @@ class ProbabilisticEvaluator:
             torch.Tensor | tuple[torch.Tensor, torch.Tensor] | tuple[torch.Tensor, torch.Tensor, torch.Tensor]: The computed CCE values, along with the grid of inputs these values correspond to (if return_grid is True) and the regression targets (if return_targets is True).
         """
         x, y, x_prime, y_prime = self._get_samples_for_mcmd(model, sample_loader)
-        # Converting using Torch for Greyscale to RGB
-        # grid = torch.cat(
-        #     [
-        #         self.clip_model.encode_image(
-        #             F.resize(inputs.repeat(1, 3, 1, 1), size=[224, 244], antialias=True).to(
-        #                 self.device
-        #             ),
-        #             normalize=False,
-        #         )
-        #         for inputs, _ in grid_loader
-        #     ],
-        #     dim=0,
-        # )
-        # Converting using TSNE
 
         grid = torch.cat(
-            [
-                torch.Tensor(
-                    TSNE(n_components=3, random_state=1990, perplexity=5).fit_transform(
-                        inputs.reshape(inputs.shape[0], -1).numpy()
-                    )
-                )
-                for inputs, _ in grid_loader
-            ],
+            [inputs for inputs, _ in grid_loader],
         )
+        print("Running TSNE on the grid...")
+        grid = torch.Tensor(
+            TSNE(n_components=2, random_state=1990, perplexity=5).fit_transform(
+                grid.reshape(grid.shape[0], -1).numpy()
+            )
+        )
+
+        grid = (grid - grid.mean(dim=0)) / grid.std(dim=0)
+
+        grid_y = torch.cat(
+            [labels for _, labels in grid_loader],
+        )
+
+        print("creating the TSNE scatter plot for grid...")
+        plt.figure(figsize=(15, 8))
+
+        # Create a scatter plot
+        _ = plt.scatter(grid[:, 0], grid[:, 1], c=grid_y, cmap="tab10", alpha=0.6, s=50)
+
+        # Add labels and title
+        plt.xlabel("t-SNE Component 1")
+        plt.ylabel("t-SNE Component 2")
+        plt.title("t-SNE Visualization of MNIST Digits. Perplexity == 5")
+
+        # Add a legend
+        legend_elements = [
+            plt.Line2D(
+                [0],
+                [0],
+                marker="o",
+                color="w",
+                markerfacecolor=plt.cm.tab10(i / 10),
+                label=f"{i}",
+                markersize=10,
+            )
+            for i in range(10)
+        ]
+        plt.legend(
+            handles=legend_elements, title="Digits", loc="center left", bbox_to_anchor=(1, 0.5)
+        )
+
+        # Adjust layout to prevent legend overlap
+        plt.tight_layout()
+
+        # Save the plot
+        plt.savefig("tsne_visualization_prplx=5.png", dpi=300, bbox_inches="tight")
+
+        # Close the figure to free up memory
+        plt.close()
+        print("scatter plot done")
 
         x_kernel, y_kernel = self._get_kernel_functions(y)
         print("Computing CCE...")
-        print(grid.shape)
-        print(x.shape)
-        print(x_prime.shape)
         cce_vals = compute_mcmd_torch(
             grid=grid,
             x=x,
@@ -275,12 +310,11 @@ class ProbabilisticEvaluator:
             y_kernel=y_kernel,
             lmbda=self.settings.cce_lambda,
         )
-        # TODO: create a graph of some cce_vals from images in the grid_loader
-        # # -> concat all the images similar to the grid thing above
-        # # something like this
+
         print("getting tensor grid of test image greyscale values")
         images = torch.cat([inputs for inputs, _ in grid_loader], dim=0)
-        # # -> maybe find the top 10 lowest/highest CCE vals
+        labels = torch.cat([labels for _, labels in grid_loader])
+
         return_obj = [cce_vals]
         if return_grid:
             return_obj.append(grid)
@@ -288,6 +322,7 @@ class ProbabilisticEvaluator:
             return_obj.append(y)
         if images is not None:
             return_obj.append(images)
+            return_obj.append(labels)
         if len(return_obj) == 1:
             return return_obj[0]
         else:
@@ -305,19 +340,30 @@ class ProbabilisticEvaluator:
         """
         all_outputs = []
         all_targets = []
+        # all_inputs = []
+        outputs = []
         for inputs, targets in tqdm(
             data_loader, desc="Getting posterior predictive dists for ECE..."
         ):
-            all_outputs.append(model.predict(inputs.to(self.device)))
-            all_targets.append(targets.to(self.device))
+            # all_outputs.append(model.predict(inputs.to(self.device)))
+            # all_targets.append(targets.to(self.device))
+            inputs = torch.cat([inputs, inputs])
+
+        outputs = model.predict(inputs.to(self.device))
+        probs = torch.nn.functional.softmax(outputs, dim=1)
+        all_outputs = probs
+        all_targets.extend(targets.to(self.device))
+        print("all_outputs", all_outputs)
+        print("all_targets", all_targets)
 
         all_targets = torch.cat(all_targets).detach().cpu().numpy()
+        # all_outputs = torch.cat(all_outputs, dim=0)
         all_outputs = torch.cat(all_outputs, dim=0)
-        posterior_predictive = model.posterior_predictive(all_outputs)
+        # posterior_predictive = model.posterior_predictive(all_outputs)
 
         ece = compute_regression_ece(
             y_true=all_targets,
-            posterior_predictive=posterior_predictive,
+            posterior_predictive=all_outputs,
             num_bins=self.settings.ece_bins,
             weights=self.settings.ece_weights,
             alpha=self.settings.ece_alpha,
@@ -388,14 +434,7 @@ class ProbabilisticEvaluator:
             if self.settings.dataset_type == DatasetType.TABULAR:
                 x.append(inputs)
             elif self.settings.dataset_type == DatasetType.IMAGE:
-                flattened = inputs.reshape(inputs.shape[0], -1)
-                x.append(
-                    torch.Tensor(
-                        TSNE(n_components=3, random_state=1990, perplexity=5).fit_transform(
-                            flattened.numpy()
-                        )
-                    )
-                )
+                x.append(inputs)
             elif self.settings.dataset_type == DatasetType.TEXT:
                 x.append(self.clip_model.encode_text(inputs.to(self.device), normalize=False))
             y.append(targets.to(self.device))
@@ -406,17 +445,31 @@ class ProbabilisticEvaluator:
             y_prime.append(apply_softmax(y_hat))
 
         x = torch.cat(x, dim=0)
+        x = torch.Tensor(
+            TSNE(n_components=2, random_state=1990, perplexity=5).fit_transform(
+                x.reshape(x.shape[0], -1).numpy()
+            )
+        )
+
         x = (x - x.mean(dim=0)) / x.std(dim=0)
+        # x = (x - x.min()) / (x.max() - x.min())
         y = torch.cat(y).float()
         y = one_hot_encode_mnist(y)
         x_prime = torch.cat(x_prime, dim=0)
+        x_prime = torch.Tensor(
+            TSNE(n_components=2, random_state=1990, perplexity=5).fit_transform(
+                x_prime.reshape(x_prime.shape[0], -1).numpy()
+            )
+        )
         x_prime = (x_prime - x_prime.mean(dim=0)) / x_prime.std(dim=0)
+        # x_prime = (x_prime - x_prime.min()) / (x_prime.max() - x_prime.min())
         y_prime = torch.cat(y_prime).float()
 
         return x, y, x_prime, y_prime
 
     def _get_kernel_functions(self, y: torch.Tensor) -> tuple[KernelFunction, KernelFunction]:
         if self.settings.cce_input_kernel == "polynomial":
+            # x_kernel = partial(polynomial_kernel, gamma=0.1, degree=2, coef0=0.0)
             x_kernel = polynomial_kernel
         else:
             x_kernel = self.settings.cce_input_kernel
