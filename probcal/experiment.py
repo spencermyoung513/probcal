@@ -1,9 +1,8 @@
+import argparse
 import math
 import os
 import warnings
 from functools import partial
-from typing import Optional
-from typing import Type
 
 import lightning as L
 import matplotlib.pyplot as plt
@@ -12,12 +11,10 @@ import pandas as pd
 import torch
 from lightning.pytorch.loggers import CSVLogger
 from scipy.stats import norm
-from torch import nn
 
 from probcal.enums import DatasetType
 from probcal.enums import LRSchedulerType
 from probcal.enums import OptimizerType
-from probcal.evaluation.custom_torchmetrics import AverageNLL
 from probcal.evaluation.kernels import laplacian_kernel
 from probcal.evaluation.kernels import rbf_kernel
 from probcal.evaluation.metrics import compute_mcmd_torch
@@ -25,9 +22,9 @@ from probcal.evaluation.probabilistic_evaluator import ProbabilisticEvaluator
 from probcal.evaluation.probabilistic_evaluator import ProbabilisticEvaluatorSettings
 from probcal.figures.generate_cce_synthetic_figure import produce_figure
 from probcal.models import GaussianNN
-from probcal.models.backbones import Backbone
 from probcal.models.backbones import MLP
 from probcal.models.regression_nn import RegressionNN
+from probcal.regularized_gaussian import RegularizedGaussianNN
 from probcal.utils.experiment_utils import fix_random_seed
 from probcal.utils.experiment_utils import get_chkp_callbacks
 from probcal.utils.experiment_utils import get_datamodule
@@ -93,19 +90,28 @@ def train_model(ModelClass: RegressionNN, chkp_dir: str, lmbda: float = None):
     trainer.fit(model=model, datamodule=datamodule)
 
 
-def gen_model_fit_plot(ModelClass, model_name, chkp_dir):
-    # ------------------------------------ Experiment Results Function ------------------------------------#
-
-    model = ModelClass.load_from_checkpoint(
-        f"{chkp_dir}/last.ckpt",
-        backbone_type=BACKBONE_TYPE,
-        backbone_kwargs=BACKBONE_KWARGS,
-        optim_type=OPTIM_TYPE,
-        optim_kwargs=OPTIM_KWARGS,
-        lr_scheduler_type=LR_SCHEDULER_TYPE,
-        lr_scheduler_kwargs=LR_SCHEDULER_KWARGS,
-    )
-    model.eval()
+def gen_model_fit_plot(ModelClass, model_name, chkp_dir, lmbda):
+    if ModelClass == GaussianNN:
+        model = ModelClass.load_from_checkpoint(
+            f"{chkp_dir}/best_loss.ckpt",
+            backbone_type=BACKBONE_TYPE,
+            backbone_kwargs=BACKBONE_KWARGS,
+            optim_type=OPTIM_TYPE,
+            optim_kwargs=OPTIM_KWARGS,
+            lr_scheduler_type=LR_SCHEDULER_TYPE,
+            lr_scheduler_kwargs=LR_SCHEDULER_KWARGS,
+        )
+    else:
+        model = ModelClass.load_from_checkpoint(
+            f"{chkp_dir}/best_loss.ckpt",
+            backbone_type=BACKBONE_TYPE,
+            backbone_kwargs=BACKBONE_KWARGS,
+            optim_type=OPTIM_TYPE,
+            optim_kwargs=OPTIM_KWARGS,
+            lr_scheduler_type=LR_SCHEDULER_TYPE,
+            lr_scheduler_kwargs=LR_SCHEDULER_KWARGS,
+            lmbda=lmbda,
+        )
 
     model = model.to(DEVICE)
 
@@ -150,18 +156,19 @@ def gen_model_fit_plot(ModelClass, model_name, chkp_dir):
     plt.close()
 
 
-def gen_cce_plot(ModelClasses, model_names, chkp_dir):
-    save_path = f"probcal/{model_name}_cce.pdf"
+def gen_cce_plot(ModelClasses, model_names, chkp_dir, lmbda):
+    save_path = "probcal/gen_cce_plot.pdf"
     dataset_path = DATASET_PATH
     models = [
         ModelClass.load_from_checkpoint(
-            f"{chkp_dir}/{model_name}/last.ckpt",
+            f"{chkp_dir}{model_name}/best_loss.ckpt",
             backbone_type=BACKBONE_TYPE,
             backbone_kwargs=BACKBONE_KWARGS,
             optim_type=OPTIM_TYPE,
             optim_kwargs=OPTIM_KWARGS,
             lr_scheduler_type=LR_SCHEDULER_TYPE,
             lr_scheduler_kwargs=LR_SCHEDULER_KWARGS,
+            **({"lmbda": lmbda} if ModelClass != GaussianNN else {}),
         )
         for ModelClass, model_name in zip(ModelClasses, model_names)
     ]
@@ -207,68 +214,6 @@ def gaussian_nll_cce(
 
     loss = nll.mean() + lmbda * mean_cce
     return loss
-
-
-# ------------------------------------ GaussianNN With CCE Regularization ------------------------------------#
-class RegularizedGaussianNN(GaussianNN):
-    def __init__(
-        self,
-        backbone_type: Type[Backbone],
-        backbone_kwargs: dict,
-        optim_type: Optional[OptimizerType] = None,
-        optim_kwargs: Optional[dict] = None,
-        lr_scheduler_type: Optional[LRSchedulerType] = None,
-        lr_scheduler_kwargs: Optional[dict] = None,
-        lmbda: float | None = None,
-    ):
-        self.beta_scheduler = None
-
-        super(GaussianNN, self).__init__(
-            loss_fn=partial(gaussian_nll_cce, lmbda=lmbda),
-            backbone_type=backbone_type,
-            backbone_kwargs=backbone_kwargs,
-            optim_type=optim_type,
-            optim_kwargs=optim_kwargs,
-            lr_scheduler_type=lr_scheduler_type,
-            lr_scheduler_kwargs=lr_scheduler_kwargs,
-        )
-        self.head = nn.Linear(self.backbone.output_dim, 2)
-        self.nll = AverageNLL()
-        self.save_hyperparameters()
-
-    def training_step(self, batch: torch.Tensor) -> torch.Tensor:
-        x, y = batch
-        y_hat = self(x)
-        loss = self.loss_fn(
-            inputs=x.view(-1, 1).float(), outputs=y_hat, targets=y.view(-1, 1).float()
-        )
-        self.log("train_loss", loss, prog_bar=True, on_epoch=True)
-
-        with torch.no_grad():
-            point_predictions = self.point_prediction(y_hat, training=True).flatten()
-            self.train_rmse.update(point_predictions, y.flatten().float())
-            self.train_mae.update(point_predictions, y.flatten().float())
-            self.log("train_rmse", self.train_rmse, on_epoch=True)
-            self.log("train_mae", self.train_mae, on_epoch=True)
-
-        return loss
-
-    def validation_step(self, batch: torch.Tensor) -> torch.Tensor:
-        x, y = batch
-        y_hat = self(x)
-        loss = self.loss_fn(
-            inputs=x.view(-1, 1).float(), outputs=y_hat, targets=y.view(-1, 1).float()
-        )
-        self.log("val_loss", loss, prog_bar=True, on_epoch=True, sync_dist=True)
-
-        # Since we used the model's forward method, we specify training=True to get the proper transforms.
-        point_predictions = self.point_prediction(y_hat, training=True).flatten()
-        self.val_rmse.update(point_predictions, y.flatten().float())
-        self.val_mae.update(point_predictions, y.flatten().float())
-        self.log("val_rmse", self.val_rmse, on_epoch=True)
-        self.log("val_mae", self.val_mae, on_epoch=True)
-
-        return loss
 
 
 def compute_performance(ModelClass, model_name, kernel, kernel_name, chkp_dir, lmbda=None):
@@ -339,11 +284,34 @@ def compute_performance(ModelClass, model_name, kernel, kernel_name, chkp_dir, l
     return result
 
 
-if __name__ == "__main__":
+def experiment_1():
+    ModelClasses = [RegularizedGaussianNN, GaussianNN]
+    model_names = ["regularized_gaussian", "gaussian"]
+    for ModelClass, model_name in zip(ModelClasses, model_names):
+        chkp_dir = "chkp/experiment1/" + model_name
 
+        if not os.path.exists(chkp_dir):
+            train_model(ModelClass, chkp_dir, lmbda=0.01)
+        gen_model_fit_plot(ModelClass, model_name, chkp_dir, lmbda=0.01)
+
+
+def experiment_2():
+    ModelClasses = [RegularizedGaussianNN, GaussianNN]
+    model_names = ["regularized_gaussian", "gaussian"]
+    chkp_dir_base = "chkp/experiment2/"
+
+    for ModelClass, model_name in zip(ModelClasses, model_names):
+        chkp_dir = chkp_dir_base + model_name
+        if not os.path.exists(chkp_dir):
+            train_model(ModelClass, chkp_dir, lmbda=0.01)
+
+    gen_cce_plot(ModelClasses, model_names, chkp_dir_base, lmbda=0.01)
+
+
+def experiment_3():
     kernels = [rbf_kernel, laplacian_kernel]
     kernel_names = ["rbf", "laplacian"]
-    lambdas = np.linspace(0, 1, 20)  # [.001, .01, .1, 1, 10, 100]
+    lambdas = [0.001, 0.01, 0.1, 1, 10, 100]  # np.linspace(0, 1, 20)
     model_names = ["gaussian", "regularized_gaussian"]
     ModelClasses = [GaussianNN, RegularizedGaussianNN]
 
@@ -354,7 +322,9 @@ if __name__ == "__main__":
             # Train regularized models
             if model_name == "regularized_gaussian":
                 for lmbda in lambdas:
-                    chkp_dir = "chkp/" + kernel_name + "_" + model_name + "_" + str(lmbda)
+                    chkp_dir = (
+                        "chkp/experiment3/" + kernel_name + "_" + model_name + "_" + str(lmbda)
+                    )
 
                     if not os.path.exists(f"{chkp_dir}/last.ckpt"):
                         print(
@@ -368,7 +338,7 @@ if __name__ == "__main__":
 
             # Train standard gaussian models
             else:
-                chkp_dir = "chkp/" + kernel_name + "_" + model_name
+                chkp_dir = "chkp/experiment3/" + kernel_name + "_" + model_name
 
                 if not os.path.exists(f"{chkp_dir}/last.ckpt"):
                     print(f"Training {model_name} with kernel={kernel_name}")
@@ -377,4 +347,21 @@ if __name__ == "__main__":
                 results.append(result)
 
     df = pd.DataFrame(results)
-    df.to_csv("results_2.csv")
+    df.to_csv("experiment3.csv")
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--experiment", type=int)
+    args = parser.parse_args()
+
+    match args.experiment:
+
+        case 1:
+            experiment_1()
+
+        case 2:
+            experiment_2()
+
+        case 3:
+            experiment_3()
