@@ -1,7 +1,6 @@
 import argparse
 import math
 import os
-import warnings
 from functools import partial
 
 import lightning as L
@@ -17,7 +16,6 @@ from probcal.enums import LRSchedulerType
 from probcal.enums import OptimizerType
 from probcal.evaluation.kernels import laplacian_kernel
 from probcal.evaluation.kernels import rbf_kernel
-from probcal.evaluation.metrics import compute_mcmd_torch
 from probcal.evaluation.probabilistic_evaluator import ProbabilisticEvaluator
 from probcal.evaluation.probabilistic_evaluator import ProbabilisticEvaluatorSettings
 from probcal.figures.generate_cce_synthetic_figure import produce_figure
@@ -41,7 +39,7 @@ DEVICE = "cpu"  # "cuda" if torch.cuda.is_available() else "mps" if torch.backen
 
 
 # ------------------------------------ Training Function ------------------------------------#
-def train_model(ModelClass: RegressionNN, chkp_dir: str, lmbda: float = None):
+def train_model(ModelClass: RegressionNN, chkp_dir: str, lmbda: float = None, kernel=rbf_kernel):
 
     fix_random_seed(1998)
 
@@ -67,6 +65,7 @@ def train_model(ModelClass: RegressionNN, chkp_dir: str, lmbda: float = None):
             lr_scheduler_type=LR_SCHEDULER_TYPE,
             lr_scheduler_kwargs=LR_SCHEDULER_KWARGS,
             lmbda=lmbda,
+            kernel=kernel,
         )
 
     chkp_freq = 200
@@ -176,46 +175,6 @@ def gen_cce_plot(ModelClasses, model_names, chkp_dir, lmbda):
     produce_figure(models, model_names, save_path, dataset_path)
 
 
-# ------------------------------------ CCE Regularization Loss Function ------------------------------------#
-def gaussian_nll_cce(
-    inputs: torch.Tensor,
-    outputs: torch.Tensor,
-    targets: torch.Tensor,
-    lmbda: float = 0.1,
-) -> torch.Tensor:
-
-    if targets.size(1) != 1:
-        warnings.warn(
-            f"Targets tensor for `gaussian_nll` expected to be of shape (n, 1) but got shape {targets.shape}. This may result in unexpected training behavior."
-        )
-
-    mu, logvar = torch.split(outputs, [1, 1], dim=-1)
-    stdev = (0.5 * logvar).exp()
-
-    # Use the reparametrization trick to obtain 1 sample from the model's predictive distribution for each target.
-    eps = torch.randn_like(stdev)
-    y_prime = mu + eps * stdev
-
-    x_gamma = (1 / (2 * inputs.var())).item()
-    y_gamma = (1 / (2 * targets.var())).item()
-    cce_vals = compute_mcmd_torch(
-        grid=inputs,
-        x=inputs,
-        y=targets,
-        x_prime=inputs,
-        y_prime=y_prime,
-        x_kernel=partial(rbf_kernel, gamma=x_gamma),
-        y_kernel=partial(rbf_kernel, gamma=y_gamma),
-        lmbda=0.01,
-    )
-
-    nll = 0.5 * (torch.exp(-logvar) * (targets - mu) ** 2 + logvar)
-    mean_cce = cce_vals.mean()
-
-    loss = nll.mean() + lmbda * mean_cce
-    return loss
-
-
 def compute_performance(ModelClass, model_name, kernel, kernel_name, chkp_dir, lmbda=None):
     x_kernel = partial(kernel, gamma=0.5)
 
@@ -284,6 +243,68 @@ def compute_performance(ModelClass, model_name, kernel, kernel_name, chkp_dir, l
     return result
 
 
+def gen_kernel_cce_plot():
+    df = pd.read_csv("experiment3.csv", index_col=0)
+
+    df = df[df["model"] != "gaussian"]
+
+    df["lambda"] = df["lambda"].astype(str)
+
+    rbf = df[df["kernel"] == "rbf"]
+    laplacian = df[df["kernel"] == "laplacian"]
+
+    plt.title("ECE/CCE for Kernel/Lambda Combinations")
+    plt.xlabel("Lambda")
+    plt.ylabel("ECE/CCE")
+    plt.plot(rbf["lambda"], rbf["cce"], label="RBF CCE")
+    plt.plot(rbf["lambda"], rbf["ece"], label="RBF ECE")
+    plt.plot(laplacian["lambda"], laplacian["cce"], label="Laplacian CCE")
+    plt.plot(laplacian["lambda"], laplacian["ece"], label="Laplcaian ECE")
+    plt.legend()
+    plt.savefig("probcal/kernel_plot.png")
+    plt.clf()
+
+
+def gen_kernel_nll_plot():
+    df = pd.read_csv("experiment3.csv", index_col=0)
+
+    df = df[df["model"] != "gaussian"]
+
+    df["lambda"] = df["lambda"].astype(str)
+
+    rbf = df[df["kernel"] == "rbf"]
+    laplacian = df[df["kernel"] == "laplacian"]
+
+    plt.title("NLL for Kernel/Lambda Combinations")
+    plt.xlabel("Lambda")
+    plt.ylabel("NLL")
+    plt.plot(rbf["lambda"], rbf["nll"], label="RBF")
+    plt.plot(laplacian["lambda"], laplacian["nll"], label="Laplcaian")
+    plt.legend()
+    plt.savefig("probcal/nll_plot.png")
+    plt.clf()
+
+
+def gen_kernel_plot():
+    df = pd.read_csv("experiment3.csv", index_col=0)
+
+    df = df[df["model"] != "gaussian"]
+
+    df["lambda"] = df["lambda"].astype(str)
+
+    rbf = df[df["kernel"] == "rbf"]
+    laplacian = df[df["kernel"] == "laplacian"]
+
+    plt.title("MAE for Kernel/Lambda Combinations")
+    plt.xlabel("Lambda")
+    plt.ylabel("MAE")
+    plt.plot(rbf["lambda"], rbf["mae"], label="RBF")
+    plt.plot(laplacian["lambda"], laplacian["mae"], label="Laplcaian")
+    plt.legend()
+    plt.savefig("probcal/mae_plot.png")
+    plt.clf()
+
+
 def experiment_1():
     ModelClasses = [RegularizedGaussianNN, GaussianNN]
     model_names = ["regularized_gaussian", "gaussian"]
@@ -296,16 +317,16 @@ def experiment_1():
 
 
 def experiment_2():
-    ModelClasses = [RegularizedGaussianNN, GaussianNN]
-    model_names = ["regularized_gaussian", "gaussian"]
+    ModelClasses = [GaussianNN, RegularizedGaussianNN]
+    model_names = ["gaussian", "regularized_gaussian"]
     chkp_dir_base = "chkp/experiment2/"
 
     for ModelClass, model_name in zip(ModelClasses, model_names):
         chkp_dir = chkp_dir_base + model_name
         if not os.path.exists(chkp_dir):
-            train_model(ModelClass, chkp_dir, lmbda=0.01)
+            train_model(ModelClass, chkp_dir, lmbda=0.1)
 
-    gen_cce_plot(ModelClasses, model_names, chkp_dir_base, lmbda=0.01)
+    gen_cce_plot(ModelClasses, model_names, chkp_dir_base, lmbda=0.1)
 
 
 def experiment_3():
@@ -330,7 +351,7 @@ def experiment_3():
                         print(
                             f"Training {model_name} with lambda={lmbda} and kernel={kernel_name}"
                         )
-                        train_model(ModelClass, chkp_dir, lmbda)
+                        train_model(ModelClass, chkp_dir, lmbda, kernel)
                     result = compute_performance(
                         ModelClass, model_name, kernel, kernel_name, chkp_dir, lmbda
                     )
@@ -348,6 +369,9 @@ def experiment_3():
 
     df = pd.DataFrame(results)
     df.to_csv("experiment3.csv")
+    gen_kernel_cce_plot()
+    gen_kernel_nll_plot()
+    gen_kernel_plot()
 
 
 if __name__ == "__main__":

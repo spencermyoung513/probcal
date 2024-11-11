@@ -20,6 +20,7 @@ def gaussian_nll_cce(
     outputs: torch.Tensor,
     targets: torch.Tensor,
     lmbda: float = 0.1,
+    kernel=rbf_kernel,
 ) -> torch.Tensor:
 
     if targets.size(1) != 1:
@@ -42,8 +43,8 @@ def gaussian_nll_cce(
         y=targets,
         x_prime=inputs,
         y_prime=y_prime,
-        x_kernel=partial(rbf_kernel, gamma=x_gamma),
-        y_kernel=partial(rbf_kernel, gamma=y_gamma),
+        x_kernel=partial(kernel, gamma=x_gamma),
+        y_kernel=partial(kernel, gamma=y_gamma),
         lmbda=0.01,
     )
 
@@ -64,12 +65,13 @@ class RegularizedGaussianNN(GaussianNN):
         optim_kwargs: Optional[dict] = None,
         lr_scheduler_type: Optional[LRSchedulerType] = None,
         lr_scheduler_kwargs: Optional[dict] = None,
-        lmbda: float = 1,
+        lmbda: float = 0.1,
+        kernel=rbf_kernel,
     ):
         self.beta_scheduler = None
 
         super(GaussianNN, self).__init__(
-            loss_fn=partial(gaussian_nll_cce, lmbda=lmbda),
+            loss_fn=partial(gaussian_nll_cce, lmbda=lmbda, kernel=kernel),
             backbone_type=backbone_type,
             backbone_kwargs=backbone_kwargs,
             optim_type=optim_type,
