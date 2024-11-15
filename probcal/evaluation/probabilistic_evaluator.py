@@ -254,18 +254,14 @@ class ProbabilisticEvaluator:
         """
         x, y, x_prime, y_prime = self._get_samples_for_mcmd(model, sample_loader)
 
+        print("Running CLIP on the grid images...")
         grid = torch.cat(
-            [inputs for inputs, _ in grid_loader],
+            [
+                self.clip_model.encode_image(inputs.to(self.device), normalize=False)
+                for inputs, _ in grid_loader
+            ],
+            dim=0,
         )
-        print("Running TSNE on the grid...")
-        grid = torch.Tensor(
-            TSNE(n_components=2, random_state=1990, perplexity=5).fit_transform(
-                grid.reshape(grid.shape[0], -1).numpy()
-            )
-        )
-
-        grid = (grid - grid.mean(dim=0)) / grid.std(dim=0)
-
         # grid_y = torch.cat(
         #     [labels for _, labels in grid_loader],
         # )
