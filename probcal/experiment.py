@@ -438,7 +438,7 @@ def experiment_4():
             kernel=laplacian_kernel,
             kernel_name="laplacian",
             chkp_dir=chkp_dir,
-            dataset_path=dataset_path
+            dataset_path=dataset_path,
             batch_size=batch,
             lmbda=0.1,
         )
@@ -471,7 +471,7 @@ def experiment_5():
                 kernel=laplacian_kernel,
                 kernel_name="laplacian",
                 chkp_dir=chkp_dir,
-                dataset_path=dataset_path
+                dataset_path=dataset_path,
                 batch_size=batch,
                 lmbda=lmbda,
             )
