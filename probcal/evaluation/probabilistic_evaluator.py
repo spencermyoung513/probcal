@@ -197,7 +197,7 @@ class ProbabilisticEvaluator:
                     grid_2d = np.array([])
                 else:
                     print("Running TSNE to project grid to 2d...")
-                    # grid_2d = TSNE().fit_transform(grid.detach().cpu().numpy())
+                    grid_2d = TSNE().fit_transform(grid.detach().cpu().numpy())
                     grid_2d = np.array([])
                 regression_targets = targets.detach().cpu().numpy()
 
@@ -255,6 +255,7 @@ class ProbabilisticEvaluator:
         x, y, x_prime, y_prime = self._get_samples_for_mcmd(model, sample_loader)
 
         print("Running CLIP on the grid images...")
+        # TODO: image data may need to be resized
         grid = torch.cat(
             [
                 self.clip_model.encode_image(inputs.to(self.device), normalize=False)
@@ -437,10 +438,11 @@ class ProbabilisticEvaluator:
         for inputs, targets in tqdm(
             data_loader, desc="Sampling from posteriors for MCMD computation..."
         ):
+            # TODO: image data may need to be resized
             if self.settings.dataset_type == DatasetType.TABULAR:
                 x.append(inputs)
             elif self.settings.dataset_type == DatasetType.IMAGE:
-                x.append(inputs)
+                x.append(self.clip_model.encode_image(inputs.to(self.device), normalize=False))
             elif self.settings.dataset_type == DatasetType.TEXT:
                 x.append(self.clip_model.encode_text(inputs.to(self.device), normalize=False))
             y.append(targets.to(self.device))
@@ -448,27 +450,13 @@ class ProbabilisticEvaluator:
             x_prime.append(
                 torch.repeat_interleave(x[-1], repeats=self.settings.cce_num_samples, dim=0)
             )
-            y_prime.append(apply_softmax(y_hat))
+            y_prime.append(
+                model.sample(y_hat, num_samples=self.settings.cce_num_samples).flatten()
+            )
 
         x = torch.cat(x, dim=0)
-        x = torch.Tensor(
-            TSNE(n_components=2, random_state=1990, perplexity=5).fit_transform(
-                x.reshape(x.shape[0], -1).numpy()
-            )
-        )
-
-        x = (x - x.mean(dim=0)) / x.std(dim=0)
-        # x = (x - x.min()) / (x.max() - x.min())
         y = torch.cat(y).float()
-        y = one_hot_encode_mnist(y)
         x_prime = torch.cat(x_prime, dim=0)
-        x_prime = torch.Tensor(
-            TSNE(n_components=2, random_state=1990, perplexity=5).fit_transform(
-                x_prime.reshape(x_prime.shape[0], -1).numpy()
-            )
-        )
-        x_prime = (x_prime - x_prime.mean(dim=0)) / x_prime.std(dim=0)
-        # x_prime = (x_prime - x_prime.min()) / (x_prime.max() - x_prime.min())
         y_prime = torch.cat(y_prime).float()
 
         return x, y, x_prime, y_prime
