@@ -35,7 +35,6 @@ OPTIM_TYPE = OptimizerType.ADAM_W
 OPTIM_KWARGS = {"lr": 0.001, "weight_decay": 0.00001}
 LR_SCHEDULER_TYPE = LRSchedulerType.COSINE_ANNEALING
 LR_SCHEDULER_KWARGS = {"T_max": 200, "eta_min": 0, "last_epoch": -1}
-DATASET_PATH = "data/discrete_sine_wave/discrete_sine_wave.npz"
 DEVICE = "cpu"  # "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
 
 
@@ -43,15 +42,12 @@ DEVICE = "cpu"  # "cuda" if torch.cuda.is_available() else "mps" if torch.backen
 def train_model(
     ModelClass: RegressionNN,
     chkp_dir: str,
+    datamodule: L.LightningDataModule,
     lmbda: float = None,
     kernel=rbf_kernel,
-    batch_size: int = 32,
 ):
 
     fix_random_seed(1998)
-
-    dataset_type = DatasetType.TABULAR
-    datamodule = get_datamodule(dataset_type, DATASET_PATH, batch_size)
 
     if ModelClass == GaussianNN:
         model = ModelClass(
@@ -95,7 +91,7 @@ def train_model(
     trainer.fit(model=model, datamodule=datamodule)
 
 
-def gen_model_fit_plot(ModelClass, model_name, chkp_dir, lmbda):
+def gen_model_fit_plot(ModelClass, model_name, dataset_path, chkp_dir, lmbda):
     if ModelClass == GaussianNN:
         model = ModelClass.load_from_checkpoint(
             f"{chkp_dir}/best_loss.ckpt",
@@ -120,7 +116,7 @@ def gen_model_fit_plot(ModelClass, model_name, chkp_dir, lmbda):
 
     model = model.to(DEVICE)
 
-    data = np.load(DATASET_PATH)
+    data = np.load(dataset_path)
     X_train, y_train = data["X_train"], data["y_train"]
     X_test, y_test = data["X_test"], data["y_test"]
 
@@ -163,7 +159,7 @@ def gen_model_fit_plot(ModelClass, model_name, chkp_dir, lmbda):
 
 def gen_cce_plot(ModelClasses, model_names, chkp_dir, lmbda):
     save_path = "probcal/gen_cce_plot.pdf"
-    dataset_path = DATASET_PATH
+    dataset_path = "data/discrete_sine_wave/discrete_sine_wave.npz"
     models = [
         ModelClass.load_from_checkpoint(
             f"{chkp_dir}{model_name}/best_loss.ckpt",
@@ -182,7 +178,7 @@ def gen_cce_plot(ModelClasses, model_names, chkp_dir, lmbda):
 
 
 def compute_performance(
-    ModelClass, model_name, kernel, kernel_name, chkp_dir, lmbda=None, batch_size: int = 32
+    ModelClass, model_name, kernel, kernel_name, chkp_dir, dataset_path, lmbda=None, batch_size: int = 32
 ):
     x_kernel = partial(kernel, gamma=0.5)
 
@@ -218,14 +214,14 @@ def compute_performance(
         )
 
     dataset_type = DatasetType.TABULAR
-    datamodule = get_datamodule(dataset_type, DATASET_PATH, batch_size)
+    datamodule = get_datamodule(dataset_type, dataset_path, batch_size)
 
     results = evaluator(model, datamodule)
     cce = results.cce_results[0].mean_cce
     ece = results.ece
 
     # NLL
-    data: dict[str, np.ndarray] = np.load(DATASET_PATH)
+    data: dict[str, np.ndarray] = np.load(dataset_path)
     X = data["X_test"].flatten()
     y = data["y_test"].flatten()
     y_hat = model.predict(torch.tensor(X).unsqueeze(1))
@@ -347,23 +343,30 @@ def experiment_5_plot():
 def experiment_1():
     ModelClasses = [RegularizedGaussianNN, GaussianNN]
     model_names = ["regularized_gaussian", "gaussian"]
+    dataset_type = DatasetType.TABULAR
+    dataset_path = "data/discrete_sine_wave/discrete_sine_wave.npz"
+    datamodule = get_datamodule(dataset_type, dataset_path, batch_size=32)
+
     for ModelClass, model_name in zip(ModelClasses, model_names):
         chkp_dir = "chkp/experiment1/" + model_name
 
         if not os.path.exists(chkp_dir):
-            train_model(ModelClass, chkp_dir, lmbda=0.01)
-        gen_model_fit_plot(ModelClass, model_name, chkp_dir, lmbda=0.01)
+            train_model(ModelClass, chkp_dir, datamodule, lmbda=0.01)
+        gen_model_fit_plot(ModelClass, model_name, dataset_path, chkp_dir, lmbda=0.01)
 
 
 def experiment_2():
     ModelClasses = [GaussianNN, RegularizedGaussianNN]
     model_names = ["gaussian", "regularized_gaussian"]
     chkp_dir_base = "chkp/experiment2/"
+    dataset_type = DatasetType.TABULAR
+    dataset_path = "data/discrete_sine_wave/discrete_sine_wave.npz"
+    datamodule = get_datamodule(dataset_type, dataset_path, 32)
 
     for ModelClass, model_name in zip(ModelClasses, model_names):
         chkp_dir = chkp_dir_base + model_name
         if not os.path.exists(chkp_dir):
-            train_model(ModelClass, chkp_dir, lmbda=0.1)
+            train_model(ModelClass, chkp_dir, datamodule, lmbda=0.1)
 
     gen_cce_plot(ModelClasses, model_names, chkp_dir_base, lmbda=0.1)
 
@@ -374,6 +377,10 @@ def experiment_3():
     lambdas = [0.001, 0.01, 0.1, 1, 10, 100]  # np.linspace(0, 1, 20)
     model_names = ["gaussian", "regularized_gaussian"]
     ModelClasses = [GaussianNN, RegularizedGaussianNN]
+    dataset_type = DatasetType.TABULAR
+    dataset_path = "data/discrete_sine_wave/discrete_sine_wave.npz"
+
+    datamodule = get_datamodule(dataset_type, dataset_path, 32)
 
     results = []
     for kernel_name, kernel in zip(kernel_names, kernels):
@@ -390,9 +397,9 @@ def experiment_3():
                         print(
                             f"Training {model_name} with lambda={lmbda} and kernel={kernel_name}"
                         )
-                        train_model(ModelClass, chkp_dir, lmbda, kernel)
+                        train_model(ModelClass, chkp_dir, datamodule, lmbda, kernel)
                     result = compute_performance(
-                        ModelClass, model_name, kernel, kernel_name, chkp_dir, lmbda
+                        ModelClass, model_name, kernel, kernel_name, chkp_dir, dataset_path, lmbda
                     )
                     results.append(result)
 
@@ -402,8 +409,8 @@ def experiment_3():
 
                 if not os.path.exists(f"{chkp_dir}/last.ckpt"):
                     print(f"Training {model_name} with kernel={kernel_name}")
-                    train_model(ModelClass, chkp_dir)
-                result = compute_performance(ModelClass, model_name, kernel, kernel_name, chkp_dir)
+                    train_model(ModelClass, chkp_dir, datamodule)
+                result = compute_performance(ModelClass, model_name, kernel, kernel_name, chkp_dir, dataset_path)
                 results.append(result)
 
     df = pd.DataFrame(results)
@@ -416,17 +423,22 @@ def experiment_3():
 def experiment_4():
     batch_sizes = [2**i for i in range(2, 11)]
     results = []
+    dataset_type = DatasetType.TABULAR
+    dataset_path = "data/discrete_sine_wave/discrete_sine_wave.npz"
+    
     for batch in batch_sizes:
         chkp_dir = "chkp/experiment4/batch_" + str(batch)
         if not os.path.exists(f"{chkp_dir}/last.ckpt"):
             print(f"Training with batch = {batch}")
-            train_model(RegularizedGaussianNN, chkp_dir, batch_size=batch, lmbda=0.1)
+            datamodule = get_datamodule(dataset_type, dataset_path, batch)
+            train_model(RegularizedGaussianNN, chkp_dir, datamodule, lmbda=0.1)
         result = compute_performance(
             ModelClass=RegularizedGaussianNN,
             model_name="regularized_gaussian",
             kernel=laplacian_kernel,
             kernel_name="laplacian",
             chkp_dir=chkp_dir,
+            dataset_path=dataset_path
             batch_size=batch,
             lmbda=0.1,
         )
@@ -438,15 +450,20 @@ def experiment_4():
 
 
 def experiment_5():
+    dataset_type = DatasetType.TABULAR
+    dataset_path = "data/discrete_sine_wave/discrete_sine_wave.npz"
     results = []
     batch_sizes = [2**i for i in range(2, 10)] + [800]
     lmbdas = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]
+    
+
     for batch in batch_sizes:
+        datamodule = get_datamodule(dataset_type, dataset_path, batch)
         for lmbda in lmbdas:
             chkp_dir = f"chkp/batch_gamma_experiments/batch_{batch}_gamma_{lmbda}"
             if not os.path.exists(f"{chkp_dir}/last.ckpt"):
                 print(f"Training with batch = {batch}, lambda = {lmbda}")
-                train_model(RegularizedGaussianNN, chkp_dir, batch_size=batch, lmbda=lmbda)
+                train_model(RegularizedGaussianNN, chkp_dir, datamodule,  lmbda=lmbda)
             print(f"Evaluating with batch = {batch}, lambda = {lmbda}")
             result = compute_performance(
                 ModelClass=RegularizedGaussianNN,
@@ -454,6 +471,7 @@ def experiment_5():
                 kernel=laplacian_kernel,
                 kernel_name="laplacian",
                 chkp_dir=chkp_dir,
+                dataset_path=dataset_path
                 batch_size=batch,
                 lmbda=lmbda,
             )
@@ -461,6 +479,37 @@ def experiment_5():
             results.append(result)
     df = pd.DataFrame(results)
     df.to_csv("experiment_5.csv")
+
+def experiment_6():
+    dataset_type = DatasetType.IMAGE
+    dataset_path = "data/discrete_sine_wave/discrete_sine_wave.npz"
+    results = []
+    batch_sizes = [2**i for i in range(5, 10)]
+    lmbdas = [0.001, 0.01, 0.1, 1, 10]
+
+    for batch in batch_sizes:
+        datamodule = get_datamodule(dataset_type, dataset_path, batch)
+        for lmbda in lmbdas:
+            chkp_dir = f"chkp/experiment_6/batch_{batch}_lmbda_{lmbda}"
+            if not os.path.exists(f"{chkp_dir}/last.ckpt"):
+                print(f"Training with batch = {batch}, lambda = {lmbda}")
+
+                train_model(RegularizedGaussianNN, chkp_dir, batch_size=batch, datamodule=datamodule, lmbda=lmbda)
+            print(f"Evaluating with batch = {batch}, lambda = {lmbda}")
+            result = compute_performance(
+                ModelClass=RegularizedGaussianNN,
+                model_name="regularized_gaussian",
+                kernel=laplacian_kernel,
+                kernel_name="laplacian",
+                chkp_dir=chkp_dir,
+                dataset_path=dataset_path,
+                batch_size=batch,
+                lmbda=lmbda,
+            ) 
+            result["batch_size"] = batch
+            results.append(result)
+    df = pd.DataFrame(results)
+    df.to_csv("experiment_6.csv")
 
 
 if __name__ == "__main__":
@@ -484,3 +533,6 @@ if __name__ == "__main__":
 
         case 5:
             experiment_5()
+        
+        case 6:
+            experiment_6()
