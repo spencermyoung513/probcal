@@ -28,6 +28,7 @@ from probcal.models import GaussianNN
 from probcal.models import NaturalGaussianNN
 from probcal.models import NegBinomNN
 from probcal.models import PoissonNN
+from probcal.models import RegularizedGaussianNN
 from probcal.models.backbones import DistilBert
 from probcal.models.backbones import LargerMLP
 from probcal.models.backbones import MLP
@@ -67,6 +68,8 @@ def get_model(
         initializer = DoublePoissonNN
     elif config.head_type == HeadType.NEGATIVE_BINOMIAL:
         initializer = NegBinomNN
+    elif config.head_type == HeadType.REGULARIZED_GAUSSIAN:
+        initializer = RegularizedGaussianNN
     else:
         raise ValueError(f"Head type {config.head_type} not recognized.")
 
