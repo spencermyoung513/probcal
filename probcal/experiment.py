@@ -1,33 +1,29 @@
+import argparse
 import math
 import os
-import warnings
 from functools import partial
-from typing import Optional
-from typing import Type
 
 import lightning as L
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import seaborn as sns
 import torch
 from lightning.pytorch.loggers import CSVLogger
 from scipy.stats import norm
-from torch import nn
 
 from probcal.enums import DatasetType
 from probcal.enums import LRSchedulerType
 from probcal.enums import OptimizerType
-from probcal.evaluation.custom_torchmetrics import AverageNLL
 from probcal.evaluation.kernels import laplacian_kernel
 from probcal.evaluation.kernels import rbf_kernel
-from probcal.evaluation.metrics import compute_mcmd_torch
 from probcal.evaluation.probabilistic_evaluator import ProbabilisticEvaluator
 from probcal.evaluation.probabilistic_evaluator import ProbabilisticEvaluatorSettings
 from probcal.figures.generate_cce_synthetic_figure import produce_figure
 from probcal.models import GaussianNN
-from probcal.models.backbones import Backbone
 from probcal.models.backbones import MLP
 from probcal.models.regression_nn import RegressionNN
+from probcal.regularized_gaussian import RegularizedGaussianNN
 from probcal.utils.experiment_utils import fix_random_seed
 from probcal.utils.experiment_utils import get_chkp_callbacks
 from probcal.utils.experiment_utils import get_datamodule
@@ -44,12 +40,17 @@ DEVICE = "cpu"  # "cuda" if torch.cuda.is_available() else "mps" if torch.backen
 
 
 # ------------------------------------ Training Function ------------------------------------#
-def train_model(ModelClass: RegressionNN, chkp_dir: str, lmbda: float = None):
+def train_model(
+    ModelClass: RegressionNN,
+    chkp_dir: str,
+    lmbda: float = None,
+    kernel=rbf_kernel,
+    batch_size: int = 32,
+):
 
     fix_random_seed(1998)
 
     dataset_type = DatasetType.TABULAR
-    batch_size = 32
     datamodule = get_datamodule(dataset_type, DATASET_PATH, batch_size)
 
     if ModelClass == GaussianNN:
@@ -70,6 +71,7 @@ def train_model(ModelClass: RegressionNN, chkp_dir: str, lmbda: float = None):
             lr_scheduler_type=LR_SCHEDULER_TYPE,
             lr_scheduler_kwargs=LR_SCHEDULER_KWARGS,
             lmbda=lmbda,
+            kernel=kernel,
         )
 
     chkp_freq = 200
@@ -93,19 +95,28 @@ def train_model(ModelClass: RegressionNN, chkp_dir: str, lmbda: float = None):
     trainer.fit(model=model, datamodule=datamodule)
 
 
-def gen_model_fit_plot(ModelClass, model_name, chkp_dir):
-    # ------------------------------------ Experiment Results Function ------------------------------------#
-
-    model = ModelClass.load_from_checkpoint(
-        f"{chkp_dir}/last.ckpt",
-        backbone_type=BACKBONE_TYPE,
-        backbone_kwargs=BACKBONE_KWARGS,
-        optim_type=OPTIM_TYPE,
-        optim_kwargs=OPTIM_KWARGS,
-        lr_scheduler_type=LR_SCHEDULER_TYPE,
-        lr_scheduler_kwargs=LR_SCHEDULER_KWARGS,
-    )
-    model.eval()
+def gen_model_fit_plot(ModelClass, model_name, chkp_dir, lmbda):
+    if ModelClass == GaussianNN:
+        model = ModelClass.load_from_checkpoint(
+            f"{chkp_dir}/best_loss.ckpt",
+            backbone_type=BACKBONE_TYPE,
+            backbone_kwargs=BACKBONE_KWARGS,
+            optim_type=OPTIM_TYPE,
+            optim_kwargs=OPTIM_KWARGS,
+            lr_scheduler_type=LR_SCHEDULER_TYPE,
+            lr_scheduler_kwargs=LR_SCHEDULER_KWARGS,
+        )
+    else:
+        model = ModelClass.load_from_checkpoint(
+            f"{chkp_dir}/best_loss.ckpt",
+            backbone_type=BACKBONE_TYPE,
+            backbone_kwargs=BACKBONE_KWARGS,
+            optim_type=OPTIM_TYPE,
+            optim_kwargs=OPTIM_KWARGS,
+            lr_scheduler_type=LR_SCHEDULER_TYPE,
+            lr_scheduler_kwargs=LR_SCHEDULER_KWARGS,
+            lmbda=lmbda,
+        )
 
     model = model.to(DEVICE)
 
@@ -150,18 +161,19 @@ def gen_model_fit_plot(ModelClass, model_name, chkp_dir):
     plt.close()
 
 
-def gen_cce_plot(ModelClasses, model_names, chkp_dir):
-    save_path = f"probcal/{model_name}_cce.pdf"
+def gen_cce_plot(ModelClasses, model_names, chkp_dir, lmbda):
+    save_path = "probcal/gen_cce_plot.pdf"
     dataset_path = DATASET_PATH
     models = [
         ModelClass.load_from_checkpoint(
-            f"{chkp_dir}/{model_name}/last.ckpt",
+            f"{chkp_dir}{model_name}/best_loss.ckpt",
             backbone_type=BACKBONE_TYPE,
             backbone_kwargs=BACKBONE_KWARGS,
             optim_type=OPTIM_TYPE,
             optim_kwargs=OPTIM_KWARGS,
             lr_scheduler_type=LR_SCHEDULER_TYPE,
             lr_scheduler_kwargs=LR_SCHEDULER_KWARGS,
+            **({"lmbda": lmbda} if ModelClass != GaussianNN else {}),
         )
         for ModelClass, model_name in zip(ModelClasses, model_names)
     ]
@@ -169,109 +181,9 @@ def gen_cce_plot(ModelClasses, model_names, chkp_dir):
     produce_figure(models, model_names, save_path, dataset_path)
 
 
-# ------------------------------------ CCE Regularization Loss Function ------------------------------------#
-def gaussian_nll_cce(
-    inputs: torch.Tensor,
-    outputs: torch.Tensor,
-    targets: torch.Tensor,
-    lmbda: float = 0.1,
-) -> torch.Tensor:
-
-    if targets.size(1) != 1:
-        warnings.warn(
-            f"Targets tensor for `gaussian_nll` expected to be of shape (n, 1) but got shape {targets.shape}. This may result in unexpected training behavior."
-        )
-
-    mu, logvar = torch.split(outputs, [1, 1], dim=-1)
-    stdev = (0.5 * logvar).exp()
-
-    # Use the reparametrization trick to obtain 1 sample from the model's predictive distribution for each target.
-    eps = torch.randn_like(stdev)
-    y_prime = mu + eps * stdev
-
-    x_gamma = (1 / (2 * inputs.var())).item()
-    y_gamma = (1 / (2 * targets.var())).item()
-    cce_vals = compute_mcmd_torch(
-        grid=inputs,
-        x=inputs,
-        y=targets,
-        x_prime=inputs,
-        y_prime=y_prime,
-        x_kernel=partial(rbf_kernel, gamma=x_gamma),
-        y_kernel=partial(rbf_kernel, gamma=y_gamma),
-        lmbda=0.01,
-    )
-
-    nll = 0.5 * (torch.exp(-logvar) * (targets - mu) ** 2 + logvar)
-    mean_cce = cce_vals.mean()
-
-    loss = nll.mean() + lmbda * mean_cce
-    return loss
-
-
-# ------------------------------------ GaussianNN With CCE Regularization ------------------------------------#
-class RegularizedGaussianNN(GaussianNN):
-    def __init__(
-        self,
-        backbone_type: Type[Backbone],
-        backbone_kwargs: dict,
-        optim_type: Optional[OptimizerType] = None,
-        optim_kwargs: Optional[dict] = None,
-        lr_scheduler_type: Optional[LRSchedulerType] = None,
-        lr_scheduler_kwargs: Optional[dict] = None,
-        lmbda: float | None = None,
-    ):
-        self.beta_scheduler = None
-
-        super(GaussianNN, self).__init__(
-            loss_fn=partial(gaussian_nll_cce, lmbda=lmbda),
-            backbone_type=backbone_type,
-            backbone_kwargs=backbone_kwargs,
-            optim_type=optim_type,
-            optim_kwargs=optim_kwargs,
-            lr_scheduler_type=lr_scheduler_type,
-            lr_scheduler_kwargs=lr_scheduler_kwargs,
-        )
-        self.head = nn.Linear(self.backbone.output_dim, 2)
-        self.nll = AverageNLL()
-        self.save_hyperparameters()
-
-    def training_step(self, batch: torch.Tensor) -> torch.Tensor:
-        x, y = batch
-        y_hat = self(x)
-        loss = self.loss_fn(
-            inputs=x.view(-1, 1).float(), outputs=y_hat, targets=y.view(-1, 1).float()
-        )
-        self.log("train_loss", loss, prog_bar=True, on_epoch=True)
-
-        with torch.no_grad():
-            point_predictions = self.point_prediction(y_hat, training=True).flatten()
-            self.train_rmse.update(point_predictions, y.flatten().float())
-            self.train_mae.update(point_predictions, y.flatten().float())
-            self.log("train_rmse", self.train_rmse, on_epoch=True)
-            self.log("train_mae", self.train_mae, on_epoch=True)
-
-        return loss
-
-    def validation_step(self, batch: torch.Tensor) -> torch.Tensor:
-        x, y = batch
-        y_hat = self(x)
-        loss = self.loss_fn(
-            inputs=x.view(-1, 1).float(), outputs=y_hat, targets=y.view(-1, 1).float()
-        )
-        self.log("val_loss", loss, prog_bar=True, on_epoch=True, sync_dist=True)
-
-        # Since we used the model's forward method, we specify training=True to get the proper transforms.
-        point_predictions = self.point_prediction(y_hat, training=True).flatten()
-        self.val_rmse.update(point_predictions, y.flatten().float())
-        self.val_mae.update(point_predictions, y.flatten().float())
-        self.log("val_rmse", self.val_rmse, on_epoch=True)
-        self.log("val_mae", self.val_mae, on_epoch=True)
-
-        return loss
-
-
-def compute_performance(ModelClass, model_name, kernel, kernel_name, chkp_dir, lmbda=None):
+def compute_performance(
+    ModelClass, model_name, kernel, kernel_name, chkp_dir, lmbda=None, batch_size: int = 32
+):
     x_kernel = partial(kernel, gamma=0.5)
 
     settings = ProbabilisticEvaluatorSettings(
@@ -306,7 +218,6 @@ def compute_performance(ModelClass, model_name, kernel, kernel_name, chkp_dir, l
         )
 
     dataset_type = DatasetType.TABULAR
-    batch_size = 32
     datamodule = get_datamodule(dataset_type, DATASET_PATH, batch_size)
 
     results = evaluator(model, datamodule)
@@ -339,11 +250,128 @@ def compute_performance(ModelClass, model_name, kernel, kernel_name, chkp_dir, l
     return result
 
 
-if __name__ == "__main__":
+def gen_kernel_cce_plot():
+    df = pd.read_csv("experiment3.csv", index_col=0)
 
+    df = df[df["model"] != "gaussian"]
+
+    df["lambda"] = df["lambda"].astype(str)
+
+    rbf = df[df["kernel"] == "rbf"]
+    laplacian = df[df["kernel"] == "laplacian"]
+
+    plt.title("ECE/CCE for Kernel/Lambda Combinations")
+    plt.xlabel("Lambda")
+    plt.ylabel("ECE/CCE")
+    plt.plot(rbf["lambda"], rbf["cce"], label="RBF CCE")
+    plt.plot(rbf["lambda"], rbf["ece"], label="RBF ECE")
+    plt.plot(laplacian["lambda"], laplacian["cce"], label="Laplacian CCE")
+    plt.plot(laplacian["lambda"], laplacian["ece"], label="Laplcaian ECE")
+    plt.legend()
+    plt.savefig("probcal/kernel_plot.png")
+    plt.clf()
+
+
+def gen_kernel_nll_plot():
+    df = pd.read_csv("experiment3.csv", index_col=0)
+
+    df = df[df["model"] != "gaussian"]
+
+    df["lambda"] = df["lambda"].astype(str)
+
+    rbf = df[df["kernel"] == "rbf"]
+    laplacian = df[df["kernel"] == "laplacian"]
+
+    plt.title("NLL for Kernel/Lambda Combinations")
+    plt.xlabel("Lambda")
+    plt.ylabel("NLL")
+    plt.plot(rbf["lambda"], rbf["nll"], label="RBF")
+    plt.plot(laplacian["lambda"], laplacian["nll"], label="Laplcaian")
+    plt.legend()
+    plt.savefig("probcal/nll_plot.png")
+    plt.clf()
+
+
+def gen_kernel_plot():
+    df = pd.read_csv("experiment3.csv", index_col=0)
+
+    df = df[df["model"] != "gaussian"]
+
+    df["lambda"] = df["lambda"].astype(str)
+
+    rbf = df[df["kernel"] == "rbf"]
+    laplacian = df[df["kernel"] == "laplacian"]
+
+    plt.title("MAE for Kernel/Lambda Combinations")
+    plt.xlabel("Lambda")
+    plt.ylabel("MAE")
+    plt.plot(rbf["lambda"], rbf["mae"], label="RBF")
+    plt.plot(laplacian["lambda"], laplacian["mae"], label="Laplcaian")
+    plt.legend()
+    plt.savefig("probcal/mae_plot.png")
+    plt.clf()
+
+
+def experiment_4_plot():
+    df = pd.read_csv("experiment_4.csv", index_col=0)
+    plt.figure(figsize=(10, 4))
+    plt.subplot(121)
+    plt.suptitle("Batch Size Comparison")
+    plt.semilogx(df["batch_size"], df["ece"], "r-", label="ECE")
+    plt.semilogx(df["batch_size"], df["cce"], "b-", label="CCE")
+    plt.xlabel("Batch Size")
+    plt.legend()
+    plt.subplot(122)
+    plt.semilogx(df["batch_size"], df["nll"], "g-", label="NLL")
+    plt.xlabel("Batch Size")
+    plt.legend()
+    plt.savefig("experiment4.png")
+
+
+def experiment_5_plot():
+    df = pd.read_csv("experiment_5.csv")
+    pivot_table = df.pivot(index="batch_size", columns="lambda", values="cce")
+    # Avegae out the rows and columns
+    pivot_table["Row Avg"] = pivot_table.mean(axis=1)
+    pivot_table.loc["Column Avg"] = pivot_table.mean(axis=0)
+    # Plot the heatmap
+    plt.figure(figsize=(10, 6))
+    sns.heatmap(pivot_table, annot=True, cmap="flare", fmt=".4f", cbar_kws={"label": "CCE"})
+    plt.title("Lambda vs Batch Size")
+    plt.xlabel("Lambda")
+    plt.ylabel("Batch Size")
+    plt.tight_layout()
+    plt.show()
+
+
+def experiment_1():
+    ModelClasses = [RegularizedGaussianNN, GaussianNN]
+    model_names = ["regularized_gaussian", "gaussian"]
+    for ModelClass, model_name in zip(ModelClasses, model_names):
+        chkp_dir = "chkp/experiment1/" + model_name
+
+        if not os.path.exists(chkp_dir):
+            train_model(ModelClass, chkp_dir, lmbda=0.01)
+        gen_model_fit_plot(ModelClass, model_name, chkp_dir, lmbda=0.01)
+
+
+def experiment_2():
+    ModelClasses = [GaussianNN, RegularizedGaussianNN]
+    model_names = ["gaussian", "regularized_gaussian"]
+    chkp_dir_base = "chkp/experiment2/"
+
+    for ModelClass, model_name in zip(ModelClasses, model_names):
+        chkp_dir = chkp_dir_base + model_name
+        if not os.path.exists(chkp_dir):
+            train_model(ModelClass, chkp_dir, lmbda=0.1)
+
+    gen_cce_plot(ModelClasses, model_names, chkp_dir_base, lmbda=0.1)
+
+
+def experiment_3():
     kernels = [rbf_kernel, laplacian_kernel]
     kernel_names = ["rbf", "laplacian"]
-    lambdas = np.linspace(0, 1, 20)  # [.001, .01, .1, 1, 10, 100]
+    lambdas = [0.001, 0.01, 0.1, 1, 10, 100]  # np.linspace(0, 1, 20)
     model_names = ["gaussian", "regularized_gaussian"]
     ModelClasses = [GaussianNN, RegularizedGaussianNN]
 
@@ -354,13 +382,15 @@ if __name__ == "__main__":
             # Train regularized models
             if model_name == "regularized_gaussian":
                 for lmbda in lambdas:
-                    chkp_dir = "chkp/" + kernel_name + "_" + model_name + "_" + str(lmbda)
+                    chkp_dir = (
+                        "chkp/experiment3/" + kernel_name + "_" + model_name + "_" + str(lmbda)
+                    )
 
                     if not os.path.exists(f"{chkp_dir}/last.ckpt"):
                         print(
                             f"Training {model_name} with lambda={lmbda} and kernel={kernel_name}"
                         )
-                        train_model(ModelClass, chkp_dir, lmbda)
+                        train_model(ModelClass, chkp_dir, lmbda, kernel)
                     result = compute_performance(
                         ModelClass, model_name, kernel, kernel_name, chkp_dir, lmbda
                     )
@@ -368,7 +398,7 @@ if __name__ == "__main__":
 
             # Train standard gaussian models
             else:
-                chkp_dir = "chkp/" + kernel_name + "_" + model_name
+                chkp_dir = "chkp/experiment3/" + kernel_name + "_" + model_name
 
                 if not os.path.exists(f"{chkp_dir}/last.ckpt"):
                     print(f"Training {model_name} with kernel={kernel_name}")
@@ -377,4 +407,80 @@ if __name__ == "__main__":
                 results.append(result)
 
     df = pd.DataFrame(results)
-    df.to_csv("results_2.csv")
+    df.to_csv("experiment3.csv")
+    gen_kernel_cce_plot()
+    gen_kernel_nll_plot()
+    gen_kernel_plot()
+
+
+def experiment_4():
+    batch_sizes = [2**i for i in range(2, 11)]
+    results = []
+    for batch in batch_sizes:
+        chkp_dir = "chkp/experiment4/batch_" + str(batch)
+        if not os.path.exists(f"{chkp_dir}/last.ckpt"):
+            print(f"Training with batch = {batch}")
+            train_model(RegularizedGaussianNN, chkp_dir, batch_size=batch, lmbda=0.1)
+        result = compute_performance(
+            ModelClass=RegularizedGaussianNN,
+            model_name="regularized_gaussian",
+            kernel=laplacian_kernel,
+            kernel_name="laplacian",
+            chkp_dir=chkp_dir,
+            batch_size=batch,
+            lmbda=0.1,
+        )
+        result["batch_size"] = batch
+        results.append(result)
+    df = pd.DataFrame(results)
+    df.to_csv("experiment_4.csv")
+    experiment_4_plot()
+
+
+def experiment_5():
+    results = []
+    batch_sizes = [2**i for i in range(2, 10)] + [800]
+    lmbdas = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]
+    for batch in batch_sizes:
+        for lmbda in lmbdas:
+            chkp_dir = f"chkp/batch_gamma_experiments/batch_{batch}_gamma_{lmbda}"
+            if not os.path.exists(f"{chkp_dir}/last.ckpt"):
+                print(f"Training with batch = {batch}, lambda = {lmbda}")
+                train_model(RegularizedGaussianNN, chkp_dir, batch_size=batch, lmbda=lmbda)
+            print(f"Evaluating with batch = {batch}, lambda = {lmbda}")
+            result = compute_performance(
+                ModelClass=RegularizedGaussianNN,
+                model_name="regularized_gaussian",
+                kernel=laplacian_kernel,
+                kernel_name="laplacian",
+                chkp_dir=chkp_dir,
+                batch_size=batch,
+                lmbda=lmbda,
+            )
+            result["batch_size"] = batch
+            results.append(result)
+    df = pd.DataFrame(results)
+    df.to_csv("experiment_5.csv")
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--experiment", type=int)
+    args = parser.parse_args()
+
+    match args.experiment:
+
+        case 1:
+            experiment_1()
+
+        case 2:
+            experiment_2()
+
+        case 3:
+            experiment_3()
+
+        case 4:
+            experiment_4()
+
+        case 5:
+            experiment_5()
