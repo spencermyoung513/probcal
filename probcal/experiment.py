@@ -7,6 +7,7 @@ import lightning as L
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import seaborn as sns
 import torch
 from lightning.pytorch.loggers import CSVLogger
 from scipy.stats import norm
@@ -39,12 +40,17 @@ DEVICE = "cpu"  # "cuda" if torch.cuda.is_available() else "mps" if torch.backen
 
 
 # ------------------------------------ Training Function ------------------------------------#
-def train_model(ModelClass: RegressionNN, chkp_dir: str, lmbda: float = None, kernel=rbf_kernel):
+def train_model(
+    ModelClass: RegressionNN,
+    chkp_dir: str,
+    lmbda: float = None,
+    kernel=rbf_kernel,
+    batch_size: int = 32,
+):
 
     fix_random_seed(1998)
 
     dataset_type = DatasetType.TABULAR
-    batch_size = 32
     datamodule = get_datamodule(dataset_type, DATASET_PATH, batch_size)
 
     if ModelClass == GaussianNN:
@@ -175,7 +181,9 @@ def gen_cce_plot(ModelClasses, model_names, chkp_dir, lmbda):
     produce_figure(models, model_names, save_path, dataset_path)
 
 
-def compute_performance(ModelClass, model_name, kernel, kernel_name, chkp_dir, lmbda=None):
+def compute_performance(
+    ModelClass, model_name, kernel, kernel_name, chkp_dir, lmbda=None, batch_size: int = 32
+):
     x_kernel = partial(kernel, gamma=0.5)
 
     settings = ProbabilisticEvaluatorSettings(
@@ -210,7 +218,6 @@ def compute_performance(ModelClass, model_name, kernel, kernel_name, chkp_dir, l
         )
 
     dataset_type = DatasetType.TABULAR
-    batch_size = 32
     datamodule = get_datamodule(dataset_type, DATASET_PATH, batch_size)
 
     results = evaluator(model, datamodule)
@@ -305,6 +312,38 @@ def gen_kernel_plot():
     plt.clf()
 
 
+def experiment_4_plot():
+    df = pd.read_csv("experiment_4.csv", index_col=0)
+    plt.figure(figsize=(10, 4))
+    plt.subplot(121)
+    plt.suptitle("Batch Size Comparison")
+    plt.semilogx(df["batch_size"], df["ece"], "r-", label="ECE")
+    plt.semilogx(df["batch_size"], df["cce"], "b-", label="CCE")
+    plt.xlabel("Batch Size")
+    plt.legend()
+    plt.subplot(122)
+    plt.semilogx(df["batch_size"], df["nll"], "g-", label="NLL")
+    plt.xlabel("Batch Size")
+    plt.legend()
+    plt.savefig("experiment4.png")
+
+
+def experiment_5_plot():
+    df = pd.read_csv("experiment_5.csv")
+    pivot_table = df.pivot(index="batch_size", columns="lambda", values="cce")
+    # Avegae out the rows and columns
+    pivot_table["Row Avg"] = pivot_table.mean(axis=1)
+    pivot_table.loc["Column Avg"] = pivot_table.mean(axis=0)
+    # Plot the heatmap
+    plt.figure(figsize=(10, 6))
+    sns.heatmap(pivot_table, annot=True, cmap="flare", fmt=".4f", cbar_kws={"label": "CCE"})
+    plt.title("Lambda vs Batch Size")
+    plt.xlabel("Lambda")
+    plt.ylabel("Batch Size")
+    plt.tight_layout()
+    plt.show()
+
+
 def experiment_1():
     ModelClasses = [RegularizedGaussianNN, GaussianNN]
     model_names = ["regularized_gaussian", "gaussian"]
@@ -374,6 +413,56 @@ def experiment_3():
     gen_kernel_plot()
 
 
+def experiment_4():
+    batch_sizes = [2**i for i in range(2, 11)]
+    results = []
+    for batch in batch_sizes:
+        chkp_dir = "chkp/experiment4/batch_" + str(batch)
+        if not os.path.exists(f"{chkp_dir}/last.ckpt"):
+            print(f"Training with batch = {batch}")
+            train_model(RegularizedGaussianNN, chkp_dir, batch_size=batch, lmbda=0.1)
+        result = compute_performance(
+            ModelClass=RegularizedGaussianNN,
+            model_name="regularized_gaussian",
+            kernel=laplacian_kernel,
+            kernel_name="laplacian",
+            chkp_dir=chkp_dir,
+            batch_size=batch,
+            lmbda=0.1,
+        )
+        result["batch_size"] = batch
+        results.append(result)
+    df = pd.DataFrame(results)
+    df.to_csv("experiment_4.csv")
+    experiment_4_plot()
+
+
+def experiment_5():
+    results = []
+    batch_sizes = [2**i for i in range(2, 10)] + [800]
+    lmbdas = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]
+    for batch in batch_sizes:
+        for lmbda in lmbdas:
+            chkp_dir = f"chkp/batch_gamma_experiments/batch_{batch}_gamma_{lmbda}"
+            if not os.path.exists(f"{chkp_dir}/last.ckpt"):
+                print(f"Training with batch = {batch}, lambda = {lmbda}")
+                train_model(RegularizedGaussianNN, chkp_dir, batch_size=batch, lmbda=lmbda)
+            print(f"Evaluating with batch = {batch}, lambda = {lmbda}")
+            result = compute_performance(
+                ModelClass=RegularizedGaussianNN,
+                model_name="regularized_gaussian",
+                kernel=laplacian_kernel,
+                kernel_name="laplacian",
+                chkp_dir=chkp_dir,
+                batch_size=batch,
+                lmbda=lmbda,
+            )
+            result["batch_size"] = batch
+            results.append(result)
+    df = pd.DataFrame(results)
+    df.to_csv("experiment_5.csv")
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--experiment", type=int)
@@ -389,3 +478,9 @@ if __name__ == "__main__":
 
         case 3:
             experiment_3()
+
+        case 4:
+            experiment_4()
+
+        case 5:
+            experiment_5()
