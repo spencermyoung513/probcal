@@ -251,6 +251,7 @@ class EvaluationConfig(BaseConfig):
         ece_bins: int,
         ece_weights: Literal["uniform", "frequency"],
         ece_alpha: float,
+        rotation: float = 0,
     ):
         super(EvaluationConfig, self).__init__(
             experiment_name=experiment_name,
@@ -272,6 +273,7 @@ class EvaluationConfig(BaseConfig):
         self.ece_bins = ece_bins
         self.ece_weights = ece_weights
         self.ece_alpha = ece_alpha
+        self.rotation = rotation
 
     @staticmethod
     def from_yaml(config_path: str | Path) -> EvaluationConfig:
@@ -310,6 +312,7 @@ class EvaluationConfig(BaseConfig):
         if ece_weights not in ("frequency", "uniform"):
             raise ValueError("ece_weights must be either 'frequency' or 'uniform'.")
         ece_alpha = config_dict.get("ece_alpha", 1.0)
+        rotation = config_dict.get("rotation", 0)
 
         return EvaluationConfig(
             experiment_name=experiment_name,
@@ -330,4 +333,5 @@ class EvaluationConfig(BaseConfig):
             ece_bins=ece_bins,
             ece_weights=ece_weights,
             ece_alpha=ece_alpha,
+            rotation=rotation,
         )

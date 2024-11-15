@@ -1,3 +1,0 @@
-TODO: get some example images of when the CCE is good vs bad from the data
- -> this might be kinda annoying, the MNIST images aren't actually in image files
-    they're in those -ubyte files so I think they are just stored as bytes

@@ -1,4 +1,5 @@
 from .aaf_datamodule import AAFDataModule
+from .cifar_100_datamodule import CIFAR100DataModule
 from .coco_people_datamodule import COCOPeopleDataModule
 from .coco_people_datamodule import OodBlurCocoPeopleDataModule
 from .coco_people_datamodule import OodLabelNoiseCocoPeopleDataModule
@@ -6,4 +7,5 @@ from .coco_people_datamodule import OodMixupCocoPeopleDataModule
 from .eva_datamodule import EVADataModule
 from .fg_net_datamodule import FGNetDataModule
 from .mnist_datamodule import MNISTDataModule
+from .mnist_datamodule_rotate import MNISTDataModuleRotate
 from .tabular_data_module import TabularDataModule

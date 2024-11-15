@@ -31,7 +31,23 @@ def main(config_path: Path):
         config.dataset_type,
         config.dataset_path_or_spec,
         config.batch_size,
+        rotation=config.rotation,
     )
+
+    print(f"Using rotation: {config.rotation} on MNIST data...")
+    # datamodule.setup("test")
+    # print("Getting test loader...")
+    # test_loader = datamodule.test_dataloader()
+    # print("Printing out a few images...")
+    # i = 20
+    # for batch in test_loader:
+    #     images, _ = batch
+    #     #save the image as a png using matplotlib
+    #     plt.imshow(images[0].squeeze().numpy(), cmap="gray")
+    #     plt.savefig(f"test_image_{i}.png")
+    #     i += 1
+    #     if i > 23:
+    #         break
 
     if config.head_type == HeadType.MULTI_CLASS:
         initializer: Type[MultiClassNN] = get_multi_class_model(config, return_initializer=True)[1]

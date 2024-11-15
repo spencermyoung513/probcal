@@ -16,10 +16,12 @@ from probcal.data_modules import COCOPeopleDataModule
 from probcal.data_modules import EVADataModule
 from probcal.data_modules import FGNetDataModule
 from probcal.data_modules import MNISTDataModule
+from probcal.data_modules import MNISTDataModuleRotate
 from probcal.data_modules import OodBlurCocoPeopleDataModule
 from probcal.data_modules import OodLabelNoiseCocoPeopleDataModule
 from probcal.data_modules import OodMixupCocoPeopleDataModule
 from probcal.data_modules import TabularDataModule
+from probcal.data_modules.cifar_100_datamodule import CIFAR100DataModule
 from probcal.enums import DatasetType
 from probcal.enums import HeadType
 from probcal.enums import ImageDatasetName
@@ -130,9 +132,15 @@ def get_multi_class_model(
         raise ValueError(f"Head type {config.head_type} not recognized.")
 
     if config.dataset_type == DatasetType.IMAGE:
-        if config.dataset_path_or_spec == ImageDatasetName.MNIST:
+        if (
+            config.dataset_path_or_spec == ImageDatasetName.MNIST
+            or config.dataset_path_or_spec == ImageDatasetName.MNIST_ROTATE
+        ):
             backbone_type = MNISTCNN
             classes = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
+        elif config.dataset_path_or_spec == ImageDatasetName.CIFAR_100:
+            backbone_type = MobileNetV3
+            classes = [str(i) for i in range(100)]
         else:
             raise ValueError("Only MNIST works right now.")
         backbone_kwargs = {}
@@ -171,6 +179,7 @@ def get_datamodule(
     dataset_path_or_spec: Path | ImageDatasetName,
     batch_size: int,
     num_workers: Optional[int] = 8,
+    rotation: Optional[int] = 0,
 ) -> L.LightningDataModule:
     if dataset_type == DatasetType.TABULAR:
         return TabularDataModule(
@@ -186,6 +195,14 @@ def get_datamodule(
                 batch_size=batch_size,
                 num_workers=num_workers,
                 persistent_workers=True if num_workers > 0 else False,
+            )
+        elif dataset_path_or_spec == ImageDatasetName.MNIST_ROTATE:
+            return MNISTDataModuleRotate(
+                root_dir=os.path.join(GLOBAL_DATA_DIR, "mnist"),
+                batch_size=batch_size,
+                num_workers=num_workers,
+                persistent_workers=True if num_workers > 0 else False,
+                rotation=rotation,
             )
         elif dataset_path_or_spec == ImageDatasetName.COCO_PEOPLE:
             return COCOPeopleDataModule(
@@ -231,6 +248,13 @@ def get_datamodule(
             )
         elif dataset_path_or_spec == ImageDatasetName.FG_NET:
             return FGNetDataModule(
+                root_dir=GLOBAL_DATA_DIR,
+                batch_size=batch_size,
+                num_workers=num_workers,
+                persistent_workers=True if num_workers > 0 else False,
+            )
+        elif dataset_path_or_spec == ImageDatasetName.CIFAR_100:
+            return CIFAR100DataModule(
                 root_dir=GLOBAL_DATA_DIR,
                 batch_size=batch_size,
                 num_workers=num_workers,

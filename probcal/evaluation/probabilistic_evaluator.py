@@ -19,6 +19,7 @@ from torch.utils.data import DataLoader
 from torchvision.transforms import Compose
 from tqdm import tqdm
 
+from probcal.data_modules.mnist_datamodule_rotate import MNISTDataModuleRotate
 from probcal.enums import DatasetType
 from probcal.evaluation.kernels import bhattacharyya_kernel
 from probcal.evaluation.kernels import laplacian_kernel
@@ -114,22 +115,27 @@ class ProbabilisticEvaluator:
         model.to(self.device)
         data_module.prepare_data()
         data_module.setup("test")
-        val_dataloader = data_module.val_dataloader()
+        # val_dataloader = data_module.val_dataloader()
+        grid_dataloader = data_module.test_dataloader()
         test_dataloader = data_module.test_dataloader()
+        if data_module.isinstance(MNISTDataModuleRotate):
+            rotation = data_module.test_rotation
+        else:
+            rotation = 0
         # file_to_cce = {}
 
         print(f"Running {self.settings.cce_num_trials} CCE computation(s)...")
         cce_results = []
 
         # for saving label images with cce values
-        output_dir = Path("cce_images")
+        output_dir = Path(f"cce_images/{rotation}_rotation")
         output_dir.mkdir(exist_ok=True)
 
         for i in range(self.settings.cce_num_trials):
             cce_vals, grid, targets, images, labels = self.compute_cce(
                 model=model,
-                grid_loader=test_dataloader,
-                sample_loader=val_dataloader,
+                grid_loader=grid_dataloader,
+                sample_loader=test_dataloader,
                 test_loader=test_dataloader
                 if self.settings.cce_use_val_split_for_S
                 else test_dataloader,
@@ -144,14 +150,22 @@ class ProbabilisticEvaluator:
                 cce_vals_np.shape[0] == images.shape[0]
             ), "CCE values and images are not aligned!"
 
-            # Get indices of the top 5 highest CCE values
-            top5_indices = np.argsort(cce_vals_np)[-5:]  # Highest CCE values
+            # # Get indices of the top 5 highest CCE values
+            # top5_indices = np.argsort(cce_vals_np)[-5:]  # Highest CCE values
 
-            # Get indices of the bottom 5 lowest CCE values
-            bottom5_indices = np.argsort(cce_vals_np)[:5]  # Lowest CCE values
+            # # Get indices of the bottom 5 lowest CCE values
+            # bottom5_indices = np.argsort(cce_vals_np)[:5]  # Lowest CCE values
 
-            # Combine the indices
-            selected_indices = np.concatenate([bottom5_indices, top5_indices])
+            # # Combine the indices
+            # selected_indices = np.concatenate([bottom5_indices, top5_indices])
+
+            # manual selected indices
+            # 5 random indices
+            # selected_indices = np.random.choice(len(cce_vals_np), 5, replace=False)
+            # print("selected_indices", selected_indices)
+            # format the selected indeces to an array
+            selected_indices = [0, 1428, 2142, 2856, 4285, 5713, 6427, 7142, 7856, 8570, 9999]
+            # selected_indices = []
 
             # Loop over selected indices to process and save images
             for idx in selected_indices:
@@ -175,7 +189,7 @@ class ProbabilisticEvaluator:
                 plt.axis("off")
 
                 # Save the image with CCE value in the filename
-                filename = output_dir / f"cce_{cce_value:.4f}_idx_{idx}.png"
+                filename = output_dir / f"rotate_exp_cce_{cce_value:.4f}_idx_{idx}.png"
                 plt.savefig(filename)
                 plt.close()
 
@@ -256,47 +270,47 @@ class ProbabilisticEvaluator:
 
         grid = (grid - grid.mean(dim=0)) / grid.std(dim=0)
 
-        grid_y = torch.cat(
-            [labels for _, labels in grid_loader],
-        )
+        # grid_y = torch.cat(
+        #     [labels for _, labels in grid_loader],
+        # )
 
-        print("creating the TSNE scatter plot for grid...")
-        plt.figure(figsize=(15, 8))
+        # print("creating the TSNE scatter plot for grid...")
+        # plt.figure(figsize=(15, 8))
 
-        # Create a scatter plot
-        _ = plt.scatter(grid[:, 0], grid[:, 1], c=grid_y, cmap="tab10", alpha=0.6, s=50)
+        # # Create a scatter plot
+        # _ = plt.scatter(grid[:, 0], grid[:, 1], c=grid_y, cmap="tab10", alpha=0.6, s=50)
 
-        # Add labels and title
-        plt.xlabel("t-SNE Component 1")
-        plt.ylabel("t-SNE Component 2")
-        plt.title("t-SNE Visualization of MNIST Digits. Perplexity == 5")
+        # # Add labels and title
+        # plt.xlabel("t-SNE Component 1")
+        # plt.ylabel("t-SNE Component 2")
+        # plt.title("t-SNE Visualization of MNIST Digits. Perplexity == 5")
 
-        # Add a legend
-        legend_elements = [
-            plt.Line2D(
-                [0],
-                [0],
-                marker="o",
-                color="w",
-                markerfacecolor=plt.cm.tab10(i / 10),
-                label=f"{i}",
-                markersize=10,
-            )
-            for i in range(10)
-        ]
-        plt.legend(
-            handles=legend_elements, title="Digits", loc="center left", bbox_to_anchor=(1, 0.5)
-        )
+        # # Add a legend
+        # legend_elements = [
+        #     plt.Line2D(
+        #         [0],
+        #         [0],
+        #         marker="o",
+        #         color="w",
+        #         markerfacecolor=plt.cm.tab10(i / 10),
+        #         label=f"{i}",
+        #         markersize=10,
+        #     )
+        #     for i in range(10)
+        # ]
+        # plt.legend(
+        #     handles=legend_elements, title="Digits", loc="center left", bbox_to_anchor=(1, 0.5)
+        # )
 
-        # Adjust layout to prevent legend overlap
-        plt.tight_layout()
+        # # Adjust layout to prevent legend overlap
+        # plt.tight_layout()
 
-        # Save the plot
-        plt.savefig("tsne_visualization_prplx=5.png", dpi=300, bbox_inches="tight")
+        # # Save the plot
+        # plt.savefig("tsne_visualization_prplx=5.png", dpi=300, bbox_inches="tight")
 
-        # Close the figure to free up memory
-        plt.close()
-        print("scatter plot done")
+        # # Close the figure to free up memory
+        # plt.close()
+        # print("scatter plot done")
 
         x_kernel, y_kernel = self._get_kernel_functions(y)
         print("Computing CCE...")
