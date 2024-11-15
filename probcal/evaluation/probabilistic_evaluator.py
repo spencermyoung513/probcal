@@ -165,8 +165,24 @@ class ProbabilisticEvaluator:
             # print("selected_indices", selected_indices)
             # format the selected indeces to an array
             selected_indices = [0, 1428, 2142, 2856, 4285, 5713, 6427, 7142, 7856, 8570, 9999]
-            # selected_indices = []
 
+            #lets get 3 random instances of each type of label
+            #the label object is an array of labels (we are using mnist data so its 0-9), we want 3 instances of each type of label, it should be the lowest, highest and middle cce value
+            #we get the cce value using the cce_vals_np array
+            label_instances = {}
+            for idx, label in enumerate(labels):
+                label = label.item()
+                if label not in label_instances:
+                    label_instances[label] = [{"idx": idx, "cce": cce_vals_np[idx]}]
+                else:
+                    label_instances[label].append({"idx": idx, "cce": cce_vals_np[idx]})
+
+            selected_indices = [] #should be an array of tuples, the label and the index of the image
+            for label, instances in label_instances.items():
+                instances = sorted(instances, key=lambda x: x["cce"])
+                selected_indices.extend([instances[0]["idx"], label, instances[len(instances)//2]["idx"], label, instances[-1]["idx"]])
+
+            print("selected_indices", selected_indices)
             # Loop over selected indices to process and save images
             for idx in selected_indices:
                 image = images[idx]  # Get the image at the index
