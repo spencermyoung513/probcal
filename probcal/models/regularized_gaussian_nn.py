@@ -3,8 +3,10 @@ from functools import partial
 from typing import Optional
 from typing import Type
 
+import open_clip
 import torch
 from torch import nn
+from open_clip import CLIP
 
 from probcal.enums import LRSchedulerType
 from probcal.enums import OptimizerType
@@ -21,12 +23,25 @@ def gaussian_nll_cce(
     targets: torch.Tensor,
     lmbda: float = 0.1,
     kernel=rbf_kernel,
+    complex_inputs = True,
+    clip_model = None
 ) -> torch.Tensor:
 
     if targets.size(1) != 1:
         warnings.warn(
             f"Targets tensor for `gaussian_nll` expected to be of shape (n, 1) but got shape {targets.shape}. This may result in unexpected training behavior."
         )
+    print(targets)
+    if complex_inputs:
+        grid = torch.cat(
+            [
+                clip_model.encode_image(inputs, normalize=False)
+                for inputs in targets
+            ],
+            dim=0,
+        )
+    else:
+        grid = torch.cat([inputs for inputs, _ in targets], dim=0)
 
     mu, logvar = torch.split(outputs, [1, 1], dim=-1)
     stdev = (0.5 * logvar).exp()
@@ -37,7 +52,7 @@ def gaussian_nll_cce(
     x_gamma = (1 / (2 * inputs.var())).item()
     y_gamma = (1 / (2 * targets.var())).item()
     cce_vals = compute_mcmd_torch(
-        grid=inputs,
+        grid=grid,
         x=inputs,
         y=targets,
         x_prime=inputs,
@@ -81,6 +96,7 @@ class RegularizedGaussianNN(GaussianNN):
         self.head = nn.Linear(self.backbone.output_dim, 2)
         self.nll = AverageNLL()
         self.save_hyperparameters()
+        self._clip_model = None
 
     def training_step(self, batch: torch.Tensor) -> torch.Tensor:
         x, y = batch
@@ -98,12 +114,22 @@ class RegularizedGaussianNN(GaussianNN):
             self.log("train_mae", self.train_mae, on_epoch=True)
 
         return loss
+    
+    @property
+    def clip_model(self) -> CLIP:
+        if self._clip_model is None:
+            self._clip_model, _, self._image_preprocess = open_clip.create_model_and_transforms(
+                model_name="ViT-B-32",
+                pretrained="laion2b_s34b_b79k",
+                device=self.device,
+            )
+        return self._clip_model
 
     def validation_step(self, batch: torch.Tensor) -> torch.Tensor:
         x, y = batch
         y_hat = self(x)
         loss = self.loss_fn(
-            inputs=x.view(-1, 1).float(), outputs=y_hat, targets=y.view(-1, 1).float()
+            inputs=x.view(-1, 1).float(), outputs=y_hat, targets=y.view(-1, 1).float(), clip_model=self.clip_model
         )
         self.log("val_loss", loss, prog_bar=True, on_epoch=True, sync_dist=True)
 
@@ -115,3 +141,5 @@ class RegularizedGaussianNN(GaussianNN):
         self.log("val_mae", self.val_mae, on_epoch=True)
 
         return loss
+    
+
