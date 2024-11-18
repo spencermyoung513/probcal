@@ -258,11 +258,17 @@ class ProbabilisticEvaluator:
         # TODO: image data may need to be resized
         grid = torch.cat(
             [
-                self.clip_model.encode_image(inputs.to(self.device), normalize=False)
+                self.clip_model.encode_image(
+                    torch.nn.functional.interpolate(
+                        inputs, size=(224, 224), mode="bilinear", align_corners=False
+                    ).to(self.device),
+                    normalize=False,
+                )
                 for inputs, _ in grid_loader
             ],
             dim=0,
         )
+
         # grid_y = torch.cat(
         #     [labels for _, labels in grid_loader],
         # )
@@ -442,17 +448,20 @@ class ProbabilisticEvaluator:
             if self.settings.dataset_type == DatasetType.TABULAR:
                 x.append(inputs)
             elif self.settings.dataset_type == DatasetType.IMAGE:
-                x.append(self.clip_model.encode_image(inputs.to(self.device), normalize=False))
+                inputs_resized = torch.nn.functional.interpolate(
+                    inputs, size=(224, 224), mode="bilinear", align_corners=False
+                )
+                x.append(
+                    self.clip_model.encode_image(inputs_resized.to(self.device), normalize=False)
+                )
             elif self.settings.dataset_type == DatasetType.TEXT:
                 x.append(self.clip_model.encode_text(inputs.to(self.device), normalize=False))
-            y.append(targets.to(self.device))
+            y.append(one_hot_encode_cifar100(targets.to(self.device)))
             y_hat = model.predict(inputs.to(self.device))
             x_prime.append(
                 torch.repeat_interleave(x[-1], repeats=self.settings.cce_num_samples, dim=0)
             )
-            y_prime.append(
-                model.sample(y_hat, num_samples=self.settings.cce_num_samples).flatten()
-            )
+            y_prime.append(apply_softmax(y_hat))
 
         x = torch.cat(x, dim=0)
         y = torch.cat(y).float()
@@ -504,13 +513,13 @@ class ProbabilisticEvaluator:
         return self._tokenizer
 
 
-def one_hot_encode_mnist(labels, num_classes=10):
+def one_hot_encode_cifar100(labels, num_classes=100):
     """
-    One-hot encodes MNIST labels.
+    One-hot encodes CIFAR-100 labels.
 
     Args:
-        labels (torch.Tensor): Tensor of class labels (integers 0-9)
-        num_classes (int): Number of classes (default=10 for MNIST)
+        labels (torch.Tensor): Tensor of class labels (integers 0-99)
+        num_classes (int): Number of classes (default=100 for CIFAR-100)
 
     Returns:
         torch.Tensor: One-hot encoded labels
