@@ -128,7 +128,6 @@ class ProbabilisticEvaluator:
                 else test_dataloader,
                 return_grid=True,
                 return_targets=True,
-                complex_inputs=False
             )
 
             # We only need to save the input grid / regression targets once.
@@ -162,8 +161,6 @@ class ProbabilisticEvaluator:
         model: RegressionNN,
         grid_loader: DataLoader,
         sample_loader: DataLoader,
-        complex_inputs: bool = True,
-        train: bool = False,
         return_grid: bool = False,
         return_targets: bool = False,
     ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor] | tuple[
@@ -181,19 +178,14 @@ class ProbabilisticEvaluator:
         Returns:
             torch.Tensor | tuple[torch.Tensor, torch.Tensor] | tuple[torch.Tensor, torch.Tensor, torch.Tensor]: The computed CCE values, along with the grid of inputs these values correspond to (if return_grid is True) and the regression targets (if return_targets is True).
         """
-        x, y, x_prime, y_prime = self._get_samples_for_mcmd(model, sample_loader, train=train)
-        
-        if complex_inputs:
-            grid = torch.cat(
-                [
-                    self.clip_model.encode_image(inputs.to(self.device), normalize=False)
-                    for inputs, _ in grid_loader
-                ],
-                dim=0,
-            )
-        else:
-            grid = torch.cat([inputs for inputs, _ in grid_loader], dim=0)
-
+        x, y, x_prime, y_prime = self._get_samples_for_mcmd(model, sample_loader)
+        grid = torch.cat(
+            [
+                self.clip_model.encode_image(inputs.to(self.device), normalize=False)
+                for inputs, _ in grid_loader
+            ],
+            dim=0,
+        )
         x_kernel, y_kernel = self._get_kernel_functions(y)
         cce_vals = compute_mcmd_torch(
             grid=grid,
@@ -298,7 +290,7 @@ class ProbabilisticEvaluator:
         return fig
 
     def _get_samples_for_mcmd(
-        self, model: RegressionNN, data_loader: DataLoader, train: False,
+        self, model: RegressionNN, data_loader: DataLoader
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         x = []
         y = []
@@ -315,22 +307,13 @@ class ProbabilisticEvaluator:
                 x.append(self.clip_model.encode_text(inputs.to(self.device), normalize=False))
             y.append(targets.to(self.device))
             y_hat = model.predict(inputs.to(self.device))
-            
-            if train: # Use the reparameterization trick to replace sampling when training
-                mu, logvar = torch.split(y_hat, [1, 1], dim=-1)
-                std_dev = torch.exp(0.5 * logvar)
-                eps_star = torch.normal(mean=mu, std=std_dev)
-                y_star = eps_star * std_dev + mu
-                y_prime.append(y_star)
-            else:
-                y_prime.append(
-                    model.sample(y_hat, num_samples=self.settings.cce_num_samples).flatten()
-                )
-
             x_prime.append(
                 torch.repeat_interleave(x[-1], repeats=self.settings.cce_num_samples, dim=0)
             )
-        
+            y_prime.append(
+                model.sample(y_hat, num_samples=self.settings.cce_num_samples).flatten()
+            )
+
         x = torch.cat(x, dim=0)
         y = torch.cat(y).float()
         x_prime = torch.cat(x_prime, dim=0)
