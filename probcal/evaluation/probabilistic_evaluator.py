@@ -183,6 +183,7 @@ class ProbabilisticEvaluator:
                 selected_indices.extend([instances[0]["idx"], label, instances[len(instances)//2]["idx"], label, instances[-1]["idx"]])
 
             print("selected_indices", selected_indices)
+            # selected_indices = [3189, 7, 1563, 7, 3767, 9893, 2, 9259, 2, 6281, 1773, 1, 3765, 1, 7928, 6651, 0, 4348, 0, 3818, 2043, 4, 2683, 4, 475, 813, 9, 3666, 9, 2009, 4771, 5, 778, 5, 2035, 1182, 6, 5213, 6, 4814, 9944, 3, 524, 3, 7821, 9433, 8, 631, 8, 4890]
             # Loop over selected indices to process and save images
             for idx in selected_indices:
                 image = images[idx]  # Get the image at the index
