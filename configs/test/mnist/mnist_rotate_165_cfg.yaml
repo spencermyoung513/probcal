@@ -6,7 +6,7 @@ dataset:
   spec: mnist_rotate
 batch_size: 100
 accelerator: cpu
-log_dir: logs/mnist_rotate_45_results
+log_dir: logs/mnist_rotate_165_results
 model_ckpt_path: chkp/mnist_multi_class/version_0/best_loss.ckpt
 cce_output_kernel: bhatt
 rotation: 165
