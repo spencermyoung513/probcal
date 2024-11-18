@@ -33,10 +33,8 @@ def plot_metrics():
     ax[2].plot(degrees, test_acc, label="Test Accuracy")
     ax[2].set_title("Test Accuracy")
     plt.show()
+    fig.savefig("metrics.png")
 
-
-#wonderful now make a table as well that we can print out
-#use a pandas dataframe, export as a csv
 def table_metrics():
     degrees = [0, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180]
     ece = []
