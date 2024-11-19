@@ -27,7 +27,7 @@ def gaussian_nll_cce(
     kernel=rbf_kernel,
 ) -> torch.Tensor:
 
-    with torch.no_grad:
+    with torch.no_grad():
         grid = clip_model.encode_image(inputs, normalize=False)
 
     mu, logvar = torch.split(outputs, [1, 1], dim=-1)
@@ -110,10 +110,11 @@ class RegularizedGaussianNN(GaussianNN):
         self.log("val_loss", loss, prog_bar=True, on_epoch=True, sync_dist=True)
 
         # Since we used the model's forward method, we specify training=True to get the proper transforms.
-        point_predictions = self.point_prediction(y_hat, training=True).flatten()
-        self.val_rmse.update(point_predictions, y.flatten().float())
-        self.val_mae.update(point_predictions, y.flatten().float())
-        self.log("val_rmse", self.val_rmse, on_epoch=True)
-        self.log("val_mae", self.val_mae, on_epoch=True)
+        with torch.no_grad():
+            point_predictions = self.point_prediction(y_hat, training=True).flatten()
+            self.val_rmse.update(point_predictions, y.flatten().float())
+            self.val_mae.update(point_predictions, y.flatten().float())
+            self.log("val_rmse", self.val_rmse, on_epoch=True)
+            self.log("val_mae", self.val_mae, on_epoch=True)
 
         return loss
