@@ -1,4 +1,3 @@
-import warnings
 from functools import partial
 from typing import Optional
 from typing import Type
@@ -6,7 +5,6 @@ from typing import Type
 import open_clip
 import torch
 from torch import nn
-from open_clip import CLIP
 
 from probcal.enums import LRSchedulerType
 from probcal.enums import OptimizerType
@@ -16,16 +14,21 @@ from probcal.evaluation.metrics import compute_mcmd_torch
 from probcal.models import GaussianNN
 from probcal.models.backbones import Backbone
 
+clip_model, _, image_preprocess = open_clip.create_model_and_transforms(
+    model_name="ViT-B-32", pretrained="laion2b_s34b_b79k", device=torch.device("cuda")
+)
+
 
 def gaussian_nll_cce(
     inputs: torch.Tensor,
     outputs: torch.Tensor,
     targets: torch.Tensor,
-    lmbda: float = 0.1,
+    alpha: float = 0.1,
     kernel=rbf_kernel,
-    clip_model = None
 ) -> torch.Tensor:
-    grid = clip_model.encode_image(inputs, normalize=False)
+
+    with torch.no_grad:
+        grid = clip_model.encode_image(inputs, normalize=False)
 
     mu, logvar = torch.split(outputs, [1, 1], dim=-1)
     stdev = (0.5 * logvar).exp()
@@ -49,18 +52,13 @@ def gaussian_nll_cce(
     nll = 0.5 * (torch.exp(-logvar) * (targets - mu) ** 2 + logvar)
     mean_cce = cce_vals.mean()
 
-    loss = nll.mean() + lmbda * mean_cce
+    loss = nll.mean() + alpha * mean_cce
     return loss
 
 
 # ------------------------------------ GaussianNN With CCE Regularization ------------------------------------#
 
-clip_model, _, image_preprocess = open_clip.create_model_and_transforms(
-    model_name="ViT-B-32",
-    pretrained="laion2b_s34b_b79k",
-    device=torch.device('cuda')
-)
-    
+
 class RegularizedGaussianNN(GaussianNN):
     def __init__(
         self,
@@ -70,13 +68,13 @@ class RegularizedGaussianNN(GaussianNN):
         optim_kwargs: Optional[dict] = None,
         lr_scheduler_type: Optional[LRSchedulerType] = None,
         lr_scheduler_kwargs: Optional[dict] = None,
-        lmbda: float = 0.1,
+        alpha: float = 0.1,
         kernel=rbf_kernel,
     ):
         self.beta_scheduler = None
 
         super(GaussianNN, self).__init__(
-            loss_fn=partial(gaussian_nll_cce, lmbda=lmbda, kernel=kernel),
+            loss_fn=partial(gaussian_nll_cce, alpha=alpha, kernel=kernel),
             backbone_type=backbone_type,
             backbone_kwargs=backbone_kwargs,
             optim_type=optim_type,
@@ -92,9 +90,7 @@ class RegularizedGaussianNN(GaussianNN):
         x, y = batch
         y_hat = self(x)
 
-        loss = self.loss_fn(
-            inputs=x, outputs=y_hat, targets=y.view(-1,1).float(), clip_model=clip_model
-        )
+        loss = self.loss_fn(inputs=x, outputs=y_hat, targets=y.view(-1, 1).float())
         self.log("train_loss", loss, prog_bar=True, on_epoch=True)
 
         with torch.no_grad():
@@ -110,9 +106,7 @@ class RegularizedGaussianNN(GaussianNN):
         x, y = batch
         y_hat = self(x)
 
-        loss = self.loss_fn(
-            inputs=x, outputs=y_hat, targets=y.view(-1,1).float(), clip_model=clip_model
-        )
+        loss = self.loss_fn(inputs=x, outputs=y_hat, targets=y.view(-1, 1).float())
         self.log("val_loss", loss, prog_bar=True, on_epoch=True, sync_dist=True)
 
         # Since we used the model's forward method, we specify training=True to get the proper transforms.
@@ -123,5 +117,3 @@ class RegularizedGaussianNN(GaussianNN):
         self.log("val_mae", self.val_mae, on_epoch=True)
 
         return loss
-    
-

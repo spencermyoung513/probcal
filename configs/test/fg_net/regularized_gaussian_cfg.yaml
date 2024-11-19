@@ -9,3 +9,6 @@ accelerator: cpu
 log_dir: logs/eval/fg_net_regularized_gaussian
 model_ckpt_path: chkp/fg_net_regularized_gaussian/version_0/best_loss.ckpt
 cce_num_trials: 5
+cce_input_kernel: polynomial
+cce_output_kernel: laplacian
+cce_lambda: 0.1
