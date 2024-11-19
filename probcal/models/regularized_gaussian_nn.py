@@ -9,7 +9,7 @@ from torch import nn
 from probcal.enums import LRSchedulerType
 from probcal.enums import OptimizerType
 from probcal.evaluation.custom_torchmetrics import AverageNLL
-from probcal.evaluation.kernels import rbf_kernel
+from probcal.evaluation.kernels import rbf_kernel, polynomial_kernel
 from probcal.evaluation.metrics import compute_mcmd_torch
 from probcal.models import GaussianNN
 from probcal.models.backbones import Backbone
@@ -44,7 +44,7 @@ def gaussian_nll_cce(
         y=targets,
         x_prime=grid,
         y_prime=y_prime,
-        x_kernel=partial(kernel, gamma=x_gamma),
+        x_kernel=partial(polynomial_kernel),
         y_kernel=partial(kernel, gamma=y_gamma),
         lmbda=0.01,
     )
