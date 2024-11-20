@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import pickle
 from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
@@ -269,48 +270,6 @@ class ProbabilisticEvaluator:
             dim=0,
         )
 
-        # grid_y = torch.cat(
-        #     [labels for _, labels in grid_loader],
-        # )
-
-        # print("creating the TSNE scatter plot for grid...")
-        # plt.figure(figsize=(15, 8))
-
-        # # Create a scatter plot
-        # _ = plt.scatter(grid[:, 0], grid[:, 1], c=grid_y, cmap="tab10", alpha=0.6, s=50)
-
-        # # Add labels and title
-        # plt.xlabel("t-SNE Component 1")
-        # plt.ylabel("t-SNE Component 2")
-        # plt.title("t-SNE Visualization of MNIST Digits. Perplexity == 5")
-
-        # # Add a legend
-        # legend_elements = [
-        #     plt.Line2D(
-        #         [0],
-        #         [0],
-        #         marker="o",
-        #         color="w",
-        #         markerfacecolor=plt.cm.tab10(i / 10),
-        #         label=f"{i}",
-        #         markersize=10,
-        #     )
-        #     for i in range(10)
-        # ]
-        # plt.legend(
-        #     handles=legend_elements, title="Digits", loc="center left", bbox_to_anchor=(1, 0.5)
-        # )
-
-        # # Adjust layout to prevent legend overlap
-        # plt.tight_layout()
-
-        # # Save the plot
-        # plt.savefig("tsne_visualization_prplx=5.png", dpi=300, bbox_inches="tight")
-
-        # # Close the figure to free up memory
-        # plt.close()
-        # print("scatter plot done")
-
         x_kernel, y_kernel = self._get_kernel_functions(y)
         print("Computing CCE...")
         cce_vals = compute_mcmd_torch(
@@ -324,7 +283,62 @@ class ProbabilisticEvaluator:
             lmbda=self.settings.cce_lambda,
         )
 
-        print("getting tensor grid of test image greyscale values")
+        # Get the 3 lowest and 3 highest CCE values and their associated images
+        cce_vals_np = cce_vals.detach().cpu().numpy()
+        images = torch.cat([inputs for inputs, _ in sample_loader], dim=0).detach().cpu()
+        labels = torch.cat([labels for _, labels in sample_loader], dim=0).detach().cpu()
+
+        # Get indices of the 3 lowest CCE values
+        lowest_indices = np.argsort(cce_vals_np)[:3]
+
+        # Get indices of the 3 highest CCE values
+        highest_indices = np.argsort(cce_vals_np)[-3:]
+
+        # Combine the indices
+        selected_indices = np.concatenate([lowest_indices, highest_indices])
+
+        # Extract the selected images, their CCE values, and labels
+        selected_images = images[selected_indices]
+        selected_cce_vals = cce_vals_np[selected_indices]
+        selected_labels = labels[selected_indices]
+
+        print("Selected CCE values, their associated images, and labels:")
+        for idx, cce_value, image, label in zip(
+            selected_indices, selected_cce_vals, selected_images, selected_labels
+        ):
+            print(f"Index: {idx}, CCE Value: {cce_value}, Label: {label}")
+            # Export the selected images to PNG files
+            # Denormalize the image if necessary
+            mean = torch.tensor([0.5071, 0.4865, 0.4409]).view(3, 1, 1)
+            std = torch.tensor([0.2673, 0.2564, 0.2762]).view(3, 1, 1)
+            image_denorm = image * std + mean
+            image_denorm = image_denorm.clamp(0, 1)
+
+            # Convert image tensor to NumPy array
+            image_np = image_denorm.squeeze().numpy()  # Remove channel dimension if needed
+
+            with open("data/cifar-100-python/meta", "rb") as f:
+                meta = pickle.load(f, encoding="latin1")
+
+            # Extract the fine label names
+            fine_label_names = meta["fine_label_names"]
+
+            # Plot the image
+            plt.figure()
+            if image_np.ndim == 2:  # Grayscale image
+                plt.imshow(image_np, cmap="gray")
+            elif image_np.ndim == 3:  # RGB image
+                plt.imshow(image_np.transpose(1, 2, 0))
+            plt.title(f"CCE: {cce_value:.4f}, Label: {fine_label_names[label]}")
+            plt.axis("off")
+
+            # Save the image with CCE value in the filename
+            filename = f"selected_image_{idx}_cce_{cce_value:.4f}.png"
+            plt.savefig(filename)
+            plt.close()
+
+            print(f"Image saved: {filename}")
+
         images = torch.cat([inputs for inputs, _ in grid_loader], dim=0)
         labels = torch.cat([labels for _, labels in grid_loader])
 
