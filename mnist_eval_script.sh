@@ -1,4 +1,4 @@
-python probcal/evaluation/eval_model.py --config configs/test/mnist/mnist_cfg.yaml
+# python probcal/evaluation/eval_model.py --config configs/test/mnist/mnist_cfg.yaml
 python probcal/evaluation/eval_model.py --config configs/test/mnist/mnist_rotate_15_cfg.yaml
 python probcal/evaluation/eval_model.py --config configs/test/mnist/mnist_rotate_30_cfg.yaml
 python probcal/evaluation/eval_model.py --config configs/test/mnist/mnist_rotate_45_cfg.yaml

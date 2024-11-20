@@ -175,6 +175,11 @@ class ProbabilisticEvaluator:
             #     std = 0.3081
             #     image_denorm = image * std + mean
             #     image_denorm = image_denorm.clamp(0, 1)
+            #     # Denormalize the image
+            #     mean = 0.1307
+            #     std = 0.3081
+            #     image_denorm = image * std + mean
+            #     image_denorm = image_denorm.clamp(0, 1)
 
             #     # Convert image tensor to NumPy array
             #     image_np = image_denorm.squeeze().numpy()  # Remove channel dimension if needed
@@ -190,6 +195,7 @@ class ProbabilisticEvaluator:
             #     plt.savefig(filename)
             #     plt.close()
 
+            #     print(f"Image saved: {filename}")
             #     print(f"Image saved: {filename}")
 
             # We only need to save the input grid / regression targets once.
