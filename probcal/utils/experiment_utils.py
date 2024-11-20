@@ -37,6 +37,7 @@ from probcal.models.backbones import LargerMLP
 from probcal.models.backbones import MLP
 from probcal.models.backbones import MNISTCNN
 from probcal.models.backbones import MobileNetV3
+from probcal.models.backbones import ResNet
 from probcal.models.backbones import ViT
 from probcal.models.multi_class_nn import MultiClassNN
 from probcal.models.regression_nn import RegressionNN
@@ -139,10 +140,10 @@ def get_multi_class_model(
             backbone_type = MNISTCNN
             classes = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
         elif config.dataset_path_or_spec == ImageDatasetName.CIFAR_100:
-            backbone_type = MobileNetV3
+            backbone_type = ResNet
             classes = [str(i) for i in range(100)]
         else:
-            raise ValueError("Only MNIST works right now.")
+            raise ValueError("Only MNIST and CIFAR100 work right now.")
         backbone_kwargs = {}
 
     backbone_kwargs["output_dim"] = config.hidden_dim
