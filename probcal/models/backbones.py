@@ -1,5 +1,7 @@
 import torch
 from torch import nn
+from torchvision.models import resnet101
+from torchvision.models import ResNet101_Weights
 from torchvision.models.mobilenet import mobilenet_v3_large
 from torchvision.models.mobilenet import MobileNet_V3_Large_Weights
 from transformers import BatchEncoding
@@ -198,4 +200,29 @@ class DistilBert(Backbone):
         h = outputs.last_hidden_state[:, 0]
         h = self.relu(self.projection_1(h))
         h = self.relu(self.projection_2(h))
+        return h
+
+
+class ResNet(Backbone):
+    """A ResNet feature extractor for images.
+
+    Attributes:
+        output_dim (int): Dimension of output feature vectors.
+    """
+
+    def __init__(self, output_dim: int = 64):
+        """Initialize a ResNet feature extractor.
+
+        Args:
+            output_dim (int, optional): Dimension of output feature vectors. Defaults to 64.
+        """
+        super(ResNet, self).__init__(output_dim=output_dim)
+        self.backbone = resnet101(weights=ResNet101_Weights.DEFAULT)
+        self.backbone.fc = nn.Identity()
+        self.projection = nn.Linear(2048, self.output_dim)
+        self.relu = nn.ReLU()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        h = self.backbone(x)
+        h = self.relu(self.projection(h))
         return h

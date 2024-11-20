@@ -4,16 +4,19 @@ import lightning as L
 from torch.utils.data import DataLoader
 from torch.utils.data import random_split
 from torchvision.datasets import CIFAR100
+from torchvision.transforms import CenterCrop
 from torchvision.transforms import Compose
+from torchvision.transforms import InterpolationMode
 from torchvision.transforms import Normalize
+from torchvision.transforms import Resize
 from torchvision.transforms import ToTensor
 
 
 class CIFAR100DataModule(L.LightningDataModule):
 
-    IMG_SIZE = 32
-    CIFAR100_MEAN = [0.5071, 0.4865, 0.4409]
-    CIFAR100_STD = [0.2673, 0.2564, 0.2762]
+    IMG_SIZE = 224
+    IMAGE_NET_MEAN = [0.485, 0.456, 0.406]
+    IMAGE_NET_STD = [0.229, 0.224, 0.225]
 
     def __init__(
         self, root_dir: str | Path, batch_size: int, num_workers: int, persistent_workers: bool
@@ -26,7 +29,16 @@ class CIFAR100DataModule(L.LightningDataModule):
         self.persistent_workers = persistent_workers
 
     def setup(self, stage: str):
-        transform = Compose([ToTensor(), Normalize(self.CIFAR100_MEAN, self.CIFAR100_STD)])
+        transform = Compose(
+            [
+                Resize(232, interpolation=InterpolationMode.BILINEAR),
+                CenterCrop(self.IMG_SIZE),
+                ToTensor(),
+                ToTensor(),
+                # lambda x: x / 255.0,
+                Normalize(mean=self.IMAGE_NET_MEAN, std=self.IMAGE_NET_STD),
+            ]
+        )
         self.cifar100_test = CIFAR100(
             self.root_dir, train=False, download=True, transform=transform
         )
