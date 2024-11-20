@@ -68,7 +68,7 @@ def main(config: TrainingConfig):
 
 def parse_args() -> Namespace:
     parser = ArgumentParser()
-    parser.add_argument("--config", type=str)
+    parser.add_argument("-c", "--config", type=str)
     return parser.parse_args()
 
 

@@ -34,8 +34,6 @@ class CIFAR100DataModule(L.LightningDataModule):
                 Resize(232, interpolation=InterpolationMode.BILINEAR),
                 CenterCrop(self.IMG_SIZE),
                 ToTensor(),
-                ToTensor(),
-                # lambda x: x / 255.0,
                 Normalize(mean=self.IMAGE_NET_MEAN, std=self.IMAGE_NET_STD),
             ]
         )
@@ -84,24 +82,24 @@ class CIFAR100DataModule(L.LightningDataModule):
         )
 
 
-# # test the datamodule out
+# # # test the datamodule out
 # dm = CIFAR100DataModule(root_dir="data", batch_size=32, num_workers=4, persistent_workers=True)
 # dm.setup("fit")
 
-# # print a image out
+# # # print a image out
 # import matplotlib.pyplot as plt
 # import numpy as np
 # import pickle
 # import torchvision.transforms.functional as F
 
-# # Load the meta file
+# # # Load the meta file
 # with open('data/cifar-100-python/meta', 'rb') as f:
 #     meta = pickle.load(f, encoding='latin1')
 
-# # Extract the fine label names
+# # # Extract the fine label names
 # fine_label_names = meta['fine_label_names']
 
-# # get some random training images
+# # # get some random training images
 # test_loader = dm.test_dataloader()
 # for batch in test_loader:
 #     images, labels = batch
@@ -111,6 +109,7 @@ class CIFAR100DataModule(L.LightningDataModule):
 #     print(np.max(images[0].numpy()))
 #     plt.imshow(np.transpose(images[1].numpy(), (1, 2, 0)))
 #     plt.savefig(f"test_image_{1}.png")
+#     break
 
 #     # Resize the image to 224x224
 #     resized_image = F.resize(images[1], [224, 224])

@@ -1,7 +1,7 @@
 import torch
 from torch import nn
-from torchvision.models import resnet101
-from torchvision.models import ResNet101_Weights
+from torchvision.models import resnet50
+from torchvision.models import ResNet50_Weights
 from torchvision.models.mobilenet import mobilenet_v3_large
 from torchvision.models.mobilenet import MobileNet_V3_Large_Weights
 from transformers import BatchEncoding
@@ -217,7 +217,7 @@ class ResNet(Backbone):
             output_dim (int, optional): Dimension of output feature vectors. Defaults to 64.
         """
         super(ResNet, self).__init__(output_dim=output_dim)
-        self.backbone = resnet101(weights=ResNet101_Weights.DEFAULT)
+        self.backbone = resnet50(weights=ResNet50_Weights.DEFAULT)
         self.backbone.fc = nn.Identity()
         self.projection = nn.Linear(2048, self.output_dim)
         self.relu = nn.ReLU()

@@ -265,12 +265,7 @@ class ProbabilisticEvaluator:
         # TODO: image data may need to be resized
         grid = torch.cat(
             [
-                self.clip_model.encode_image(
-                    torch.nn.functional.interpolate(
-                        inputs, size=(224, 224), mode="bilinear", align_corners=False
-                    ).to(self.device),
-                    normalize=False,
-                )
+                self.clip_model.encode_image(inputs.to(self.device), normalize=False)
                 for inputs, _ in grid_loader
             ],
             dim=0,
@@ -468,12 +463,7 @@ class ProbabilisticEvaluator:
             if self.settings.dataset_type == DatasetType.TABULAR:
                 x.append(inputs)
             elif self.settings.dataset_type == DatasetType.IMAGE:
-                inputs_resized = torch.nn.functional.interpolate(
-                    inputs, size=(224, 224), mode="bilinear", align_corners=False
-                )
-                x.append(
-                    self.clip_model.encode_image(inputs_resized.to(self.device), normalize=False)
-                )
+                x.append(self.clip_model.encode_image(inputs.to(self.device), normalize=False))
             elif self.settings.dataset_type == DatasetType.TEXT:
                 x.append(self.clip_model.encode_text(inputs.to(self.device), normalize=False))
             y.append(one_hot_encode_cifar100(targets.to(self.device)))
