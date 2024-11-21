@@ -22,12 +22,15 @@ from tqdm import tqdm
 
 from probcal.enums import DatasetType
 from probcal.evaluation.kernels import bhattacharyya_kernel
+from probcal.evaluation.kernels import kronecker_kernel
 from probcal.evaluation.kernels import laplacian_kernel
 from probcal.evaluation.kernels import polynomial_kernel
 from probcal.evaluation.kernels import rbf_kernel
 from probcal.evaluation.metrics import compute_mcmd_torch
 from probcal.evaluation.metrics import compute_regression_ece
 from probcal.models.regression_nn import RegressionNN
+
+# from probcal.data_modules.mnist_datamodule_rotate import MNISTDataModuleRotate
 
 
 @dataclass
@@ -90,7 +93,7 @@ class ProbabilisticEvaluatorSettings:
     cce_use_val_split_for_S: bool = False
     cce_num_trials: int = 5
     cce_input_kernel: Literal["polynomial"] | KernelFunction = "polynomial"
-    cce_output_kernel: Literal["rbf", "laplacian", "bhatt"] | KernelFunction = "rbf"
+    cce_output_kernel: Literal["rbf", "laplacian", "bhatt", "kron"] | KernelFunction = "rbf"
     cce_lambda: float = 0.1
     cce_num_samples: int = 1
     ece_bins: int = 50
@@ -493,6 +496,8 @@ class ProbabilisticEvaluator:
             y_kernel = partial(laplacian_kernel, gamma=(1 / (2 * y.float().var())).item())
         elif self.settings.cce_output_kernel == "bhatt":
             y_kernel = bhattacharyya_kernel
+        elif self.settings.cce_output_kernel == "kron":
+            y_kernel = kronecker_kernel
 
         return x_kernel, y_kernel
 

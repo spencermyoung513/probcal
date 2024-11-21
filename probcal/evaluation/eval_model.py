@@ -34,7 +34,7 @@ def main(config_path: Path):
         rotation=config.rotation,
     )
 
-    print(f"Using rotation: {config.rotation} on MNIST data...")
+    # print(f"Using rotation: {config.rotation} on MNIST data...")
     # datamodule.setup("test")
     # print("Getting test loader...")
     # test_loader = datamodule.test_dataloader()
