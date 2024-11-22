@@ -245,7 +245,7 @@ class EvaluationConfig(BaseConfig):
         log_dir: Path,
         model_ckpt_path: Path,
         cce_num_trials: int,
-        cce_output_kernel: Literal["rbf", "laplacian", "bhatt"],
+        cce_output_kernel: Literal["rbf", "laplacian", "bhatt", "kron"],
         cce_lambda: float,
         cce_num_samples: int,
         ece_bins: int,
@@ -303,8 +303,10 @@ class EvaluationConfig(BaseConfig):
         accelerator_type = AcceleratorType(config_dict.get("accelerator", "cpu"))
         cce_num_trials = config_dict.get("cce_num_trials", 1)
         cce_output_kernel = config_dict.get("cce_output_kernel", "rbf")
-        if cce_output_kernel not in ("rbf", "laplacian", "bhatt"):
-            raise ValueError("cce_output_kernel must be either 'rbf' or 'laplacian' or 'bhatt'.")
+        if cce_output_kernel not in ("rbf", "laplacian", "bhatt", "kron"):
+            raise ValueError(
+                "cce_output_kernel must be either 'rbf' or 'laplacian' or 'bhatt' or 'kron'."
+            )
         cce_lambda = config_dict.get("cce_lambda", 0.1)
         cce_num_samples = config_dict.get("cce_num_samples", 1)
         ece_bins = config_dict.get("ece_bins", 50)
