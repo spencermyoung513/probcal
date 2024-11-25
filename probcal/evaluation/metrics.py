@@ -226,6 +226,7 @@ def compute_mcmd_torch(
     W_X_prime = torch.cholesky_inverse(L_prime)
 
     K_Y = y_kernel(y, y)
+    print(f"Condition number of K_Y: {cond(K_Y)}")
     K_Y_prime = y_kernel(y_prime, y_prime)
     K_Y_Y_prime = y_kernel(y, y_prime)
 
