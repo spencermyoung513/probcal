@@ -169,6 +169,10 @@ def compute_mcmd_numpy(
     return np.sqrt(first_term - second_term + third_term)
 
 
+def cond(matrix: torch.Tensor) -> float:
+    return float(torch.linalg.svd(matrix.cpu())[1][0] / torch.linalg.svd(matrix.cpu())[1][-1])
+
+
 def compute_mcmd_torch(
     grid: torch.Tensor,
     x: torch.Tensor,
