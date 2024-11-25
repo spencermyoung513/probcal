@@ -93,6 +93,7 @@ class ProbabilisticEvaluatorSettings:
     cce_num_trials: int = 5
     cce_input_kernel: Literal["polynomial"] | KernelFunction = "polynomial"
     cce_output_kernel: Literal["rbf", "laplacian", "bhatt", "kron"] | KernelFunction = "rbf"
+    cce_output_kernel_eps: float = 0.1
     cce_lambda: float = 0.1
     cce_num_samples: int = 1
     ece_bins: int = 50
@@ -147,8 +148,65 @@ class ProbabilisticEvaluator:
                 cce_vals_np.shape[0] == images.shape[0]
             ), "CCE values and images are not aligned!"
 
+            # STORING THE HIGHEST 5 CCE IMAGES AND LOWEST 5 CCE IMAGES
+            # Get indices of the highest and lowest CCE values
+            highest_cce_indices = np.argsort(cce_vals_np)[-5:]
+            lowest_cce_indices = np.argsort(cce_vals_np)[:5]
+
+            # Save the highest CCE images
+            for idx in highest_cce_indices:
+                image = images[idx]
+                label = labels[idx]
+                cce_value = cce_vals_np[idx]
+
+                # Denormalize the image
+                mean = 0.1307
+                std = 0.3081
+                image_denorm = image * std + mean
+                image_denorm = image_denorm.clamp(0, 1)
+
+                image_np = image_denorm.squeeze().numpy()
+
+                # Plot and save the image
+                plt.figure()
+                plt.imshow(image_np, cmap="gray")
+                plt.title(f"High CCE: {cce_value:.4f} Label: {label}")
+                plt.axis("off")
+
+                output_dir = Path("cce_images/kronecker/high")
+                output_dir.mkdir(parents=True, exist_ok=True)
+                filename = output_dir / f"high_cce_{cce_value:.4f}_idx_{idx}.png"
+                plt.savefig(filename)
+                plt.close()
+
+            # Save the lowest CCE images
+            for idx in lowest_cce_indices:
+                image = images[idx]
+                label = labels[idx]
+                cce_value = cce_vals_np[idx]
+
+                # Denormalize the image
+                mean = 0.1307
+                std = 0.3081
+                image_denorm = image * std + mean
+                image_denorm = image_denorm.clamp(0, 1)
+
+                image_np = image_denorm.squeeze().numpy()
+
+                # Plot and save the image
+                plt.figure()
+                plt.imshow(image_np, cmap="gray")
+                plt.title(f"Low CCE: {cce_value:.4f} Label: {label}")
+                plt.axis("off")
+
+                output_dir = Path("cce_images/kronecker/low")
+                output_dir.mkdir(parents=True, exist_ok=True)
+                filename = output_dir / f"low_cce_{cce_value:.4f}_idx_{idx}.png"
+                plt.savefig(filename)
+                plt.close()
+
             # Randomly Selected Indices for Images
-            selected_indices = [0, 1428, 2142, 2856, 4285, 5713, 6427, 7142, 7856, 8570, 9999]
+            # selected_indices = [0, 1428, 2142, 2856, 4285, 5713, 6427, 7142, 7856, 8570, 9999]
 
             # -- THIS CODE BATCH SORTS THE IMAGES BY LABEL AND THEN SELECTS THE LOWEST AND HIGHEST CCE VALUES FOR EACH LABEL --
             # label_instances = {}
@@ -165,7 +223,7 @@ class ProbabilisticEvaluator:
             #     selected_indices.extend([('low', instances[0]["idx"]),('high', instances[-1]["idx"])])
             # ----------------------------------------------------------------------------------------------------------------
 
-            print("selected_indices", selected_indices)
+            # print("selected_indices", selected_indices)
             # for idx in selected_indices:
             #     image = images[idx]
             #     label = labels[idx]
@@ -318,7 +376,12 @@ class ProbabilisticEvaluator:
         # plt.close()
         # print("scatter plot done")
 
+        if torch.isnan(x).any() or torch.isnan(y).any():
+            print("NaN detected in inputs!")
+
         x_kernel, y_kernel = self._get_kernel_functions(y)
+        if self.settings.cce_output_kernel == "kron":
+            y_kernel = partial(y_kernel, eps=self.settings.cce_output_kernel_eps)
         print("Computing CCE...")
         cce_vals = compute_mcmd_torch(
             grid=grid,
@@ -465,6 +528,7 @@ class ProbabilisticEvaluator:
             y_prime.append(apply_softmax(y_hat))
 
         x = torch.cat(x, dim=0)
+        print("Running TSNE on x...")
         x = torch.Tensor(
             TSNE(n_components=2, random_state=1990, perplexity=5).fit_transform(
                 x.reshape(x.shape[0], -1).numpy()
@@ -475,17 +539,17 @@ class ProbabilisticEvaluator:
         # x = (x - x.min()) / (x.max() - x.min())
         y = torch.cat(y).float()
         y = one_hot_encode_mnist(y)
-        x_prime = torch.cat(x_prime, dim=0)
-        x_prime = torch.Tensor(
-            TSNE(n_components=2, random_state=1990, perplexity=5).fit_transform(
-                x_prime.reshape(x_prime.shape[0], -1).numpy()
-            )
-        )
-        x_prime = (x_prime - x_prime.mean(dim=0)) / x_prime.std(dim=0)
+        # x_prime = torch.cat(x_prime, dim=0)
+        # x_prime = torch.Tensor(
+        #     TSNE(n_components=2, random_state=1990, perplexity=5).fit_transform(
+        #         x_prime.reshape(x_prime.shape[0], -1).numpy()
+        #     )
+        # )
+        # x_prime = (x_prime - x_prime.mean(dim=0)) / x_prime.std(dim=0)
         # x_prime = (x_prime - x_prime.min()) / (x_prime.max() - x_prime.min())
         y_prime = torch.cat(y_prime).float()
 
-        return x, y, x_prime, y_prime
+        return x, y, x, y_prime
 
     def _get_kernel_functions(self, y: torch.Tensor) -> tuple[KernelFunction, KernelFunction]:
         if self.settings.cce_input_kernel == "polynomial":

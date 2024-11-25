@@ -245,13 +245,14 @@ class EvaluationConfig(BaseConfig):
         log_dir: Path,
         model_ckpt_path: Path,
         cce_num_trials: int,
-        cce_output_kernel: Literal["rbf", "laplacian", "bhatt"],
+        cce_output_kernel: Literal["rbf", "laplacian", "bhatt", "kron"],
         cce_lambda: float,
         cce_num_samples: int,
         ece_bins: int,
         ece_weights: Literal["uniform", "frequency"],
         ece_alpha: float,
         rotation: float = 0,
+        epsilon: float = 0.1,
     ):
         super(EvaluationConfig, self).__init__(
             experiment_name=experiment_name,
@@ -274,6 +275,7 @@ class EvaluationConfig(BaseConfig):
         self.ece_weights = ece_weights
         self.ece_alpha = ece_alpha
         self.rotation = rotation
+        self.epsilon = epsilon
 
     @staticmethod
     def from_yaml(config_path: str | Path) -> EvaluationConfig:
@@ -303,8 +305,10 @@ class EvaluationConfig(BaseConfig):
         accelerator_type = AcceleratorType(config_dict.get("accelerator", "cpu"))
         cce_num_trials = config_dict.get("cce_num_trials", 1)
         cce_output_kernel = config_dict.get("cce_output_kernel", "rbf")
-        if cce_output_kernel not in ("rbf", "laplacian", "bhatt"):
-            raise ValueError("cce_output_kernel must be either 'rbf' or 'laplacian' or 'bhatt'.")
+        if cce_output_kernel not in ("rbf", "laplacian", "bhatt", "kron"):
+            raise ValueError(
+                "cce_output_kernel must be either 'rbf' or 'laplacian' or 'bhatt' or 'kron'."
+            )
         cce_lambda = config_dict.get("cce_lambda", 0.1)
         cce_num_samples = config_dict.get("cce_num_samples", 1)
         ece_bins = config_dict.get("ece_bins", 50)
@@ -313,6 +317,7 @@ class EvaluationConfig(BaseConfig):
             raise ValueError("ece_weights must be either 'frequency' or 'uniform'.")
         ece_alpha = config_dict.get("ece_alpha", 1.0)
         rotation = config_dict.get("rotation", 0)
+        epsilon = float(config_dict.get("epsilon", 0.1))
 
         return EvaluationConfig(
             experiment_name=experiment_name,
@@ -334,4 +339,5 @@ class EvaluationConfig(BaseConfig):
             ece_weights=ece_weights,
             ece_alpha=ece_alpha,
             rotation=rotation,
+            epsilon=epsilon,
         )

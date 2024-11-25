@@ -139,16 +139,20 @@ def bhattacharyya_kernel(x: torch.Tensor, x_prime: torch.Tensor) -> torch.Tensor
     return torch.matmul(x.sqrt(), x_prime.T.sqrt())
 
 
-def kronecker_kernel(x: torch.Tensor, x_prime: torch.Tensor, eps: float = 0.1) -> torch.Tensor:
+def kronecker_kernel(x: torch.Tensor, x_prime: torch.Tensor, eps: float = 0.5) -> torch.Tensor:
     """Pytorch implementation of the "kronecker" kernel.
 
     This is a simple kernel that is 1 if x_i == x'_j and `eps` otherwise.
 
     Args:
-        x (torch.Tensor): A (n,) tensor of class indices.
-        x_prime (torch.Tensor): A (m,) tensor of class indices.
+        x (torch.Tensor): A (n,d) tensor of class probabilities/logits
+        x_prime (torch.Tensor): A (m,d) tensor of class probabilities/logits
 
     Returns:
         torch.Tensor: (n,m) Gram tensor.
     """
-    return (torch.where(x.unsqueeze(1) == x_prime.unsqueeze(0), 1.0, eps)).squeeze()
+
+    x_classes = torch.argmax(x, dim=1)  # Shape: (n,)
+    x_prime_classes = torch.argmax(x_prime, dim=1)  # Shape: (m,)
+
+    return torch.where(x_classes.unsqueeze(1) == x_prime_classes.unsqueeze(0), 1.0, eps)

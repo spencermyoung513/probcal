@@ -24,6 +24,7 @@ from probcal.utils.experiment_utils import get_multi_class_model
 def main(config_path: Path):
 
     config = EvaluationConfig.from_yaml(config_path)
+    print(f"Epsilon: {config.epsilon}")
     if not config.log_dir.exists():
         os.makedirs(config.log_dir)
 
@@ -87,6 +88,7 @@ def main(config_path: Path):
         cce_num_trials=config.cce_num_trials,
         cce_input_kernel=cce_input_kernel,
         cce_output_kernel=config.cce_output_kernel,
+        cce_output_kernel_eps=config.epsilon,
         cce_lambda=config.cce_lambda,
         cce_num_samples=config.cce_num_samples,
         ece_bins=config.ece_bins,
