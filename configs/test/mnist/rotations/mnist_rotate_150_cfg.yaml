@@ -8,5 +8,5 @@ batch_size: 100
 accelerator: cpu
 log_dir: logs/mnist_rotate_150_results
 model_ckpt_path: chkp/mnist_multi_class/version_0/best_loss.ckpt
-cce_output_kernel: bhatt
+cce_output_kernel: kron
 rotation: 150

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import csv
+import os
 from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
@@ -150,60 +152,60 @@ class ProbabilisticEvaluator:
 
             # STORING THE HIGHEST 5 CCE IMAGES AND LOWEST 5 CCE IMAGES
             # Get indices of the highest and lowest CCE values
-            highest_cce_indices = np.argsort(cce_vals_np)[-5:]
-            lowest_cce_indices = np.argsort(cce_vals_np)[:5]
+            # highest_cce_indices = np.argsort(cce_vals_np)[-5:]
+            # lowest_cce_indices = np.argsort(cce_vals_np)[:5]
 
             # Save the highest CCE images
-            for idx in highest_cce_indices:
-                image = images[idx]
-                label = labels[idx]
-                cce_value = cce_vals_np[idx]
+            # for idx in highest_cce_indices:
+            #     image = images[idx]
+            #     label = labels[idx]
+            #     cce_value = cce_vals_np[idx]
 
-                # Denormalize the image
-                mean = 0.1307
-                std = 0.3081
-                image_denorm = image * std + mean
-                image_denorm = image_denorm.clamp(0, 1)
+            #     # Denormalize the image
+            #     mean = 0.1307
+            #     std = 0.3081
+            #     image_denorm = image * std + mean
+            #     image_denorm = image_denorm.clamp(0, 1)
 
-                image_np = image_denorm.squeeze().numpy()
+            #     image_np = image_denorm.squeeze().numpy()
 
-                # Plot and save the image
-                plt.figure()
-                plt.imshow(image_np, cmap="gray")
-                plt.title(f"High CCE: {cce_value:.4f} Label: {label}")
-                plt.axis("off")
+            #     # Plot and save the image
+            #     plt.figure()
+            #     plt.imshow(image_np, cmap="gray")
+            #     plt.title(f"High CCE: {cce_value:.4f} Label: {label}")
+            #     plt.axis("off")
 
-                output_dir = Path("cce_images/kronecker/high")
-                output_dir.mkdir(parents=True, exist_ok=True)
-                filename = output_dir / f"high_cce_{cce_value:.4f}_idx_{idx}.png"
-                plt.savefig(filename)
-                plt.close()
+            #     output_dir = Path("cce_images/kronecker/high")
+            #     output_dir.mkdir(parents=True, exist_ok=True)
+            #     filename = output_dir / f"high_cce_{cce_value:.4f}_idx_{idx}.png"
+            #     plt.savefig(filename)
+            #     plt.close()
 
             # Save the lowest CCE images
-            for idx in lowest_cce_indices:
-                image = images[idx]
-                label = labels[idx]
-                cce_value = cce_vals_np[idx]
+            # for idx in lowest_cce_indices:
+            #     image = images[idx]
+            #     label = labels[idx]
+            #     cce_value = cce_vals_np[idx]
 
-                # Denormalize the image
-                mean = 0.1307
-                std = 0.3081
-                image_denorm = image * std + mean
-                image_denorm = image_denorm.clamp(0, 1)
+            #     # Denormalize the image
+            #     mean = 0.1307
+            #     std = 0.3081
+            #     image_denorm = image * std + mean
+            #     image_denorm = image_denorm.clamp(0, 1)
 
-                image_np = image_denorm.squeeze().numpy()
+            #     image_np = image_denorm.squeeze().numpy()
 
-                # Plot and save the image
-                plt.figure()
-                plt.imshow(image_np, cmap="gray")
-                plt.title(f"Low CCE: {cce_value:.4f} Label: {label}")
-                plt.axis("off")
+            #     # Plot and save the image
+            #     plt.figure()
+            #     plt.imshow(image_np, cmap="gray")
+            #     plt.title(f"Low CCE: {cce_value:.4f} Label: {label}")
+            #     plt.axis("off")
 
-                output_dir = Path("cce_images/kronecker/low")
-                output_dir.mkdir(parents=True, exist_ok=True)
-                filename = output_dir / f"low_cce_{cce_value:.4f}_idx_{idx}.png"
-                plt.savefig(filename)
-                plt.close()
+            #     output_dir = Path("cce_images/kronecker/low")
+            #     output_dir.mkdir(parents=True, exist_ok=True)
+            #     filename = output_dir / f"low_cce_{cce_value:.4f}_idx_{idx}.png"
+            #     plt.savefig(filename)
+            #     plt.close()
 
             # Randomly Selected Indices for Images
             # selected_indices = [0, 1428, 2142, 2856, 4285, 5713, 6427, 7142, 7856, 8570, 9999]
@@ -222,42 +224,49 @@ class ProbabilisticEvaluator:
             #     instances = sorted(instances, key=lambda x: x["cce"])
             #     selected_indices.extend([('low', instances[0]["idx"]),('high', instances[-1]["idx"])])
             # ----------------------------------------------------------------------------------------------------------------
+            selected_indices = [5, 10, 15, 20, 26]
+            selected_images_info = []
 
-            # print("selected_indices", selected_indices)
-            # for idx in selected_indices:
-            #     image = images[idx]
-            #     label = labels[idx]
-            #     cce_value = cce_vals_np[idx]
+            for idx in selected_indices:
+                image = images[idx]
+                label = labels[idx]
+                cce_value = cce_vals_np[idx]
 
-            #     # Denormalize the image
-            #     mean = 0.1307
-            #     std = 0.3081
-            #     image_denorm = image * std + mean
-            #     image_denorm = image_denorm.clamp(0, 1)
+                # Denormalize the image
+                mean = 0.1307
+                std = 0.3081
+                image_denorm = image * std + mean
+                image_denorm = image_denorm.clamp(0, 1)
 
-            #     image_np = image_denorm.squeeze().numpy()
+                image_np = image_denorm.squeeze().numpy()
 
-            #     # -- PLOT IMAGE --
-            #     plt.figure()
-            #     plt.imshow(image_np, cmap="gray")
-            #     plt.title(f"CCE: {cce_value:.4f} Label: {label}")
-            #     plt.axis("off")
+                # Store image information
+                image_info = {
+                    "rotation": data_module.test_rotation,
+                    "index": idx,
+                    "label": label.item(),
+                    "cce_value": cce_value,
+                    "image": image_np.tolist(),
+                }
+                selected_images_info.append(image_info)
 
-            #     # Save the image with CCE value in the filename
-            #     output_dir = Path(f"cce_images/{rotation}_rotation")
-            #     output_dir.mkdir(parents=True, exist_ok=True)
-            #     filename = output_dir / f"rotate_exp_cce_{cce_value:.4f}_idx_{idx}.png"
+            # Save to JSON
+            output_dir = Path("cce_images/kronecker/rotation")
+            output_dir.mkdir(parents=True, exist_ok=True)
 
-            #     # -- MAKES DIR FOR EACH LABEL AND RANK --
-            #     # output_dir = Path(f"cce_images/{rotation}_rotation/{label}/{rank}")
-            #     # output_dir.mkdir(parents=True, exist_ok=True)
-            #     # filename = output_dir / f"rotate_exp_cce_{cce_value:.4f}_idx_{idx}.png"
-            #     # --------------------------------------
+            # Save to DataFrame
+            df_filepath = output_dir / "selected_images.csv"
+            headers = ["rotation", "index", "label", "cce_value", "image"]
+            file_exists = os.path.isfile(df_filepath)
+            with open(df_filepath, "a", newline="") as f:
+                writer = csv.DictWriter(f, fieldnames=headers)
 
-            #     plt.savefig(filename)
-            #     plt.close()
+                # Write headers only if file is being created for the first time
+                if not file_exists:
+                    writer.writeheader()
 
-            #     print(f"Image saved: {filename}")
+                for row in selected_images_info:
+                    writer.writerow(row)
 
             # We only need to save the input grid / regression targets once.
             if i == 0:
@@ -278,17 +287,6 @@ class ProbabilisticEvaluator:
 
         print("Computing ECE...")
         ece = evaluate_model_calibration(model, test_dataloader)
-        print("ece", ece)
-
-        print("cce results", cce_results)
-        # ece = self.compute_ece(model, test_dataloader)
-
-        # for idx, path in enumerate(image_paths):
-        # file_to_cce[path] = cce_vals[idx].item()
-
-        # print("we successfully got the cce values for each image", file_to_cce)
-        # print("input grid 2d", grid_2d)
-        print("ece", ece)
 
         return ProbabilisticResults(
             input_grid_2d=grid_2d,
@@ -333,55 +331,13 @@ class ProbabilisticEvaluator:
         )
 
         grid = (grid - grid.mean(dim=0)) / grid.std(dim=0)
-
-        # grid_y = torch.cat(
-        #     [labels for _, labels in grid_loader],
-        # )
-
-        # print("creating the TSNE scatter plot for grid...")
-        # plt.figure(figsize=(15, 8))
-
-        # # Create a scatter plot
-        # _ = plt.scatter(grid[:, 0], grid[:, 1], c=grid_y, cmap="tab10", alpha=0.6, s=50)
-
-        # # Add labels and title
-        # plt.xlabel("t-SNE Component 1")
-        # plt.ylabel("t-SNE Component 2")
-        # plt.title("t-SNE Visualization of MNIST Digits. Perplexity == 5")
-
-        # # Add a legend
-        # legend_elements = [
-        #     plt.Line2D(
-        #         [0],
-        #         [0],
-        #         marker="o",
-        #         color="w",
-        #         markerfacecolor=plt.cm.tab10(i / 10),
-        #         label=f"{i}",
-        #         markersize=10,
-        #     )
-        #     for i in range(10)
-        # ]
-        # plt.legend(
-        #     handles=legend_elements, title="Digits", loc="center left", bbox_to_anchor=(1, 0.5)
-        # )
-
-        # # Adjust layout to prevent legend overlap
-        # plt.tight_layout()
-
-        # # Save the plot
-        # plt.savefig("tsne_visualization_prplx=5.png", dpi=300, bbox_inches="tight")
-
-        # # Close the figure to free up memory
-        # plt.close()
-        # print("scatter plot done")
+        # grid = (grid - grid.min()) / (grid.max() - grid.min())
 
         if torch.isnan(x).any() or torch.isnan(y).any():
             print("NaN detected in inputs!")
 
         x_kernel, y_kernel = self._get_kernel_functions(y)
-        if self.settings.cce_output_kernel == "kron":
-            y_kernel = partial(y_kernel, eps=self.settings.cce_output_kernel_eps)
+
         print("Computing CCE...")
         cce_vals = compute_mcmd_torch(
             grid=grid,
@@ -394,7 +350,9 @@ class ProbabilisticEvaluator:
             lmbda=self.settings.cce_lambda,
         )
 
-        print("getting tensor grid of test image greyscale values")
+        if torch.isnan(cce_vals).any():
+            print("NaN detected in CCE values!")
+
         images = torch.cat([inputs for inputs, _ in grid_loader], dim=0)
         labels = torch.cat([labels for _, labels in grid_loader])
 
@@ -525,7 +483,11 @@ class ProbabilisticEvaluator:
             x_prime.append(
                 torch.repeat_interleave(x[-1], repeats=self.settings.cce_num_samples, dim=0)
             )
-            y_prime.append(apply_softmax(y_hat))
+            if self.settings.cce_output_kernel == "kron":
+                sampled_y_hat = torch.multinomial(apply_softmax(y_hat), num_samples=1).squeeze()
+                y_prime.append(sampled_y_hat)
+            else:
+                y_prime.append(apply_softmax(y_hat))
 
         x = torch.cat(x, dim=0)
         print("Running TSNE on x...")
@@ -538,18 +500,20 @@ class ProbabilisticEvaluator:
         x = (x - x.mean(dim=0)) / x.std(dim=0)
         # x = (x - x.min()) / (x.max() - x.min())
         y = torch.cat(y).float()
-        y = one_hot_encode_mnist(y)
-        # x_prime = torch.cat(x_prime, dim=0)
-        # x_prime = torch.Tensor(
-        #     TSNE(n_components=2, random_state=1990, perplexity=5).fit_transform(
-        #         x_prime.reshape(x_prime.shape[0], -1).numpy()
-        #     )
-        # )
-        # x_prime = (x_prime - x_prime.mean(dim=0)) / x_prime.std(dim=0)
+        if self.settings.cce_output_kernel == "bhatt":
+            y = one_hot_encode_mnist(y)
+        x_prime = torch.cat(x_prime, dim=0)
+        print("Running TSNE on x_prime...")
+        x_prime = torch.Tensor(
+            TSNE(n_components=2, random_state=1990, perplexity=5).fit_transform(
+                x_prime.reshape(x_prime.shape[0], -1).numpy()
+            )
+        )
+        x_prime = (x_prime - x_prime.mean(dim=0)) / x_prime.std(dim=0)
         # x_prime = (x_prime - x_prime.min()) / (x_prime.max() - x_prime.min())
         y_prime = torch.cat(y_prime).float()
 
-        return x, y, x, y_prime
+        return x, y, x_prime, y_prime
 
     def _get_kernel_functions(self, y: torch.Tensor) -> tuple[KernelFunction, KernelFunction]:
         if self.settings.cce_input_kernel == "polynomial":
@@ -565,7 +529,7 @@ class ProbabilisticEvaluator:
         elif self.settings.cce_output_kernel == "bhatt":
             y_kernel = bhattacharyya_kernel
         elif self.settings.cce_output_kernel == "kron":
-            y_kernel = kronecker_kernel
+            y_kernel = partial(kronecker_kernel, eps=self.settings.cce_output_kernel_eps)
 
         return x_kernel, y_kernel
 
@@ -624,16 +588,13 @@ def one_hot_encode_mnist(labels, num_classes=10):
     return one_hot.float()
 
 
-def apply_softmax(predictions, dim=1, temperature=1.0):
+def apply_softmax(predictions, dim=1):
     """
     Applies softmax to model predictions with optional temperature scaling.
 
     Args:
         predictions (torch.Tensor): Raw model outputs/logits
         dim (int): Dimension along which to apply softmax (default=1 for batched predictions)
-        temperature (float): Temperature for scaling predictions (default=1.0)
-                           Higher values make distribution more uniform
-                           Lower values make it more peaked
 
     Returns:
         torch.Tensor: Softmax probabilities
@@ -641,16 +602,13 @@ def apply_softmax(predictions, dim=1, temperature=1.0):
     if not isinstance(predictions, torch.Tensor):
         predictions = torch.tensor(predictions)
 
-    # Apply temperature scaling
-    scaled_predictions = predictions / temperature
-
     # Handle both single predictions and batches
     if predictions.dim() == 1:
         # For single prediction, use dim=0
-        return torch.nn.functional.softmax(scaled_predictions, dim=0)
+        return torch.nn.functional.softmax(predictions, dim=0)
     else:
         # For batched predictions, use specified dim (default=1)
-        return torch.nn.functional.softmax(scaled_predictions, dim=dim)
+        return torch.nn.functional.softmax(predictions, dim=dim)
 
 
 import torch
