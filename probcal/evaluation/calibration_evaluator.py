@@ -150,7 +150,6 @@ class CalibrationEvaluator:
                     mean_mcmd=mcmd_vals.mean().item(),
                 )
             )
-            testLoaderImagePaths = test_dataloader.dataset.image_paths
 
             print("Constructing file path to mcmd val dictionary...")
             for idx, path in enumerate(paths):
@@ -215,6 +214,7 @@ class CalibrationEvaluator:
         )
         print("compute mcmd image paths length", len(image_paths_2))
         return_obj = [mcmd_vals]
+        print("len of mcmd vals", len(return_obj[0]))
         if return_grid:
             return_obj.append(grid)
         if return_targets:
