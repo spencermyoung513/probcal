@@ -201,17 +201,6 @@ def compute_mcmd_torch(
         torch.Tensor: MCMD values along the provided grid. Shape: (k,).
     """
 
-    # -- CHECKING INPUT SHAPES --
-    print("Input shapes:")
-    print(f"grid: {grid.shape}, x: {x.shape}, y: {y.shape}")
-    print(f"x_prime: {x_prime.shape}, y_prime: {y_prime.shape}")
-    print(
-        f"Any NaN in inputs - grid: {torch.isnan(grid).any()}, x: {torch.isnan(x).any()}, y: {torch.isnan(y).any()}"
-    )
-    print(
-        f"Any NaN in inputs - x_prime: {torch.isnan(x_prime).any()}, y_prime: {torch.isnan(y_prime).any()}"
-    )
-
     if grid.dim() == 1:
         grid = grid.reshape(-1, 1)
     if x.dim() == 1:

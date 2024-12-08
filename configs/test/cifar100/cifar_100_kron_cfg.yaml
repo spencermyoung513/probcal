@@ -1,0 +1,11 @@
+experiment_name: cifar_100
+random_seed: 1998
+head_type: multi_class
+dataset:
+  type: image
+  spec: cifar_100
+batch_size: 32
+accelerator: cpu
+log_dir: logs/cifar_100_kron_results
+model_ckpt_path: chkp/cifar_100/version_0/best_loss.ckpt
+cce_output_kernel: kron
