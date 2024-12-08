@@ -95,6 +95,7 @@ class ProbabilisticEvaluatorSettings:
     cce_num_trials: int = 5
     cce_input_kernel: Literal["polynomial"] | KernelFunction = "polynomial"
     cce_output_kernel: Literal["rbf", "laplacian", "bhatt", "kron"] | KernelFunction = "rbf"
+    cce_output_kernel_eps: float = 0.1
     cce_lambda: float = 0.1
     cce_num_samples: int = 1
     ece_bins: int = 50
@@ -272,6 +273,7 @@ class ProbabilisticEvaluator:
         )
 
         x_kernel, y_kernel = self._get_kernel_functions(y)
+
         print("Computing CCE...")
         cce_vals = compute_mcmd_torch(
             grid=grid,
@@ -471,7 +473,11 @@ class ProbabilisticEvaluator:
             x_prime.append(
                 torch.repeat_interleave(x[-1], repeats=self.settings.cce_num_samples, dim=0)
             )
-            y_prime.append(apply_softmax(y_hat))
+            if self.settings.cce_output_kernel == "kron":
+                sampled_y_hat = torch.multinomial(apply_softmax(y_hat), num_samples=1).squeeze()
+                y_prime.append(sampled_y_hat)
+            else:
+                y_prime.append(apply_softmax(y_hat))
 
         x = torch.cat(x, dim=0)
         y = torch.cat(y).float()
@@ -494,7 +500,7 @@ class ProbabilisticEvaluator:
         elif self.settings.cce_output_kernel == "bhatt":
             y_kernel = bhattacharyya_kernel
         elif self.settings.cce_output_kernel == "kron":
-            y_kernel = kronecker_kernel
+            y_kernel = partial(kronecker_kernel, eps=self.settings.cce_output_kernel_eps)
 
         return x_kernel, y_kernel
 
@@ -553,16 +559,13 @@ def one_hot_encode_cifar100(labels, num_classes=100):
     return one_hot.float()
 
 
-def apply_softmax(predictions, dim=1, temperature=1.0):
+def apply_softmax(predictions, dim=1):
     """
     Applies softmax to model predictions with optional temperature scaling.
 
     Args:
         predictions (torch.Tensor): Raw model outputs/logits
         dim (int): Dimension along which to apply softmax (default=1 for batched predictions)
-        temperature (float): Temperature for scaling predictions (default=1.0)
-                           Higher values make distribution more uniform
-                           Lower values make it more peaked
 
     Returns:
         torch.Tensor: Softmax probabilities
@@ -570,16 +573,13 @@ def apply_softmax(predictions, dim=1, temperature=1.0):
     if not isinstance(predictions, torch.Tensor):
         predictions = torch.tensor(predictions)
 
-    # Apply temperature scaling
-    scaled_predictions = predictions / temperature
-
     # Handle both single predictions and batches
     if predictions.dim() == 1:
         # For single prediction, use dim=0
-        return torch.nn.functional.softmax(scaled_predictions, dim=0)
+        return torch.nn.functional.softmax(predictions, dim=0)
     else:
         # For batched predictions, use specified dim (default=1)
-        return torch.nn.functional.softmax(scaled_predictions, dim=dim)
+        return torch.nn.functional.softmax(predictions, dim=dim)
 
 
 import torch

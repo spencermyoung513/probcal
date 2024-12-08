@@ -1,28 +1,22 @@
+import csv
 import os
-from argparse import ArgumentParser
-from functools import partial
+import sys
 from pathlib import Path
 from typing import Type
 
 import lightning as L
 import torch
-import yaml
 
-from probcal.enums import DatasetType
 from probcal.enums import HeadType
-from probcal.evaluation.kernels import rbf_kernel
 from probcal.evaluation.probabilistic_evaluator import ProbabilisticEvaluator
 from probcal.evaluation.probabilistic_evaluator import ProbabilisticEvaluatorSettings
 from probcal.models.multi_class_nn import MultiClassNN
-from probcal.models.regression_nn import RegressionNN
 from probcal.utils.configs import EvaluationConfig
 from probcal.utils.experiment_utils import get_datamodule
-from probcal.utils.experiment_utils import get_model
 from probcal.utils.experiment_utils import get_multi_class_model
 
 
-def main(config_path: Path):
-
+def eval_model(config_path: Path):
     config = EvaluationConfig.from_yaml(config_path)
     if not config.log_dir.exists():
         os.makedirs(config.log_dir)
@@ -34,20 +28,7 @@ def main(config_path: Path):
         rotation=config.rotation,
     )
 
-    # print(f"Using rotation: {config.rotation} on MNIST data...")
-    # datamodule.setup("test")
-    # print("Getting test loader...")
-    # test_loader = datamodule.test_dataloader()
-    # print("Printing out a few images...")
-    # i = 20
-    # for batch in test_loader:
-    #     images, _ = batch
-    #     #save the image as a png using matplotlib
-    #     plt.imshow(images[0].squeeze().numpy(), cmap="gray")
-    #     plt.savefig(f"test_image_{i}.png")
-    #     i += 1
-    #     if i > 23:
-    #         break
+    print(f"Using rotation: {config.rotation} on MNIST data...")
 
     if config.head_type == HeadType.MULTI_CLASS:
         initializer: Type[MultiClassNN] = get_multi_class_model(config, return_initializer=True)[1]
@@ -61,25 +42,8 @@ def main(config_path: Path):
         )
         metrics: dict = evaluator.test(model=model, datamodule=datamodule)[0]
         metrics = {k: float(v) for k, v in metrics.items()}
-    else:
-        initializer: Type[RegressionNN] = get_model(config, return_initializer=True)[1]
-        model = initializer.load_from_checkpoint(config.model_ckpt_path)
-        evaluator = L.Trainer(
-            accelerator=config.accelerator_type.value,
-            enable_model_summary=False,
-            logger=False,
-            devices=1,
-            num_nodes=1,
-        )
-        metrics: dict = evaluator.test(model=model, datamodule=datamodule)[0]
-        metrics = {k: float(v) for k, v in metrics.items()}
 
-    if config.dataset_type == DatasetType.TABULAR and config.input_dim == 1:
-        x_vals = torch.cat([x for x, _ in datamodule.test_dataloader()], dim=0)
-        gamma = (1 / (2 * x_vals.var())).item()
-        cce_input_kernel = partial(rbf_kernel, gamma=gamma)
-    else:
-        cce_input_kernel = "polynomial"
+    cce_input_kernel = "polynomial"
 
     prob_eval_settings = ProbabilisticEvaluatorSettings(
         dataset_type=config.dataset_type,
@@ -103,13 +67,62 @@ def main(config_path: Path):
         mean_cce=[float(result.mean_cce) for result in results.cce_results],
         ece=float(results.ece),
     )
-    with open(config.log_dir / "test_metrics.yaml", "w") as f:
-        yaml.safe_dump(metrics, f)
-    results.save(config.log_dir / "probabilistic_results.npz")
+
+    return config.rotation, metrics
+
+
+def save_experiment_result(rotation, results, filename="rotation_experiment_results.csv"):
+    """
+    Save a single experiment result to a CSV file.
+
+    Args:
+        experiment_config (dict): Configuration parameters for the experiment
+        result (float): The result of the experiment
+        filename (str): Name of the CSV file to save results
+    """
+    # Check if file exists to determine if we need to write headers
+    file_exists = os.path.isfile(filename)
+
+    # Get all configuration keys to use as columns
+    headers = ["rotation", "cce", "ece", "test_acc"]
+
+    # Combine configuration and result into one row
+    row_data = {
+        "rotation": rotation,
+        "cce": results["mean_cce"][0],
+        "ece": results["ece"],
+        "test_acc": results["test_acc"],
+    }
+
+    # Write to CSV file
+    with open(filename, "a", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=headers)
+
+        # Write headers only if file is being created for the first time
+        if not file_exists:
+            writer.writeheader()
+
+        writer.writerow(row_data)
+
+
+def main(directory):
+    if not os.path.isdir(directory):
+        print(f"The provided path '{directory}' is not a valid directory.")
+        return
+
+    # Your code to process the directory goes here
+    print(f"---Processing directory: {directory}---")
+    for config in os.listdir(directory):
+        if config.endswith(".yaml"):
+            config_path = Path(directory) / config
+            rotation, results = eval_model(config_path)
+            # save_experiment_result(rotation, results)
+            # print(f" - Results for {config_path.stem} saved to CSV.")
+    print("---Done processing directory---")
 
 
 if __name__ == "__main__":
-    parser = ArgumentParser()
-    parser.add_argument("--config", type=str, help="Path to evaluation config.yaml.")
-    args = parser.parse_args()
-    main(config_path=Path(args.config))
+    if len(sys.argv) != 2:
+        print("Usage: python rotation_exp.py <directory>")
+    else:
+        main(sys.argv[1])

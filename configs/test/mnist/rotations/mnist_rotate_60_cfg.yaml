@@ -1,4 +1,4 @@
-experiment_name: mnist_multi_class_rotation_90
+experiment_name: mnist_multi_class_rotation_60
 random_seed: 1998
 head_type: multi_class
 dataset:
@@ -6,7 +6,7 @@ dataset:
   spec: mnist_rotate
 batch_size: 100
 accelerator: cpu
-log_dir: logs/mnist_rotate_90_results
+log_dir: logs/mnist_rotate_60_results
 model_ckpt_path: chkp/mnist_multi_class/version_0/best_loss.ckpt
-cce_output_kernel: bhatt
-rotation: 90
+cce_output_kernel: kron
+rotation: 60
