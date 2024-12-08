@@ -462,14 +462,13 @@ class ProbabilisticEvaluator:
         for inputs, targets in tqdm(
             data_loader, desc="Sampling from posteriors for MCMD computation..."
         ):
-            # TODO: image data may need to be resized
             if self.settings.dataset_type == DatasetType.TABULAR:
                 x.append(inputs)
             elif self.settings.dataset_type == DatasetType.IMAGE:
-                x.append(self.clip_model.encode_image(inputs.to(self.device), normalize=False))
+                x.append(inputs)
             elif self.settings.dataset_type == DatasetType.TEXT:
                 x.append(self.clip_model.encode_text(inputs.to(self.device), normalize=False))
-            y.append(one_hot_encode_cifar100(targets.to(self.device)))
+            y.append(targets.to(self.device))
             y_hat = model.predict(inputs.to(self.device))
             x_prime.append(
                 torch.repeat_interleave(x[-1], repeats=self.settings.cce_num_samples, dim=0)
@@ -481,8 +480,25 @@ class ProbabilisticEvaluator:
                 y_prime.append(apply_softmax(y_hat))
 
         x = torch.cat(x, dim=0)
+        print("Running TSNE on x...")
+        x = torch.Tensor(
+            TSNE(n_components=2, random_state=1990, perplexity=5).fit_transform(
+                x.reshape(x.shape[0], -1).numpy()
+            )
+        )
+
+        x = (x - x.mean(dim=0)) / x.std(dim=0)
+        # x = (x - x.min()) / (x.max() - x.min())
         y = torch.cat(y).float()
         x_prime = torch.cat(x_prime, dim=0)
+        print("Running TSNE on x_prime...")
+        x_prime = torch.Tensor(
+            TSNE(n_components=2, random_state=1990, perplexity=5).fit_transform(
+                x_prime.reshape(x_prime.shape[0], -1).numpy()
+            )
+        )
+        x_prime = (x_prime - x_prime.mean(dim=0)) / x_prime.std(dim=0)
+        # x_prime = (x_prime - x_prime.min()) / (x_prime.max() - x_prime.min())
         y_prime = torch.cat(y_prime).float()
 
         return x, y, x_prime, y_prime
