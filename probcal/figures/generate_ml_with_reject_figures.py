@@ -22,7 +22,7 @@ def compute_mae_and_nll_with_thresholded_reject(
         return 0.0, 0.0, 1.0
     y_test_pred = model.point_prediction(y_hat_test[mask], training=False).flatten()
     mae = (y_test[mask].flatten().float() - y_test_pred).abs().mean().detach()
-    log_probs = model.posterior_predictive(y_hat_test[mask], training=False).log_prob(
+    log_probs = model.predictive_dist(y_hat_test[mask], training=False).log_prob(
         y_test[mask].flatten()
     )
     nll = -log_probs.mean()
@@ -86,7 +86,7 @@ def main():
         else:
             y_test_pred = model.point_prediction(y_hat_test[mask], training=False).flatten()
             mae = (y_test[mask].flatten().float() - y_test_pred).abs().mean().detach()
-            log_probs = model.posterior_predictive(y_hat_test[mask], training=False).log_prob(
+            log_probs = model.predictive_dist(y_hat_test[mask], training=False).log_prob(
                 y_test[mask].flatten()
             )
             nll = -log_probs.mean()

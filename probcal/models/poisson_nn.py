@@ -100,11 +100,11 @@ class PoissonNN(ProbabilisticRegressionNN):
         Returns:
             torch.Tensor: Batched sample tensor, with shape (N, num_samples).
         """
-        dist = self.posterior_predictive(y_hat, training)
+        dist = self.predictive_dist(y_hat, training)
         sample = dist.sample((num_samples,)).view(num_samples, -1).T
         return sample
 
-    def _posterior_predictive_impl(
+    def _predictive_dist_impl(
         self, y_hat: torch.Tensor, training: bool = False
     ) -> torch.distributions.Poisson:
         lmbda = y_hat.exp() if training else y_hat

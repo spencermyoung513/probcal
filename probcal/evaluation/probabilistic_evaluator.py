@@ -232,7 +232,7 @@ class ProbabilisticEvaluator:
 
         all_targets = torch.cat(all_targets).detach().cpu().numpy()
         all_outputs = torch.cat(all_outputs, dim=0)
-        posterior_predictive = model.posterior_predictive(all_outputs)
+        posterior_predictive = model.predictive_dist(all_outputs)
 
         ece = compute_regression_ece(
             y_true=all_targets,

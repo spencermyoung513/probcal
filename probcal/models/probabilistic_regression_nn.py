@@ -112,37 +112,37 @@ class ProbabilisticRegressionNN(L.LightningModule):
     def sample(
         self, y_hat: torch.Tensor, training: bool = False, num_samples: int = 1
     ) -> torch.Tensor:
-        """Sample from this network's posterior predictive distributions for a batch of data (as specified by y_hat).
+        """Sample from this network's predictive distributions for a batch of data (as specified by y_hat).
 
         Args:
             y_hat (torch.Tensor): Output tensor from a regression network, with shape (N, ...).
             training (bool, optional): Boolean indicator specifying if `y_hat` is a training output or not. This particularly matters when outputs are in log space during training, for example. Defaults to False.
-            num_samples (int, optional): Number of samples to take from each posterior predictive. Defaults to 1.
+            num_samples (int, optional): Number of samples to take from each predictive distribution. Defaults to 1.
 
         Returns:
             torch.Tensor: Batched sample tensor, with shape (N, num_samples).
         """
         return self._sample_impl(y_hat, training, num_samples)
 
-    def posterior_predictive(
+    def predictive_dist(
         self, y_hat: torch.Tensor, training: bool = False
     ) -> torch.distributions.Distribution | DiscreteRandomVariable:
-        """Transform the network's outputs into the implied posterior predictive distribution.
+        """Transform the network's outputs into the implied predictive distribution.
 
         Args:
             y_hat (torch.Tensor): Output tensor from a regression network, with shape (N, ...).
             training (bool, optional): Boolean indicator specifying if `y_hat` is a training output or not. This particularly matters when outputs are in log space during training, for example. Defaults to False.
 
         Returns:
-            torch.distributions.Distribution | DiscreteRandomVariable: The posterior predictive distribution.
+            torch.distributions.Distribution | DiscreteRandomVariable: The predictive distribution.
         """
-        return self._posterior_predictive_impl(y_hat, training)
+        return self._predictive_dist_impl(y_hat, training)
 
     def point_prediction(self, y_hat: torch.Tensor, training: bool) -> torch.Tensor:
-        """Transform the network's output into a single discrete point prediction.
+        """Transform the network's output into a single point prediction.
 
-        This method will vary depending on the type of regression head (probabilistic vs. deterministic).
-        For example, a gaussian regressor will return the `mean` portion of its output as its point prediction, rounded to the nearest integer.
+        This method will vary depending on the type of regression head.
+        For example, a gaussian regressor will return the `mean` portion of its output as its point prediction.
 
         Args:
             y_hat (torch.Tensor): Output tensor from a regression network, with shape (N, ...).
@@ -212,7 +212,7 @@ class ProbabilisticRegressionNN(L.LightningModule):
     ) -> torch.Tensor:
         raise NotImplementedError("Should be implemented by subclass.")
 
-    def _posterior_predictive_impl(
+    def _predictive_dist_impl(
         self, y_hat: torch.Tensor, training: bool = False
     ) -> torch.distributions.Distribution | DiscreteRandomVariable:
         raise NotImplementedError("Should be implemented by subclass.")

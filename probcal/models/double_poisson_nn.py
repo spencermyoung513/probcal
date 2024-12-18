@@ -129,12 +129,10 @@ class DoublePoissonNN(ProbabilisticRegressionNN):
         Returns:
             torch.Tensor: Batched sample tensor, with shape (N, num_samples).
         """
-        dist = self.posterior_predictive(y_hat, training)
+        dist = self.predictive_dist(y_hat, training)
         return dist.rvs((num_samples, dist.dimension)).T
 
-    def _posterior_predictive_impl(
-        self, y_hat: torch.Tensor, training: bool = False
-    ) -> DoublePoisson:
+    def _predictive_dist_impl(self, y_hat: torch.Tensor, training: bool = False) -> DoublePoisson:
         output = y_hat.exp() if training else y_hat
         mu, phi = torch.split(output, [1, 1], dim=-1)
         mu = mu.flatten()
@@ -143,7 +141,7 @@ class DoublePoissonNN(ProbabilisticRegressionNN):
         return dist
 
     def _point_prediction_impl(self, y_hat: torch.Tensor, training: bool) -> torch.Tensor:
-        dist = self.posterior_predictive(y_hat, training)
+        dist = self.predictive_dist(y_hat, training)
         mode = torch.argmax(dist.pmf_vals, axis=0)
         return mode
 
@@ -156,7 +154,7 @@ class DoublePoissonNN(ProbabilisticRegressionNN):
     def _update_addl_test_metrics_batch(
         self, x: torch.Tensor, y_hat: torch.Tensor, y: torch.Tensor
     ):
-        dist = self.posterior_predictive(y_hat, training=False)
+        dist: DoublePoisson = self.predictive_dist(y_hat, training=False)
         mu, phi = dist.mu, dist.phi
         precision = phi / mu
         targets = y.flatten()

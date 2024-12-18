@@ -102,11 +102,11 @@ class NaturalGaussianNN(ProbabilisticRegressionNN):
         Returns:
             torch.Tensor: Batched sample tensor, with shape (N, num_samples).
         """
-        dist = self.posterior_predictive(y_hat, training)
+        dist = self.predictive_dist(y_hat, training)
         sample = dist.sample((num_samples,)).view(num_samples, -1).T
         return sample
 
-    def _posterior_predictive_impl(
+    def _predictive_dist_impl(
         self, y_hat: torch.Tensor, training: bool = False
     ) -> torch.distributions.Normal:
         eta_1, eta_2 = torch.split(y_hat, [1, 1], dim=-1)
@@ -121,7 +121,7 @@ class NaturalGaussianNN(ProbabilisticRegressionNN):
     def _point_prediction_impl(self, y_hat: torch.Tensor, training: bool) -> torch.Tensor:
         eta_1, eta_2 = torch.split(y_hat, [1, 1], dim=-1)
         mu = self._natural_to_mu(eta_1, eta_2)
-        return mu.round()
+        return mu
 
     def _addl_test_metrics_dict(self) -> dict[str, Metric]:
         return {"nll": self.nll}
@@ -130,7 +130,7 @@ class NaturalGaussianNN(ProbabilisticRegressionNN):
         self, x: torch.Tensor, y_hat: torch.Tensor, y: torch.Tensor
     ):
         targets = y.flatten()
-        dist = self.posterior_predictive(y_hat)
+        dist = self.predictive_dist(y_hat)
 
         # We compute "probability" with the continuity correction (probability of +- 0.5 of the value).
         target_probs = dist.cdf(targets + 0.5) - dist.cdf(targets - 0.5)
