@@ -24,7 +24,7 @@ from probcal.models import GaussianNN
 from probcal.models import NaturalGaussianNN
 from probcal.models import NegBinomNN
 from probcal.models import PoissonNN
-from probcal.models.regression_nn import RegressionNN
+from probcal.models.probabilistic_regression_nn import ProbabilisticRegressionNN
 from probcal.training.losses import double_poisson_nll
 from probcal.training.losses import faithful_gaussian_nll
 from probcal.training.losses import gaussian_nll
@@ -45,7 +45,7 @@ def embed_data_in_2d(
 
 
 def draw_mcmd_samples_and_compute_losses(
-    model: RegressionNN,
+    model: ProbabilisticRegressionNN,
     datamodule: L.LightningDataModule,
     val_embeddings: torch.Tensor,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
@@ -189,7 +189,7 @@ def save_cce_best_worst_examples(
 
 @torch.inference_mode()
 def main(
-    model: RegressionNN,
+    model: ProbabilisticRegressionNN,
     embeddings_dir: Path,
     save_folder: Path,
     num_highest_lowest_cce: int = 5,

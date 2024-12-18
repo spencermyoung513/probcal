@@ -11,10 +11,10 @@ from probcal.enums import LRSchedulerType
 from probcal.enums import OptimizerType
 from probcal.evaluation.custom_torchmetrics import AverageNLL
 from probcal.models.backbones import Backbone
-from probcal.models.regression_nn import RegressionNN
+from probcal.models.probabilistic_regression_nn import ProbabilisticRegressionNN
 
 
-class PoissonNN(RegressionNN):
+class PoissonNN(ProbabilisticRegressionNN):
     """A neural network that learns the parameters of a Poisson distribution over each regression target (conditioned on the input).
 
     Attributes:

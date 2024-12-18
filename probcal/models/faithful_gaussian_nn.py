@@ -8,11 +8,11 @@ from probcal.enums import LRSchedulerType
 from probcal.enums import OptimizerType
 from probcal.evaluation.custom_torchmetrics import AverageNLL
 from probcal.models.backbones import Backbone
-from probcal.models.regression_nn import RegressionNN
+from probcal.models.probabilistic_regression_nn import ProbabilisticRegressionNN
 from probcal.training.losses import faithful_gaussian_nll
 
 
-class FaithfulGaussianNN(RegressionNN):
+class FaithfulGaussianNN(ProbabilisticRegressionNN):
     """Implementation of https://arxiv.org/abs/2212.09184.
 
     Attributes:

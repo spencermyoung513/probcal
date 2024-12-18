@@ -12,14 +12,14 @@ from probcal.enums import OptimizerType
 from probcal.evaluation.custom_torchmetrics import AverageNLL
 from probcal.evaluation.custom_torchmetrics import MedianPrecision
 from probcal.models.backbones import Backbone
-from probcal.models.regression_nn import RegressionNN
+from probcal.models.probabilistic_regression_nn import ProbabilisticRegressionNN
 from probcal.random_variables import DoublePoisson
 from probcal.training.beta_schedulers import CosineAnnealingBetaScheduler
 from probcal.training.beta_schedulers import LinearBetaScheduler
 from probcal.training.losses import double_poisson_nll
 
 
-class DoublePoissonNN(RegressionNN):
+class DoublePoissonNN(ProbabilisticRegressionNN):
     """A neural network that learns the parameters of a Double Poisson distribution over each regression target (conditioned on the input).
 
     Attributes:

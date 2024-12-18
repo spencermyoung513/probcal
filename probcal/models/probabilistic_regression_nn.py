@@ -14,8 +14,8 @@ from probcal.models.backbones import Backbone
 from probcal.random_variables.discrete_random_variable import DiscreteRandomVariable
 
 
-class RegressionNN(L.LightningModule):
-    """Base class for regression neural networks. Should not actually be used for prediction (needs to define `training_step` and whatnot).
+class ProbabilisticRegressionNN(L.LightningModule):
+    """Base class for probabilistic regression neural networks. Should not actually be used for prediction (needs to define `training_step` and whatnot).
 
     Attributes:
         backbone (Backbone): The backbone to use for feature extraction (before applying the regression head).
@@ -47,7 +47,7 @@ class RegressionNN(L.LightningModule):
             lr_scheduler_type (LRSchedulerType | None): If specified, the type of learning rate scheduler to use during training, e.g. "cosine_annealing".
             lr_scheduler_kwargs (dict | None): If specified, key-value argument specifications for the chosen lr scheduler, e.g. {"T_max": 500}.
         """
-        super(RegressionNN, self).__init__()
+        super(ProbabilisticRegressionNN, self).__init__()
 
         self.backbone = backbone_type(**backbone_kwargs)
         self.optim_type = optim_type
