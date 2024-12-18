@@ -10,6 +10,7 @@ from probcal.evaluation.custom_torchmetrics import AverageNLL
 from probcal.models.backbones import Backbone
 from probcal.models.probabilistic_regression_nn import ProbabilisticRegressionNN
 from probcal.training.losses import neg_binom_nll
+from probcal.utils.differentiable_samplers import get_differentiable_sample_from_nbinom
 
 
 class NegBinomNN(ProbabilisticRegressionNN):
@@ -107,6 +108,32 @@ class NegBinomNN(ProbabilisticRegressionNN):
         """
         dist = self.predictive_dist(y_hat, training)
         sample = dist.sample((num_samples,)).view(num_samples, -1).T
+        return sample
+
+    def _rsample_impl(
+        self, y_hat: torch.Tensor, training: bool = False, num_samples: int = 1, **kwargs
+    ) -> torch.Tensor:
+        """Sample (using a differentiable relaxation) from this network's predictive distributions for a batch of data (as specified by y_hat).
+
+        Args:
+            y_hat (torch.Tensor): Output tensor from a regression network, with shape (N, ...).
+            training (bool, optional): Boolean indicator specifying if `y_hat` is a training output or not. This particularly matters when outputs are in log space during training, for example. Defaults to False.
+            num_samples (int, optional): Number of samples to take from each predictive distribution. Defaults to 1.
+
+        Returns:
+            torch.Tensor: Batched sample tensor, with shape (N, num_samples).
+        """
+        mu, alpha = torch.split(y_hat, [1, 1], dim=-1)
+        sample = (
+            get_differentiable_sample_from_nbinom(
+                mu=mu,
+                alpha=alpha,
+                num_samples=num_samples,
+                temperature=kwargs.get("temperature", 0.1),
+            )
+            .squeeze(-1)
+            .permute(1, 0)
+        )
         return sample
 
     def _predictive_dist_impl(

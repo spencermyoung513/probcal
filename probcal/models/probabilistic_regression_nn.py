@@ -124,6 +124,26 @@ class ProbabilisticRegressionNN(L.LightningModule):
         """
         return self._sample_impl(y_hat, training, num_samples)
 
+    def rsample(
+        self,
+        y_hat: torch.Tensor,
+        training: bool = False,
+        num_samples: int = 1,
+        **kwargs,
+    ) -> torch.Tensor:
+        """Sample (using a differentiable relaxation) from this network's predictive distributions for a batch of data (as specified by y_hat).
+
+        Args:
+            y_hat (torch.Tensor): Output tensor from a probabilistic regression network, with shape (N, ...).
+            training (bool, optional): Boolean indicator specifying if `y_hat` is a training output or not. This particularly matters when outputs are in log space during training, for example. Defaults to False.
+            num_samples (int, optional): Number of samples to take from each predictive distribution. Defaults to 1.
+            **kwargs: Any additional keyword arguments to pass to the sampling routine, such as `temperature=0.01`.
+
+        Returns:
+            torch.Tensor: Batched sample tensor, with shape (N, num_samples).
+        """
+        return self._rsample_impl(y_hat, training, num_samples, **kwargs)
+
     def predictive_dist(
         self, y_hat: torch.Tensor, training: bool = False
     ) -> torch.distributions.Distribution | DiscreteRandomVariable:
@@ -209,6 +229,11 @@ class ProbabilisticRegressionNN(L.LightningModule):
 
     def _sample_impl(
         self, y_hat: torch.Tensor, training: bool = False, num_samples: int = 1
+    ) -> torch.Tensor:
+        raise NotImplementedError("Should be implemented by subclass.")
+
+    def _rsample_impl(
+        self, y_hat: torch.Tensor, training: bool = False, num_samples: int = 1, **kwargs
     ) -> torch.Tensor:
         raise NotImplementedError("Should be implemented by subclass.")
 
