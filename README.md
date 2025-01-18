@@ -44,12 +44,13 @@ If fitting a model on tabular data, the training script assumes the dataset will
 
 ### Adding New Models
 
-All regression models should inherit from the `RegressionNN` class (found [here](probcal/models/regression_nn.py)). This base class is a `lightning` module, which allows for a lot of typical NN boilerplate code to be abstracted away. Beyond setting a few class attributes like `loss_fn` while calling the super-initializer, the only methods you need to actually write to make a new module are:
+All regression models should inherit from the `ProbabilisticRegressionNN` class (found [here](probcal/models/probabilistic_regression_nn.py)). This base class is a `lightning` module, which allows for a lot of typical NN boilerplate code to be abstracted away. Beyond setting a few class attributes like `loss_fn` while calling the super-initializer, the only methods you need to actually write to make a new module are:
 
 - `_forward_impl` (defines a forward pass through the network)
 - `_predict_impl` (defines how to make predictions with the network, including any transformations on the output of the forward pass)
-- `_sample_impl` (defines how to sample from the network's learned posterior predictive distribution for a given input)
-- `_posterior_predictive_impl` (defines how to produce a posterior predictive distribution from network output)
+- `_sample_impl` (defines how to sample from the network's predictive distribution for a given input)
+- `_rsample_impl` (defines how to sample with a differentiable relaxation from the predictive distribution)
+- `_predictive_dist_impl` (defines how to produce a predictive distribution from network output)
 - `_point_prediction_impl` (defines how to interpret network output as a single point prediction for a regression target)
 - `_addl_test_metrics_dict` (defines any metrics beyond rmse/mae that are computed during model evaluation)
 - `_update_addl_test_metrics_batch` (defines how to update additional metrics beyond rmse/mae for each test batch).
@@ -72,7 +73,7 @@ Two results files will be saved to the `log_dir` you specify in your config:
 
 ## Measuring Probabilistic Fit
 
-Once a `RegressionNN` subclass is trained, its probabilistic fit can be measured on a dataset via the `ProbabilisticEvaluator`. Example usage:
+Once a `ProbabilisticRegressionNN` subclass is trained, its probabilistic fit can be measured on a dataset via the `ProbabilisticEvaluator`. Example usage:
 
 ```python
 from probcal.data_modules import COCOPeopleDataModule
