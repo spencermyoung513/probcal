@@ -12,14 +12,15 @@ from probcal.enums import OptimizerType
 from probcal.evaluation.custom_torchmetrics import AverageNLL
 from probcal.evaluation.custom_torchmetrics import MedianPrecision
 from probcal.models.backbones import Backbone
-from probcal.models.regression_nn import RegressionNN
+from probcal.models.probabilistic_regression_nn import ProbabilisticRegressionNN
 from probcal.random_variables import DoublePoisson
 from probcal.training.beta_schedulers import CosineAnnealingBetaScheduler
 from probcal.training.beta_schedulers import LinearBetaScheduler
 from probcal.training.losses import double_poisson_nll
+from probcal.utils.differentiable_samplers import get_differentiable_sample_from_gaussian
 
 
-class DoublePoissonNN(RegressionNN):
+class DoublePoissonNN(ProbabilisticRegressionNN):
     """A neural network that learns the parameters of a Double Poisson distribution over each regression target (conditioned on the input).
 
     Attributes:
@@ -129,12 +130,35 @@ class DoublePoissonNN(RegressionNN):
         Returns:
             torch.Tensor: Batched sample tensor, with shape (N, num_samples).
         """
-        dist = self.posterior_predictive(y_hat, training)
+        dist = self.predictive_dist(y_hat, training)
         return dist.rvs((num_samples, dist.dimension)).T
 
-    def _posterior_predictive_impl(
-        self, y_hat: torch.Tensor, training: bool = False
-    ) -> DoublePoisson:
+    def _rsample_impl(
+        self, y_hat: torch.Tensor, training: bool = False, num_samples: int = 1, **kwargs
+    ) -> torch.Tensor:
+        """Sample (using a differentiable relaxation) from this network's predictive distributions for a batch of data (as specified by y_hat).
+
+        Args:
+            y_hat (torch.Tensor): Output tensor from a regression network, with shape (N, ...).
+            training (bool, optional): Boolean indicator specifying if `y_hat` is a training output or not. This particularly matters when outputs are in log space during training, for example. Defaults to False.
+            num_samples (int, optional): Number of samples to take from each predictive distribution. Defaults to 1.
+
+        Returns:
+            torch.Tensor: Batched sample tensor, with shape (N, num_samples).
+        """
+        dist: DoublePoisson = self.predictive_dist(y_hat, training)
+        sample = (
+            get_differentiable_sample_from_gaussian(
+                mu=dist.mu,
+                stdev=torch.sqrt(dist.mu / dist.phi),
+                num_samples=num_samples,
+            )
+            .squeeze(-1)
+            .permute(1, 0)
+        )
+        return sample
+
+    def _predictive_dist_impl(self, y_hat: torch.Tensor, training: bool = False) -> DoublePoisson:
         output = y_hat.exp() if training else y_hat
         mu, phi = torch.split(output, [1, 1], dim=-1)
         mu = mu.flatten()
@@ -143,7 +167,7 @@ class DoublePoissonNN(RegressionNN):
         return dist
 
     def _point_prediction_impl(self, y_hat: torch.Tensor, training: bool) -> torch.Tensor:
-        dist = self.posterior_predictive(y_hat, training)
+        dist = self.predictive_dist(y_hat, training)
         mode = torch.argmax(dist.pmf_vals, axis=0)
         return mode
 
@@ -156,7 +180,7 @@ class DoublePoissonNN(RegressionNN):
     def _update_addl_test_metrics_batch(
         self, x: torch.Tensor, y_hat: torch.Tensor, y: torch.Tensor
     ):
-        dist = self.posterior_predictive(y_hat, training=False)
+        dist: DoublePoisson = self.predictive_dist(y_hat, training=False)
         mu, phi = dist.mu, dist.phi
         precision = phi / mu
         targets = y.flatten()

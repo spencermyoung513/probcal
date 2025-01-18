@@ -135,7 +135,7 @@ def main(cfg: dict) -> None:
         axs[i, 0].set_title(f"Image: {i + 1}")
         axs[i, 0].axis("off")
 
-        rv = model._posterior_predictive_impl(imgs_to_plot_preds[i], training=False)
+        rv = model.predictive_dist(imgs_to_plot_preds[i], training=False)
         disc_support = torch.arange(0, imgs_to_plot_true.max() + 5)
         dist_func = torch.exp(rv.log_prob(disc_support.to(device)))
         axs[i, 1].plot(disc_support.cpu(), dist_func.cpu())

@@ -14,8 +14,8 @@ from probcal.models.backbones import Backbone
 from probcal.random_variables.discrete_random_variable import DiscreteRandomVariable
 
 
-class RegressionNN(L.LightningModule):
-    """Base class for regression neural networks. Should not actually be used for prediction (needs to define `training_step` and whatnot).
+class ProbabilisticRegressionNN(L.LightningModule):
+    """Base class for probabilistic regression neural networks. Should not actually be used for prediction (needs to define `training_step` and whatnot).
 
     Attributes:
         backbone (Backbone): The backbone to use for feature extraction (before applying the regression head).
@@ -47,7 +47,7 @@ class RegressionNN(L.LightningModule):
             lr_scheduler_type (LRSchedulerType | None): If specified, the type of learning rate scheduler to use during training, e.g. "cosine_annealing".
             lr_scheduler_kwargs (dict | None): If specified, key-value argument specifications for the chosen lr scheduler, e.g. {"T_max": 500}.
         """
-        super(RegressionNN, self).__init__()
+        super(ProbabilisticRegressionNN, self).__init__()
 
         self.backbone = backbone_type(**backbone_kwargs)
         self.optim_type = optim_type
@@ -112,37 +112,57 @@ class RegressionNN(L.LightningModule):
     def sample(
         self, y_hat: torch.Tensor, training: bool = False, num_samples: int = 1
     ) -> torch.Tensor:
-        """Sample from this network's posterior predictive distributions for a batch of data (as specified by y_hat).
+        """Sample from this network's predictive distributions for a batch of data (as specified by y_hat).
 
         Args:
             y_hat (torch.Tensor): Output tensor from a regression network, with shape (N, ...).
             training (bool, optional): Boolean indicator specifying if `y_hat` is a training output or not. This particularly matters when outputs are in log space during training, for example. Defaults to False.
-            num_samples (int, optional): Number of samples to take from each posterior predictive. Defaults to 1.
+            num_samples (int, optional): Number of samples to take from each predictive distribution. Defaults to 1.
 
         Returns:
             torch.Tensor: Batched sample tensor, with shape (N, num_samples).
         """
         return self._sample_impl(y_hat, training, num_samples)
 
-    def posterior_predictive(
+    def rsample(
+        self,
+        y_hat: torch.Tensor,
+        training: bool = False,
+        num_samples: int = 1,
+        **kwargs,
+    ) -> torch.Tensor:
+        """Sample (using a differentiable relaxation) from this network's predictive distributions for a batch of data (as specified by y_hat).
+
+        Args:
+            y_hat (torch.Tensor): Output tensor from a probabilistic regression network, with shape (N, ...).
+            training (bool, optional): Boolean indicator specifying if `y_hat` is a training output or not. This particularly matters when outputs are in log space during training, for example. Defaults to False.
+            num_samples (int, optional): Number of samples to take from each predictive distribution. Defaults to 1.
+            **kwargs: Any additional keyword arguments to pass to the sampling routine, such as `temperature=0.01`.
+
+        Returns:
+            torch.Tensor: Batched sample tensor, with shape (N, num_samples).
+        """
+        return self._rsample_impl(y_hat, training, num_samples, **kwargs)
+
+    def predictive_dist(
         self, y_hat: torch.Tensor, training: bool = False
     ) -> torch.distributions.Distribution | DiscreteRandomVariable:
-        """Transform the network's outputs into the implied posterior predictive distribution.
+        """Transform the network's outputs into the implied predictive distribution.
 
         Args:
             y_hat (torch.Tensor): Output tensor from a regression network, with shape (N, ...).
             training (bool, optional): Boolean indicator specifying if `y_hat` is a training output or not. This particularly matters when outputs are in log space during training, for example. Defaults to False.
 
         Returns:
-            torch.distributions.Distribution | DiscreteRandomVariable: The posterior predictive distribution.
+            torch.distributions.Distribution | DiscreteRandomVariable: The predictive distribution.
         """
-        return self._posterior_predictive_impl(y_hat, training)
+        return self._predictive_dist_impl(y_hat, training)
 
     def point_prediction(self, y_hat: torch.Tensor, training: bool) -> torch.Tensor:
-        """Transform the network's output into a single discrete point prediction.
+        """Transform the network's output into a single point prediction.
 
-        This method will vary depending on the type of regression head (probabilistic vs. deterministic).
-        For example, a gaussian regressor will return the `mean` portion of its output as its point prediction, rounded to the nearest integer.
+        This method will vary depending on the type of regression head.
+        For example, a gaussian regressor will return the `mean` portion of its output as its point prediction.
 
         Args:
             y_hat (torch.Tensor): Output tensor from a regression network, with shape (N, ...).
@@ -212,7 +232,12 @@ class RegressionNN(L.LightningModule):
     ) -> torch.Tensor:
         raise NotImplementedError("Should be implemented by subclass.")
 
-    def _posterior_predictive_impl(
+    def _rsample_impl(
+        self, y_hat: torch.Tensor, training: bool = False, num_samples: int = 1, **kwargs
+    ) -> torch.Tensor:
+        raise NotImplementedError("Should be implemented by subclass.")
+
+    def _predictive_dist_impl(
         self, y_hat: torch.Tensor, training: bool = False
     ) -> torch.distributions.Distribution | DiscreteRandomVariable:
         raise NotImplementedError("Should be implemented by subclass.")

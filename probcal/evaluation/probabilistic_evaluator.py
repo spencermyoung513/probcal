@@ -26,7 +26,7 @@ from probcal.evaluation.kernels import polynomial_kernel
 from probcal.evaluation.kernels import rbf_kernel
 from probcal.evaluation.metrics import compute_mcmd_torch
 from probcal.evaluation.metrics import compute_regression_ece
-from probcal.models.regression_nn import RegressionNN
+from probcal.models.probabilistic_regression_nn import ProbabilisticRegressionNN
 
 
 @dataclass
@@ -109,7 +109,7 @@ class ProbabilisticEvaluator:
 
     @torch.inference_mode()
     def __call__(
-        self, model: RegressionNN, data_module: L.LightningDataModule
+        self, model: ProbabilisticRegressionNN, data_module: L.LightningDataModule
     ) -> ProbabilisticResults:
         model.to(self.device)
         data_module.prepare_data()
@@ -158,7 +158,7 @@ class ProbabilisticEvaluator:
 
     def compute_cce(
         self,
-        model: RegressionNN,
+        model: ProbabilisticRegressionNN,
         grid_loader: DataLoader,
         sample_loader: DataLoader,
         return_grid: bool = False,
@@ -212,7 +212,7 @@ class ProbabilisticEvaluator:
         else:
             return tuple(return_obj)
 
-    def compute_ece(self, model: RegressionNN, data_loader: DataLoader) -> float:
+    def compute_ece(self, model: ProbabilisticRegressionNN, data_loader: DataLoader) -> float:
         """Compute the regression ECE of the given model over the dataset spanned by the data loader.
 
         Args:
@@ -232,7 +232,7 @@ class ProbabilisticEvaluator:
 
         all_targets = torch.cat(all_targets).detach().cpu().numpy()
         all_outputs = torch.cat(all_outputs, dim=0)
-        posterior_predictive = model.posterior_predictive(all_outputs)
+        posterior_predictive = model.predictive_dist(all_outputs)
 
         ece = compute_regression_ece(
             y_true=all_targets,
@@ -295,7 +295,10 @@ class ProbabilisticEvaluator:
         return fig
 
     def _get_samples_for_mcmd(
-        self, model: RegressionNN, data_loader: DataLoader
+        self,
+        model: ProbabilisticRegressionNN,
+        data_loader: DataLoader,
+        train: False,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         x = []
         y = []

@@ -8,11 +8,12 @@ from probcal.enums import LRSchedulerType
 from probcal.enums import OptimizerType
 from probcal.evaluation.custom_torchmetrics import AverageNLL
 from probcal.models.backbones import Backbone
-from probcal.models.regression_nn import RegressionNN
+from probcal.models.probabilistic_regression_nn import ProbabilisticRegressionNN
 from probcal.training.losses import neg_binom_nll
+from probcal.utils.differentiable_samplers import get_differentiable_sample_from_nbinom
 
 
-class NegBinomNN(RegressionNN):
+class NegBinomNN(ProbabilisticRegressionNN):
     """A neural network that learns the parameters of a Negative Binomial distribution over each regression target (conditioned on the input).
 
     The mean-scale (mu, alpha) parametrization of the Negative Binomial is used for this network.
@@ -105,11 +106,37 @@ class NegBinomNN(RegressionNN):
         Returns:
             torch.Tensor: Batched sample tensor, with shape (N, num_samples).
         """
-        dist = self.posterior_predictive(y_hat, training)
+        dist = self.predictive_dist(y_hat, training)
         sample = dist.sample((num_samples,)).view(num_samples, -1).T
         return sample
 
-    def _posterior_predictive_impl(
+    def _rsample_impl(
+        self, y_hat: torch.Tensor, training: bool = False, num_samples: int = 1, **kwargs
+    ) -> torch.Tensor:
+        """Sample (using a differentiable relaxation) from this network's predictive distributions for a batch of data (as specified by y_hat).
+
+        Args:
+            y_hat (torch.Tensor): Output tensor from a regression network, with shape (N, ...).
+            training (bool, optional): Boolean indicator specifying if `y_hat` is a training output or not. This particularly matters when outputs are in log space during training, for example. Defaults to False.
+            num_samples (int, optional): Number of samples to take from each predictive distribution. Defaults to 1.
+
+        Returns:
+            torch.Tensor: Batched sample tensor, with shape (N, num_samples).
+        """
+        mu, alpha = torch.split(y_hat, [1, 1], dim=-1)
+        sample = (
+            get_differentiable_sample_from_nbinom(
+                mu=mu,
+                alpha=alpha,
+                num_samples=num_samples,
+                temperature=kwargs.get("temperature", 0.1),
+            )
+            .squeeze(-1)
+            .permute(1, 0)
+        )
+        return sample
+
+    def _predictive_dist_impl(
         self, y_hat: torch.Tensor, training: bool = False
     ) -> torch.distributions.NegativeBinomial:
         mu, alpha = torch.split(y_hat, [1, 1], dim=-1)
@@ -128,7 +155,7 @@ class NegBinomNN(RegressionNN):
         return dist
 
     def _point_prediction_impl(self, y_hat: torch.Tensor, training: bool) -> torch.Tensor:
-        dist = self.posterior_predictive(y_hat, training)
+        dist = self.predictive_dist(y_hat, training)
         return dist.mode
 
     def _addl_test_metrics_dict(self) -> dict[str, Metric]:
@@ -139,7 +166,7 @@ class NegBinomNN(RegressionNN):
     def _update_addl_test_metrics_batch(
         self, x: torch.Tensor, y_hat: torch.Tensor, y: torch.Tensor
     ):
-        dist = self.posterior_predictive(y_hat, training=False)
+        dist = self.predictive_dist(y_hat, training=False)
         targets = y.flatten()
         target_probs = torch.exp(dist.log_prob(targets))
 

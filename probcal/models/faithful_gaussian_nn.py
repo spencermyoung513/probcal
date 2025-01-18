@@ -8,11 +8,12 @@ from probcal.enums import LRSchedulerType
 from probcal.enums import OptimizerType
 from probcal.evaluation.custom_torchmetrics import AverageNLL
 from probcal.models.backbones import Backbone
-from probcal.models.regression_nn import RegressionNN
+from probcal.models.probabilistic_regression_nn import ProbabilisticRegressionNN
 from probcal.training.losses import faithful_gaussian_nll
+from probcal.utils.differentiable_samplers import get_differentiable_sample_from_gaussian
 
 
-class FaithfulGaussianNN(RegressionNN):
+class FaithfulGaussianNN(ProbabilisticRegressionNN):
     """Implementation of https://arxiv.org/abs/2212.09184.
 
     Attributes:
@@ -111,11 +112,36 @@ class FaithfulGaussianNN(RegressionNN):
         Returns:
             torch.Tensor: Batched sample tensor, with shape (N, num_samples).
         """
-        dist = self.posterior_predictive(y_hat, training)
+        dist = self.predictive_dist(y_hat, training)
         sample = dist.sample((num_samples,)).view(num_samples, -1).T
         return sample
 
-    def _posterior_predictive_impl(
+    def _rsample_impl(
+        self, y_hat: torch.Tensor, training: bool = False, num_samples: int = 1, **kwargs
+    ) -> torch.Tensor:
+        """Sample (using a differentiable relaxation) from this network's predictive distributions for a batch of data (as specified by y_hat).
+
+        Args:
+            y_hat (torch.Tensor): Output tensor from a regression network, with shape (N, ...).
+            training (bool, optional): Boolean indicator specifying if `y_hat` is a training output or not. This particularly matters when outputs are in log space during training, for example. Defaults to False.
+            num_samples (int, optional): Number of samples to take from each predictive distribution. Defaults to 1.
+
+        Returns:
+            torch.Tensor: Batched sample tensor, with shape (N, num_samples).
+        """
+        dist: torch.distributions.Normal = self.predictive_dist(y_hat, training)
+        sample = (
+            get_differentiable_sample_from_gaussian(
+                mu=dist.loc,
+                stdev=dist.scale,
+                num_samples=num_samples,
+            )
+            .squeeze(-1)
+            .permute(1, 0)
+        )
+        return sample
+
+    def _predictive_dist_impl(
         self, y_hat: torch.Tensor, training: bool = False
     ) -> torch.distributions.Normal:
         if training:
@@ -129,7 +155,7 @@ class FaithfulGaussianNN(RegressionNN):
 
     def _point_prediction_impl(self, y_hat: torch.Tensor, training: bool) -> torch.Tensor:
         mu, _ = torch.split(y_hat, [1, 1], dim=-1)
-        return mu.round()
+        return mu
 
     def _addl_test_metrics_dict(self) -> dict[str, Metric]:
         return {"nll": self.nll}

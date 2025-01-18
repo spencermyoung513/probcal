@@ -12,7 +12,7 @@ from probcal.enums import DatasetType
 from probcal.evaluation.kernels import rbf_kernel
 from probcal.evaluation.probabilistic_evaluator import ProbabilisticEvaluator
 from probcal.evaluation.probabilistic_evaluator import ProbabilisticEvaluatorSettings
-from probcal.models.regression_nn import RegressionNN
+from probcal.models.probabilistic_regression_nn import ProbabilisticRegressionNN
 from probcal.utils.configs import EvaluationConfig
 from probcal.utils.experiment_utils import get_datamodule
 from probcal.utils.experiment_utils import get_model
@@ -30,7 +30,7 @@ def main(config_path: Path):
         config.batch_size,
     )
 
-    initializer: Type[RegressionNN] = get_model(config, return_initializer=True)[1]
+    initializer: Type[ProbabilisticRegressionNN] = get_model(config, return_initializer=True)[1]
     model = initializer.load_from_checkpoint(config.model_ckpt_path)
     evaluator = L.Trainer(
         accelerator=config.accelerator_type.value,
