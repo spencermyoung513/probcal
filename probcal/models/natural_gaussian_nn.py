@@ -7,7 +7,8 @@ from torchmetrics import Metric
 
 from probcal.enums import LRSchedulerType
 from probcal.enums import OptimizerType
-from probcal.evaluation.custom_torchmetrics import AverageNLL
+from probcal.evaluation.custom_torchmetrics import ContinuousRankedProbabilityScore
+from probcal.evaluation.custom_torchmetrics import MedianPrecision
 from probcal.models.backbones import Backbone
 from probcal.models.probabilistic_regression_nn import ProbabilisticRegressionNN
 from probcal.training.losses import natural_gaussian_nll
@@ -55,7 +56,9 @@ class NaturalGaussianNN(ProbabilisticRegressionNN):
             lr_scheduler_kwargs=lr_scheduler_kwargs,
         )
         self.head = nn.Linear(self.backbone.output_dim, 2)
-        self.nll = AverageNLL()
+
+        self.mp = MedianPrecision()
+        self.crps = ContinuousRankedProbabilityScore(mode="gaussian")
         self.save_hyperparameters()
 
     def _forward_impl(self, x: torch.Tensor) -> torch.Tensor:
@@ -149,21 +152,28 @@ class NaturalGaussianNN(ProbabilisticRegressionNN):
         mu = self._natural_to_mu(eta_1, eta_2)
         return mu
 
-    def _addl_test_metrics_dict(self) -> dict[str, Metric]:
-        return {"nll": self.nll}
-
-    def _update_addl_test_metrics_batch(
-        self, x: torch.Tensor, y_hat: torch.Tensor, y: torch.Tensor
-    ):
-        targets = y.flatten()
-        dist = self.predictive_dist(y_hat)
-
-        # We compute "probability" with the continuity correction (probability of +- 0.5 of the value).
-        target_probs = dist.cdf(targets + 0.5) - dist.cdf(targets - 0.5)
-        self.nll.update(target_probs)
-
     def _natural_to_mu(self, eta_1: torch.Tensor, eta_2: torch.Tensor) -> torch.Tensor:
         return -0.5 * (eta_1 / eta_2)
 
     def _natural_to_var(self, eta_2: torch.Tensor) -> torch.Tensor:
         return -0.5 * torch.reciprocal(eta_2)
+
+    def _addl_test_metrics_dict(self) -> dict[str, Metric]:
+        return {
+            "mp": self.mp,
+            "crps": self.crps,
+        }
+
+    def _update_addl_test_metrics_batch(
+        self, x: torch.Tensor, y_hat: torch.Tensor, y: torch.Tensor
+    ):
+        eta_1, eta_2 = torch.split(y_hat, [1, 1], dim=-1)
+        mu = self._natural_to_mu(eta_1, eta_2)
+        var = self._natural_to_var(eta_2)
+        mu = mu.flatten()
+        var = var.flatten()
+        precision = 1 / var
+        targets = y.flatten()
+
+        self.mp.update(precision)
+        self.crps.update(torch.stack([mu, var], dim=1), targets)

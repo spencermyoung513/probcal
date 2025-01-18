@@ -9,7 +9,7 @@ from torchmetrics import Metric
 from probcal.enums import BetaSchedulerType
 from probcal.enums import LRSchedulerType
 from probcal.enums import OptimizerType
-from probcal.evaluation.custom_torchmetrics import AverageNLL
+from probcal.evaluation.custom_torchmetrics import ContinuousRankedProbabilityScore
 from probcal.evaluation.custom_torchmetrics import MedianPrecision
 from probcal.models.backbones import Backbone
 from probcal.models.probabilistic_regression_nn import ProbabilisticRegressionNN
@@ -80,8 +80,8 @@ class DoublePoissonNN(ProbabilisticRegressionNN):
         )
         self.head = nn.Linear(self.backbone.output_dim, 2)
 
-        self.nll = AverageNLL()
         self.mp = MedianPrecision()
+        self.crps = ContinuousRankedProbabilityScore(mode="discrete")
 
         self.save_hyperparameters()
 
@@ -173,8 +173,8 @@ class DoublePoissonNN(ProbabilisticRegressionNN):
 
     def _addl_test_metrics_dict(self) -> dict[str, Metric]:
         return {
-            "nll": self.nll,
             "mp": self.mp,
+            "crps": self.crps,
         }
 
     def _update_addl_test_metrics_batch(
@@ -184,13 +184,12 @@ class DoublePoissonNN(ProbabilisticRegressionNN):
         mu, phi = dist.mu, dist.phi
         precision = phi / mu
         targets = y.flatten()
-        target_probs = dist.pmf(targets.long())
 
-        if not isinstance(target_probs, torch.Tensor):
-            target_probs = torch.tensor(target_probs, device=self.device)
+        support = torch.arange(2000, device=y_hat.device).view(-1, 1)
+        probs_over_support = dist.pmf(support).T
 
-        self.nll.update(target_probs)
         self.mp.update(precision)
+        self.crps.update(probs_over_support, targets)
 
     def on_train_epoch_end(self):
         if self.beta_scheduler is not None:

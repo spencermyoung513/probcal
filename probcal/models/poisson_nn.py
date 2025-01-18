@@ -9,7 +9,8 @@ from torchmetrics import Metric
 
 from probcal.enums import LRSchedulerType
 from probcal.enums import OptimizerType
-from probcal.evaluation.custom_torchmetrics import AverageNLL
+from probcal.evaluation.custom_torchmetrics import ContinuousRankedProbabilityScore
+from probcal.evaluation.custom_torchmetrics import MedianPrecision
 from probcal.models.backbones import Backbone
 from probcal.models.probabilistic_regression_nn import ProbabilisticRegressionNN
 from probcal.utils.differentiable_samplers import get_differentiable_sample_from_poisson
@@ -56,7 +57,9 @@ class PoissonNN(ProbabilisticRegressionNN):
             lr_scheduler_kwargs=lr_scheduler_kwargs,
         )
         self.head = nn.Linear(self.backbone.output_dim, 1)
-        self.nll = AverageNLL()
+
+        self.mp = MedianPrecision()
+        self.crps = ContinuousRankedProbabilityScore(mode="discrete")
 
         self.save_hyperparameters()
 
@@ -140,15 +143,19 @@ class PoissonNN(ProbabilisticRegressionNN):
 
     def _addl_test_metrics_dict(self) -> dict[str, Metric]:
         return {
-            "nll": self.nll,
+            "mp": self.mp,
+            "crps": self.crps,
         }
 
     def _update_addl_test_metrics_batch(
         self, x: torch.Tensor, y_hat: torch.Tensor, y: torch.Tensor
     ):
         lmbda = y_hat.flatten()
-        dist = torch.distributions.Poisson(lmbda)
         targets = y.flatten()
-        target_probs = torch.exp(dist.log_prob(targets))
+        precision = 1 / lmbda
+        support = torch.arange(2000, device=y_hat.device).view(-1, 1)
+        dist = self.predictive_dist(y_hat, training=False)
+        probs_over_support = torch.exp(dist.log_prob(support)).T
 
-        self.nll.update(target_probs)
+        self.mp.update(precision)
+        self.crps.update(probs_over_support, targets)

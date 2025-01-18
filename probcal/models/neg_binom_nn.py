@@ -6,7 +6,8 @@ from torchmetrics import Metric
 
 from probcal.enums import LRSchedulerType
 from probcal.enums import OptimizerType
-from probcal.evaluation.custom_torchmetrics import AverageNLL
+from probcal.evaluation.custom_torchmetrics import ContinuousRankedProbabilityScore
+from probcal.evaluation.custom_torchmetrics import MedianPrecision
 from probcal.models.backbones import Backbone
 from probcal.models.probabilistic_regression_nn import ProbabilisticRegressionNN
 from probcal.training.losses import neg_binom_nll
@@ -59,7 +60,9 @@ class NegBinomNN(ProbabilisticRegressionNN):
             nn.Linear(self.backbone.output_dim, 2),
             nn.Softplus(),  # To ensure positivity of output params.
         )
-        self.nll = AverageNLL()
+
+        self.mp = MedianPrecision()
+        self.crps = ContinuousRankedProbabilityScore(mode="discrete")
         self.save_hyperparameters()
 
     def _forward_impl(self, x: torch.Tensor) -> torch.Tensor:
@@ -160,14 +163,19 @@ class NegBinomNN(ProbabilisticRegressionNN):
 
     def _addl_test_metrics_dict(self) -> dict[str, Metric]:
         return {
-            "nll": self.nll,
+            "mp": self.mp,
+            "crps": self.crps,
         }
 
     def _update_addl_test_metrics_batch(
         self, x: torch.Tensor, y_hat: torch.Tensor, y: torch.Tensor
     ):
-        dist = self.predictive_dist(y_hat, training=False)
+        dist = self.predictive_dist(y_hat)
+        var = dist.variance
+        precision = 1 / var
         targets = y.flatten()
-        target_probs = torch.exp(dist.log_prob(targets))
+        support = torch.arange(2000, device=y_hat.device).view(-1, 1)
+        probs_over_support = torch.exp(dist.log_prob(support)).T
 
-        self.nll.update(target_probs)
+        self.mp.update(precision)
+        self.crps.update(probs_over_support, targets)

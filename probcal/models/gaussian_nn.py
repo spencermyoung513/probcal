@@ -9,7 +9,8 @@ from torchmetrics import Metric
 from probcal.enums import BetaSchedulerType
 from probcal.enums import LRSchedulerType
 from probcal.enums import OptimizerType
-from probcal.evaluation.custom_torchmetrics import AverageNLL
+from probcal.evaluation.custom_torchmetrics import ContinuousRankedProbabilityScore
+from probcal.evaluation.custom_torchmetrics import MedianPrecision
 from probcal.models.backbones import Backbone
 from probcal.models.probabilistic_regression_nn import ProbabilisticRegressionNN
 from probcal.training.beta_schedulers import CosineAnnealingBetaScheduler
@@ -77,7 +78,9 @@ class GaussianNN(ProbabilisticRegressionNN):
             lr_scheduler_kwargs=lr_scheduler_kwargs,
         )
         self.head = nn.Linear(self.backbone.output_dim, 2)
-        self.nll = AverageNLL()
+
+        self.mp = MedianPrecision()
+        self.crps = ContinuousRankedProbabilityScore(mode="gaussian")
         self.save_hyperparameters()
 
     def _forward_impl(self, x: torch.Tensor) -> torch.Tensor:
@@ -175,8 +178,17 @@ class GaussianNN(ProbabilisticRegressionNN):
         mu, _ = torch.split(y_hat, [1, 1], dim=-1)
         return mu
 
+    def on_train_epoch_end(self):
+        if self.beta_scheduler is not None:
+            self.beta_scheduler.step()
+            self.loss_fn = partial(gaussian_nll, beta=self.beta_scheduler.current_value)
+        super().on_train_epoch_end()
+
     def _addl_test_metrics_dict(self) -> dict[str, Metric]:
-        return {"nll": self.nll}
+        return {
+            "mp": self.mp,
+            "crps": self.crps,
+        }
 
     def _update_addl_test_metrics_batch(
         self, x: torch.Tensor, y_hat: torch.Tensor, y: torch.Tensor
@@ -184,16 +196,8 @@ class GaussianNN(ProbabilisticRegressionNN):
         mu, var = torch.split(y_hat, [1, 1], dim=-1)
         mu = mu.flatten()
         var = var.flatten()
-        std = torch.sqrt(var)
+        precision = 1 / var
         targets = y.flatten()
 
-        # We compute "probability" with the continuity correction (probability of +- 0.5 of the value).
-        dist = torch.distributions.Normal(loc=mu, scale=std)
-        target_probs = dist.cdf(targets + 0.5) - dist.cdf(targets - 0.5)
-        self.nll.update(target_probs)
-
-    def on_train_epoch_end(self):
-        if self.beta_scheduler is not None:
-            self.beta_scheduler.step()
-            self.loss_fn = partial(gaussian_nll, beta=self.beta_scheduler.current_value)
-        super().on_train_epoch_end()
+        self.mp.update(precision)
+        self.crps.update(y_hat, targets)

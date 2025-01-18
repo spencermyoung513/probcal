@@ -2,8 +2,6 @@
 
 This repository contains the official implementation of "Beyond Calibration: Assessing the Probabilistic Fit of Neural Regressors via Conditional Congruence".
 
-Our repository name, `probcal`, is a portmanteau of "problems" and "calibration", i.e. we address existing problems with using calibration to evaluate neural nets.
-
 ## Important Links
 
 Important figures used in the paper, along with the code that generated them, can be found in [this directory](probcal/figures).
