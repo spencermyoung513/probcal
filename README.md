@@ -69,7 +69,7 @@ python probcal/evaluation/eval_model.py --config path/to/eval/config.yaml
 Two results files will be saved to the `log_dir` you specify in your config:
 
 - A `test_metrics.yaml` with metrics like MAE, RMSE, etc. and a summary of the probabilistic results (such as the mean CCE values for each specified trial)
-- A `probabilistic_results.npz` file which can be loaded into a `ProbabilisticResults` object to see granular CCE and ECE results.
+- A `probabilistic_results.pt` file which can be loaded into a `ProbabilisticResults` object to see granular CCE and ECE results.
 
 ## Measuring Probabilistic Fit
 
