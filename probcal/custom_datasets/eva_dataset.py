@@ -5,9 +5,8 @@ from glob import glob
 from pathlib import Path
 from typing import Callable
 
-import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
-import seaborn as sns
 from PIL import Image
 from PIL.Image import Image as PILImage
 from torch.utils.data import Dataset
@@ -43,7 +42,7 @@ class EVADataset(Dataset):
 
         self.repo_url = "https://github.com/kang-gnak/eva-dataset"
 
-        self.root_dir = Path(root_dir).joinpath("eva-dataset")
+        self.root_dir = Path(root_dir)
         self.labels_dir = self.root_dir.joinpath("data")
         self.image_dir = self.root_dir.joinpath("images", "EVA_together")
 
@@ -52,6 +51,7 @@ class EVADataset(Dataset):
             return
 
         if not self._check_for_eva_images():
+            print("Images not found. Concatenating and extracting zip parts.")
             self._concatenate_and_extract_zip()
 
         # read the label data in from the data folder
@@ -153,13 +153,41 @@ class EVADataset(Dataset):
         print("\nStatistics of average scores:")
         print(self.labels_df["avg_score"].describe())
 
-    def _create_dist_graph(self):
-        """
-        Creates a graph of the distribution of average scores for the dataset.
-        """
-        plt.figure(figsize=(10, 6))
-        sns.histplot(data=self.labels_df, x="avg_score", kde=True)
-        plt.title("Distribution of Average Scores per Image")
-        plt.xlabel("Average Score")
-        plt.ylabel("Count")
-        plt.show()
+
+# instantiate the dataset
+eva_dataset = EVADataset(root_dir="data/eva")
+print(eva_dataset.__getitem__(0))
+print(len(eva_dataset.labels_df))
+# make a train/test/val split
+train_size = int(0.7 * len(eva_dataset))
+val_size = int(0.1 * len(eva_dataset))
+test_size = len(eva_dataset) - train_size - val_size
+print(train_size, val_size, test_size)
+shuffled_indices = np.random.permutation(np.arange(len(eva_dataset)))
+print(shuffled_indices[:10])
+train_indices = shuffled_indices[:train_size]
+val_indices = shuffled_indices[train_size : train_size + val_size]
+test_indices = shuffled_indices[train_size + val_size :]
+# move the images from the EVA_together folder to the train/val/test folders
+train_dir = Path("data/eva/images/train")
+val_dir = Path("data/eva/images/val")
+test_dir = Path("data/eva/images/test")
+train_dir.mkdir(parents=True, exist_ok=True)
+val_dir.mkdir(parents=True, exist_ok=True)
+test_dir.mkdir(parents=True, exist_ok=True)
+
+for idx, indices in enumerate([train_indices, val_indices, test_indices]):
+    for i in indices:
+        row = eva_dataset.labels_df.iloc[i]
+        image_path = eva_dataset.image_dir.joinpath(row["file_name"])
+        if idx == 0:
+            image_path.rename(train_dir.joinpath(row["file_name"]))
+        elif idx == 1:
+            image_path.rename(val_dir.joinpath(row["file_name"]))
+        else:
+            image_path.rename(test_dir.joinpath(row["file_name"]))
+
+# check the number of images in each folder
+print(len(list(train_dir.glob("*.jpg"))))
+print(len(list(val_dir.glob("*.jpg"))))
+print(len(list(test_dir.glob("*.jpg"))))
