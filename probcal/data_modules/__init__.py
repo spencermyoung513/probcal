@@ -5,4 +5,5 @@ from .coco_people_datamodule import OodLabelNoiseCocoPeopleDataModule
 from .coco_people_datamodule import OodMixupCocoPeopleDataModule
 from .eva_datamodule import EVADataModule
 from .fg_net_datamodule import FGNetDataModule
+from .readability_datamodule import ReadabilityDataModule
 from .tabular_data_module import TabularDataModule

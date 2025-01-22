@@ -8,6 +8,7 @@ dataset:
 training:
   accelerator: cpu
   batch_size: 32
+  num_workers: 8
   chkp_dir: path/to/weights/dir
   chkp_freq: 50
   num_epochs: 200

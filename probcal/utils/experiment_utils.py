@@ -18,6 +18,7 @@ from probcal.data_modules import OodBlurCocoPeopleDataModule
 from probcal.data_modules import OodLabelNoiseCocoPeopleDataModule
 from probcal.data_modules import OodMixupCocoPeopleDataModule
 from probcal.data_modules import TabularDataModule
+from probcal.data_modules.readability_datamodule import ReadabilityDataModule
 from probcal.enums import DatasetType
 from probcal.enums import HeadType
 from probcal.enums import ImageDatasetName
@@ -47,6 +48,7 @@ def get_model(
 
     initializer: Type[ProbabilisticRegressionNN]
 
+    # Choose the head based on head type and necessary kwargs.
     if config.head_type == HeadType.GAUSSIAN:
         if hasattr(config, "beta_scheduler_type") and config.beta_scheduler_type is not None:
             initializer = partialclass(
@@ -67,6 +69,7 @@ def get_model(
     else:
         raise ValueError(f"Head type {config.head_type} not recognized.")
 
+    # Choose the backbone based on the dataset.
     if config.dataset_type == DatasetType.TABULAR:
         if "collision" in str(config.dataset_path_or_spec):
             backbone_type = LargerMLP
@@ -178,8 +181,13 @@ def get_datamodule(
                 persistent_workers=True if num_workers > 0 else False,
             )
     elif dataset_type == DatasetType.TEXT:
-        if dataset_path_or_spec == TextDatasetName.REVIEWS:
-            return ValueError("Reviews not supported.")
+        if dataset_path_or_spec == TextDatasetName.READABILITY:
+            return ReadabilityDataModule(
+                root_dir=os.path.join(GLOBAL_DATA_DIR, "readability"),
+                batch_size=batch_size,
+                num_workers=num_workers,
+                persistent_workers=True,
+            )
 
 
 def fix_random_seed(random_seed: int | None):

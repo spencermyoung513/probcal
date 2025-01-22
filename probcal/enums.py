@@ -49,4 +49,4 @@ class ImageDatasetName(Enum):
 
 
 class TextDatasetName(Enum):
-    REVIEWS = "reviews"
+    READABILITY = "readability"
