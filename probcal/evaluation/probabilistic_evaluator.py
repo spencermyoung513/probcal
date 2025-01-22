@@ -307,8 +307,10 @@ class ProbabilisticEvaluator:
         selected_labels = labels[selected_indices]
 
         print("Selected CCE values, their associated images, and labels:")
-        for idx, cce_value, image, label in zip(
-            selected_indices, selected_cce_vals, selected_images, selected_labels
+        fig, axs = plt.subplots(2, 3, figsize=(12, 8))
+        axs = axs.flatten()
+        for ax, idx, cce_value, image, label in zip(
+            axs, selected_indices, selected_cce_vals, selected_images, selected_labels
         ):
             print(f"Index: {idx}, CCE Value: {cce_value}, Label: {label}")
             # Export the selected images to PNG files
@@ -328,20 +330,16 @@ class ProbabilisticEvaluator:
             fine_label_names = meta["fine_label_names"]
 
             # Plot the image
-            plt.figure()
             if image_np.ndim == 2:  # Grayscale image
-                plt.imshow(image_np, cmap="gray")
+                ax.imshow(image_np, cmap="gray")
             elif image_np.ndim == 3:  # RGB image
-                plt.imshow(image_np.transpose(1, 2, 0))
-            plt.title(f"CCE: {cce_value:.4f}, Label: {fine_label_names[label]}")
-            plt.axis("off")
+                ax.imshow(image_np.transpose(1, 2, 0))
+            ax.set_title(f"CCE: {cce_value:.4f}, Label: {fine_label_names[label]}")
+            ax.axis("off")
 
-            # Save the image with CCE value in the filename
-            filename = f"selected_image_{idx}_cce_{cce_value:.4f}.png"
-            plt.savefig(filename)
-            plt.close()
-
-            print(f"Image saved: {filename}")
+        fig.suptitle("CCE Values and Associated Images", fontsize=16)
+        plt.tight_layout()
+        plt.savefig("cce_images/kronecker/cce_values.png")
 
         images = torch.cat([inputs for inputs, _ in grid_loader], dim=0)
         labels = torch.cat([labels for _, labels in grid_loader])
@@ -459,13 +457,14 @@ class ProbabilisticEvaluator:
         y = []
         x_prime = []
         y_prime = []
+        print("Encoding images with CLIP...")
         for inputs, targets in tqdm(
             data_loader, desc="Sampling from posteriors for MCMD computation..."
         ):
             if self.settings.dataset_type == DatasetType.TABULAR:
                 x.append(inputs)
             elif self.settings.dataset_type == DatasetType.IMAGE:
-                x.append(inputs)
+                x.append(self.clip_model.encode_image(inputs.to(self.device), normalize=False))
             elif self.settings.dataset_type == DatasetType.TEXT:
                 x.append(self.clip_model.encode_text(inputs.to(self.device), normalize=False))
             y.append(targets.to(self.device))
@@ -480,25 +479,8 @@ class ProbabilisticEvaluator:
                 y_prime.append(apply_softmax(y_hat))
 
         x = torch.cat(x, dim=0)
-        print("Running TSNE on x...")
-        x = torch.Tensor(
-            TSNE(n_components=2, random_state=1990, perplexity=5).fit_transform(
-                x.reshape(x.shape[0], -1).numpy()
-            )
-        )
-
-        x = (x - x.mean(dim=0)) / x.std(dim=0)
-        # x = (x - x.min()) / (x.max() - x.min())
         y = torch.cat(y).float()
         x_prime = torch.cat(x_prime, dim=0)
-        print("Running TSNE on x_prime...")
-        x_prime = torch.Tensor(
-            TSNE(n_components=2, random_state=1990, perplexity=5).fit_transform(
-                x_prime.reshape(x_prime.shape[0], -1).numpy()
-            )
-        )
-        x_prime = (x_prime - x_prime.mean(dim=0)) / x_prime.std(dim=0)
-        # x_prime = (x_prime - x_prime.min()) / (x_prime.max() - x_prime.min())
         y_prime = torch.cat(y_prime).float()
 
         return x, y, x_prime, y_prime
@@ -678,7 +660,7 @@ def evaluate_model_calibration(model, test_loader, device="cpu"):
     print(f"Expected Calibration Error: {ece:.3f}")
 
     # Optional: Plot reliability diagram
-    plot_reliability_diagram(ece, confidences, accuracies)
+    # plot_reliability_diagram(ece, confidences, accuracies)
 
     return ece
 
