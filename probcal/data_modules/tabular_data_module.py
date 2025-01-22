@@ -1,13 +1,13 @@
 from pathlib import Path
 
-import lightning as L
 import numpy as np
 import torch
-from torch.utils.data import DataLoader
 from torch.utils.data import TensorDataset
 
+from probcal.data_modules.probcal_datamodule import ProbcalDataModule
 
-class TabularDataModule(L.LightningDataModule):
+
+class TabularDataModule(ProbcalDataModule):
     def __init__(
         self,
         dataset_path: str | Path,
@@ -15,11 +15,16 @@ class TabularDataModule(L.LightningDataModule):
         num_workers: int,
         persistent_workers: bool,
     ):
-        super().__init__()
-        self.dataset_path = dataset_path
-        self.batch_size = batch_size
-        self.num_workers = num_workers
-        self.persistent_workers = persistent_workers
+        self.dataset_path = Path(dataset_path)
+        super().__init__(
+            root_dir=self.dataset_path.parent,
+            batch_size=batch_size,
+            num_workers=num_workers,
+            persistent_workers=persistent_workers,
+        )
+
+    def prepare_data(self):
+        pass
 
     def setup(self, stage):
         data: dict[str, np.ndarray] = np.load(self.dataset_path)
@@ -43,31 +48,4 @@ class TabularDataModule(L.LightningDataModule):
         self.test = TensorDataset(
             torch.Tensor(X_test),
             torch.Tensor(y_test).unsqueeze(1),
-        )
-
-    def train_dataloader(self) -> DataLoader:
-        return DataLoader(
-            self.train,
-            batch_size=self.batch_size,
-            shuffle=True,
-            num_workers=self.num_workers,
-            persistent_workers=self.persistent_workers,
-        )
-
-    def val_dataloader(self) -> DataLoader:
-        return DataLoader(
-            self.val,
-            batch_size=self.batch_size,
-            shuffle=False,
-            num_workers=self.num_workers,
-            persistent_workers=self.persistent_workers,
-        )
-
-    def test_dataloader(self) -> DataLoader:
-        return DataLoader(
-            self.test,
-            batch_size=self.batch_size,
-            shuffle=False,
-            num_workers=self.num_workers,
-            persistent_workers=self.persistent_workers,
         )

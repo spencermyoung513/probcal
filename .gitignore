@@ -12,5 +12,5 @@ ignore/
 data
 
 # Specific exceptions
-!data/discrete_sine_wave/
+!data/discrete-wave/
 !weights

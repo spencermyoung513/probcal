@@ -3,7 +3,7 @@ from typing import Type
 import torch
 import torch.nn.functional as F
 from torch import nn
-from torchmetrics import Metric
+from torchmetrics import BootStrapper
 
 from probcal.enums import LRSchedulerType
 from probcal.enums import OptimizerType
@@ -57,8 +57,8 @@ class NaturalGaussianNN(ProbabilisticRegressionNN):
         )
         self.head = nn.Linear(self.backbone.output_dim, 2)
 
-        self.mp = MedianPrecision()
-        self.crps = ContinuousRankedProbabilityScore(mode="gaussian")
+        self.mp = BootStrapper(MedianPrecision())
+        self.crps = BootStrapper(ContinuousRankedProbabilityScore(mode="gaussian"))
         self.save_hyperparameters()
 
     def _forward_impl(self, x: torch.Tensor) -> torch.Tensor:
@@ -158,15 +158,7 @@ class NaturalGaussianNN(ProbabilisticRegressionNN):
     def _natural_to_var(self, eta_2: torch.Tensor) -> torch.Tensor:
         return -0.5 * torch.reciprocal(eta_2)
 
-    def _addl_test_metrics_dict(self) -> dict[str, Metric]:
-        return {
-            "mp": self.mp,
-            "crps": self.crps,
-        }
-
-    def _update_addl_test_metrics_batch(
-        self, x: torch.Tensor, y_hat: torch.Tensor, y: torch.Tensor
-    ):
+    def _update_addl_test_metrics(self, x: torch.Tensor, y_hat: torch.Tensor, y: torch.Tensor):
         eta_1, eta_2 = torch.split(y_hat, [1, 1], dim=-1)
         mu = self._natural_to_mu(eta_1, eta_2)
         var = self._natural_to_var(eta_2)
@@ -177,3 +169,9 @@ class NaturalGaussianNN(ProbabilisticRegressionNN):
 
         self.mp.update(precision)
         self.crps.update(torch.stack([mu, var], dim=1), targets)
+
+    def _log_addl_test_metrics(self):
+        for name, metric in zip(("mp", "crps"), (self.mp, self.crps)):
+            result = metric.compute()
+            self.log(f"{name}_mean", result["mean"])
+            self.log(f"{name}_std", result["std"])

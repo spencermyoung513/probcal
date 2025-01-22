@@ -35,7 +35,7 @@ if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument(
         "--model-type",
-        choices=["ddpn", "faithful", "gaussian", "natural", "nbinom", "poisson", "seitzer"],
+        choices=["faithful", "gaussian", "natural", "nbinom", "poisson", "seitzer"],
     )
     args = parser.parse_args()
     main(args.model_type)

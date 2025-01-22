@@ -1,0 +1,8 @@
+experiment_name: nbinom
+random_seed: 1998
+log_dir: results/discrete-wave
+head_type: negative_binomial
+model_ckpt_path: weights/discrete-wave/nbinom.ckpt
+dataset:
+  type: tabular
+  path: data/discrete-wave/discrete_sine_wave.npz

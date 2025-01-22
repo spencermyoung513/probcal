@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import asdict
 from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
@@ -8,7 +9,6 @@ from typing import Literal
 from typing import Sequence
 from typing import TypeAlias
 
-import lightning as L
 import numpy as np
 import open_clip
 import torch
@@ -20,6 +20,7 @@ from torch.utils.data import DataLoader
 from torchvision.transforms import Compose
 from tqdm import tqdm
 
+from probcal.data_modules.probcal_datamodule import ProbcalDataModule
 from probcal.enums import DatasetType
 from probcal.evaluation.kernels import laplacian_kernel
 from probcal.evaluation.kernels import polynomial_kernel
@@ -30,52 +31,65 @@ from probcal.models.probabilistic_regression_nn import ProbabilisticRegressionNN
 
 
 @dataclass
-class CCEResult:
-    cce_vals: np.ndarray
-    mean_cce: float
+class CCEResults:
+    expected_values: torch.Tensor  # (n,)
+    stdevs: torch.Tensor  # (n,)
+    quantiles: dict[str, torch.Tensor]  # Each is (n,)
+    mean_cce_bar: float
+    std_cce_bar: float
 
 
 @dataclass
-class ProbabilisticResults:
+class ECEResults:
+    mean_ece: float
+    std_ece: float
+    quantiles: dict[str, float]
+
+
+@dataclass
+class CalibrationResults:
+    targets: np.ndarray
     input_grid_2d: np.ndarray
-    regression_targets: np.ndarray
-    cce_results: list[CCEResult]
-    ece: float
+    cce: CCEResults
+    ece: ECEResults
 
     def save(self, filepath: str | Path):
-        if not str(filepath).endswith(".npz"):
-            raise ValueError("Filepath must have a .npz extension.")
+        """Save calibration results to the given filepath.
+
+        Args:
+            filepath (str | Path): Path to save results to. Must end with .pt
+
+        Raises:
+            ValueError: If the filepath does not end with .pt
+        """
+        if not str(filepath).endswith(".pt"):
+            raise ValueError("Filepath must have a .pt extension.")
         save_dict = {
             "input_grid_2d": self.input_grid_2d,
-            "regression_targets": self.regression_targets,
-            "ece": self.ece,
+            "targets": self.targets,
+            "cce": asdict(self.cce),
+            "ece": asdict(self.ece),
         }
-        save_dict.update(
-            {f"cce_vals_{i}": self.cce_results[i].cce_vals for i in range(len(self.cce_results))}
-        )
-        save_dict.update(
-            {f"mean_cce_{i}": self.cce_results[i].mean_cce for i in range(len(self.cce_results))}
-        )
-        np.savez(filepath, **save_dict)
+        torch.save(save_dict, filepath)
 
     @staticmethod
-    def load(filepath: str | Path) -> ProbabilisticResults:
-        data: dict[str, np.ndarray] = np.load(filepath)
-        num_trials = max(
-            int(k.split("mean_cce_")[-1]) + 1 for k in data.keys() if k.startswith("mean_cce_")
-        )
-        cce_results = [
-            CCEResult(
-                cce_vals=data[f"cce_vals_{i}"],
-                mean_cce=data[f"mean_cce_{i}"],
-            )
-            for i in range(num_trials)
-        ]
-        return ProbabilisticResults(
+    def load(filepath: str | Path) -> CalibrationResults:
+        """Load calibration results from the given filepath.
+
+        Args:
+            filepath (str | Path): Path to load results from.
+
+        Returns:
+            CalibrationResults: Python representation of the results.
+        """
+        data = torch.load(filepath)
+        ece_results = ECEResults(**data["ece"])
+        cce_results = CCEResults(**data["cce"])
+        return CalibrationResults(
             input_grid_2d=data["input_grid_2d"],
-            regression_targets=data["regression_targets"],
-            cce_results=cce_results,
-            ece=data["ece"].item(),
+            targets=data["regression_targets"],
+            cce=cce_results,
+            ece=ece_results,
         )
 
 
@@ -83,24 +97,35 @@ KernelFunction: TypeAlias = Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
 
 
 @dataclass
-class ProbabilisticEvaluatorSettings:
+class CCESettings:
+    use_val_split_for_S: bool = False
+    num_trials: int = 5
+    num_mc_samples: int = 1
+    input_kernel: Literal["polynomial"] | KernelFunction = "polynomial"
+    output_kernel: Literal["rbf", "laplacian"] | KernelFunction = "rbf"
+    lmbda: float = 0.1
+
+
+@dataclass
+class ECESettings:
+    num_bins: int = 50
+    weights: Literal["uniform", "frequency"] = "frequency"
+    alpha: float = 1.0
+
+
+@dataclass
+class CalibrationEvaluatorSettings:
     dataset_type: DatasetType = DatasetType.IMAGE
     device: torch.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    cce_use_val_split_for_S: bool = False
-    cce_num_trials: int = 5
-    cce_input_kernel: Literal["polynomial"] | KernelFunction = "polynomial"
-    cce_output_kernel: Literal["rbf", "laplacian"] | KernelFunction = "rbf"
-    cce_lambda: float = 0.1
-    cce_num_samples: int = 1
-    ece_bins: int = 50
-    ece_weights: Literal["uniform", "frequency"] = "frequency"
-    ece_alpha: float = 1.0
+    num_bootstrap_samples: int = 10
+    cce_settings: CCESettings = CCESettings()
+    ece_settings: ECESettings = ECESettings()
 
 
-class ProbabilisticEvaluator:
+class CalibrationEvaluator:
     """Helper object to evaluate the probabilistic fit of a neural net."""
 
-    def __init__(self, settings: ProbabilisticEvaluatorSettings):
+    def __init__(self, settings: CalibrationEvaluatorSettings = CalibrationEvaluatorSettings()):
         self.settings = settings
         self.device = settings.device
         self._clip_model = None
@@ -109,51 +134,87 @@ class ProbabilisticEvaluator:
 
     @torch.inference_mode()
     def __call__(
-        self, model: ProbabilisticRegressionNN, data_module: L.LightningDataModule
-    ) -> ProbabilisticResults:
+        self, model: ProbabilisticRegressionNN, data_module: ProbcalDataModule
+    ) -> CalibrationResults:
         model.to(self.device)
         data_module.prepare_data()
-        data_module.setup("test")
-        val_dataloader = data_module.val_dataloader()
-        test_dataloader = data_module.test_dataloader()
+        data_module.setup("")
 
-        print(f"Running {self.settings.cce_num_trials} CCE computation(s)...")
-        cce_results = []
-        for i in range(self.settings.cce_num_trials):
-            cce_vals, grid, targets = self.compute_cce(
-                model=model,
-                grid_loader=test_dataloader,
-                sample_loader=val_dataloader
-                if self.settings.cce_use_val_split_for_S
-                else test_dataloader,
-                return_grid=True,
-                return_targets=True,
-            )
+        b = self.settings.num_bootstrap_samples
+        t = self.settings.cce_settings.num_trials
+        n = len(data_module.test)
 
-            # We only need to save the input grid / regression targets once.
-            if i == 0:
-                if self.settings.dataset_type == DatasetType.TABULAR:
-                    grid_2d = np.array([])
-                else:
-                    print("Running TSNE to project grid to 2d...")
-                    grid_2d = TSNE().fit_transform(grid.detach().cpu().numpy())
-                regression_targets = targets.detach().cpu().numpy()
+        ece_draws = torch.zeros(b)
+        cce_draws = torch.zeros(b, t, n)
+        for i in tqdm(range(b), desc="Computing calibration metrics on bootstrap samples..."):
 
-            cce_results.append(
-                CCEResult(
-                    cce_vals=cce_vals.detach().cpu().numpy(),
-                    mean_cce=cce_vals.mean().item(),
+            # We first define our iterator over a bootstrap sample of S.
+            if self.settings.cce_settings.use_val_split_for_S:
+                data_module.set_bootstrap_indices("val")
+                sample_loader = data_module.val_dataloader()
+            else:
+                data_module.set_bootstrap_indices("test")
+                sample_loader = data_module.test_dataloader()
+
+            # We always compute CCE over the same test points. The bootstrap only modifies how we define S.
+            data_module.clear_bootstrap_indices("test")
+            grid_loader = data_module.test_dataloader()
+
+            # The ECE needs its own bootstrap sample.
+            data_module.set_bootstrap_indices("test")
+            ece_loader = data_module.test_dataloader()
+
+            for j in tqdm(range(t), desc=f"Computing CCE across {t} trials...", leave=False):
+                cce_vals, grid, targets = self.compute_cce(
+                    model=model,
+                    grid_loader=grid_loader,
+                    sample_loader=sample_loader,
+                    return_grid=True,
+                    return_targets=True,
                 )
+
+                cce_draws[i, j] = cce_vals
+
+                # We only need to save the input grid / regression targets once.
+                if i == 0 and j == 0:
+                    if self.settings.dataset_type == DatasetType.TABULAR:
+                        grid_2d = np.array([])
+                    else:
+                        print("Running TSNE to project grid to 2d...")
+                        grid_2d = TSNE().fit_transform(grid.detach().cpu().numpy())
+                    regression_targets = targets.detach().cpu().numpy()
+
+            ece_draws[i] = self.compute_ece(model, ece_loader)
+
+            flattened_draws = cce_draws.flatten(0, 1)
+            expected_values = flattened_draws.mean(dim=0)
+            stdevs = flattened_draws.std(dim=0)
+            q_vals = ("0.025", "0.05", "0.1", "0.9", "0.95", "0.975")
+            cce_quantiles = {
+                q: torch.quantile(flattened_draws, torch.tensor(float(q)), dim=0) for q in q_vals
+            }
+            mean_cce_bar = cce_draws.mean(dim=2).flatten().mean().item()
+            std_cce_bar = cce_draws.mean(dim=2).flatten().std().item()
+            cce_results = CCEResults(
+                expected_values=expected_values,
+                stdevs=stdevs,
+                quantiles=cce_quantiles,
+                mean_cce_bar=mean_cce_bar,
+                std_cce_bar=std_cce_bar,
             )
 
-        print("Computing ECE...")
-        ece = self.compute_ece(model, test_dataloader)
+            ece_quantiles = {q: torch.quantile(ece_draws, torch.tensor(float(q))) for q in q_vals}
+            ece_results = ECEResults(
+                mean_ece=ece_draws.mean().item(),
+                std_ece=ece_draws.std().item(),
+                quantiles=ece_quantiles,
+            )
 
-        return ProbabilisticResults(
+        return CalibrationResults(
             input_grid_2d=grid_2d,
-            regression_targets=regression_targets,
-            cce_results=cce_results,
-            ece=ece,
+            targets=regression_targets,
+            cce=cce_results,
+            ece=ece_results,
         )
 
     def compute_cce(
@@ -169,7 +230,7 @@ class ProbabilisticEvaluator:
         """Compute the CCE between the given model and data samples.
 
         Args:
-            model (DiscreteRegressionNN): Probabilistic regression model to compute the CCE for.
+            model (ProbabilisticRegressionNN): Probabilistic regression model to compute the CCE for.
             grid_loader (DataLoader): DataLoader with the data inputs to compute CCE over.
             sample_loader (DataLoader): DataLoader with the data inputs/outputs that define S (from which we form our two samples).
             return_grid (bool, optional): Whether/not to return the grid of values the CCE was computed over. Defaults to False.
@@ -200,7 +261,7 @@ class ProbabilisticEvaluator:
             y_prime=y_prime,
             x_kernel=x_kernel,
             y_kernel=y_kernel,
-            lmbda=self.settings.cce_lambda,
+            lmbda=self.settings.cce_settings.lmbda,
         )
         return_obj = [cce_vals]
         if return_grid:
@@ -216,7 +277,7 @@ class ProbabilisticEvaluator:
         """Compute the regression ECE of the given model over the dataset spanned by the data loader.
 
         Args:
-            model (DiscreteRegressionNN): Probabilistic regression model to compute the ECE for.
+            model (ProbabilisticRegressionNN): Probabilistic regression model to compute the ECE for.
             data_loader (DataLoader): DataLoader with the test data to compute ECE over.
 
         Returns:
@@ -224,9 +285,7 @@ class ProbabilisticEvaluator:
         """
         all_outputs = []
         all_targets = []
-        for inputs, targets in tqdm(
-            data_loader, desc="Getting posterior predictive dists for ECE..."
-        ):
+        for inputs, targets in data_loader:
             all_outputs.append(model.predict(inputs.to(self.device)))
             all_targets.append(targets.to(self.device))
 
@@ -237,36 +296,36 @@ class ProbabilisticEvaluator:
         ece = compute_regression_ece(
             y_true=all_targets,
             posterior_predictive=posterior_predictive,
-            num_bins=self.settings.ece_bins,
-            weights=self.settings.ece_weights,
-            alpha=self.settings.ece_alpha,
+            num_bins=self.settings.ece_settings.num_bins,
+            weights=self.settings.ece_settings.weights,
+            alpha=self.settings.ece_settings.alpha,
         )
         return ece
 
     def plot_cce_results(
         self,
-        results: ProbabilisticResults,
+        results: CalibrationResults,
         gridsize: int = 100,
-        trial_index: int = 0,
         show: bool = False,
     ) -> plt.Figure:
-        """Given a set of evaluation results and an existing axes, plot the CCE values against their 2d input projections on a hexbin grid.
+        """Given a set of evaluation results and an existing axes, plot the CCE values against their 2d input projections on a hexbin grid. Also depict their bootstrapped uncertainties.
 
         Args:
-            results (EvaluationResults): Results from a ProbabilsticEvaluator.
+            results (CalibrationResults): Results from a CalibrationEvaluator.
             ax (plt.Axes): The axes to draw the plot on.
             gridsize (int, optional): Determines the granularity of the contour plot (higher numbers are more granular). Defaults to 100.
-            trial_index (int, optional): Which CCE computation to use for the plot (since multiple trials are possible). Defaults to 0 (the first).
             show (bool, optional): Whether/not to show the resultant figure with plt.show(). Defaults to False.
 
         Returns:
             Figure: Matplotlib figure with the visualized CCE values.
         """
-        cce_vals = results.cce_results[trial_index].cce_vals
-        mean_cce = results.cce_results[trial_index].mean_cce
+        cce_means = results.cce.expected_values
+        cce_stdevs = results.cce.draws.flatten(0, 1).std(dim=0)
+        mean_cce_bar = results.cce.mean_cce_bar
+        std_cce_bar = results.cce.std_cce_bar
         input_grid_2d = results.input_grid_2d
 
-        fig, axs = plt.subplots(1, 2, figsize=(10, 4))
+        fig, axs = plt.subplots(1, 3, figsize=(9, 3))
         axs: Sequence[plt.Axes]
         grid_x, grid_y = np.mgrid[
             min(input_grid_2d[:, 0]) : max(input_grid_2d[:, 0]) : gridsize * 1j,
@@ -276,17 +335,22 @@ class ProbabilisticEvaluator:
         axs[0].set_title("Data")
         grid_data = griddata(
             input_grid_2d,
-            results.regression_targets,
+            results.targets,
             (grid_x, grid_y),
             method="linear",
         )
         mappable_0 = axs[0].contourf(grid_x, grid_y, grid_data, levels=5, cmap="viridis")
         fig.colorbar(mappable_0, ax=axs[0])
 
-        axs[1].set_title(f"Mean CCE: {mean_cce:.4f}")
-        grid_cce = griddata(input_grid_2d, cce_vals, (grid_x, grid_y), method="linear")
-        mappable_1 = axs[1].contourf(grid_x, grid_y, grid_cce, levels=5, cmap="viridis")
+        axs[1].set_title(rf"$\overline{{\mathrm{{CCE}}}}$: {mean_cce_bar:.3f} ({std_cce_bar:.3f})")
+        grid_cce_means = griddata(input_grid_2d, cce_means, (grid_x, grid_y), method="linear")
+        mappable_1 = axs[1].contourf(grid_x, grid_y, grid_cce_means, levels=5, cmap="viridis")
         fig.colorbar(mappable_1, ax=axs[1])
+
+        axs[2].set_title("Uncertainty")
+        grid_cce_stdevs = griddata(input_grid_2d, cce_stdevs, (grid_x, grid_y), method="linear")
+        mappable_2 = axs[1].contourf(grid_x, grid_y, grid_cce_stdevs, levels=5, cmap="viridis")
+        fig.colorbar(mappable_2, ax=axs[2])
 
         fig.tight_layout()
 
@@ -298,28 +362,29 @@ class ProbabilisticEvaluator:
         self,
         model: ProbabilisticRegressionNN,
         data_loader: DataLoader,
-        train: False,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         x = []
         y = []
         x_prime = []
         y_prime = []
-        for inputs, targets in tqdm(
-            data_loader, desc="Sampling from posteriors for MCMD computation..."
-        ):
+        for inputs, targets in data_loader:
             if self.settings.dataset_type == DatasetType.TABULAR:
                 x.append(inputs)
             elif self.settings.dataset_type == DatasetType.IMAGE:
-                x.append(self.clip_model.encode_image(inputs.to(self.device), normalize=False))
+                x.append(self.clip_model.encode_image(inputs.to(self.device), normalize=True))
             elif self.settings.dataset_type == DatasetType.TEXT:
-                x.append(self.clip_model.encode_text(inputs.to(self.device), normalize=False))
+                x.append(self.clip_model.encode_text(inputs.to(self.device), normalize=True))
             y.append(targets.to(self.device))
             y_hat = model.predict(inputs.to(self.device))
             x_prime.append(
-                torch.repeat_interleave(x[-1], repeats=self.settings.cce_num_samples, dim=0)
+                torch.repeat_interleave(
+                    x[-1], repeats=self.settings.cce_settings.num_mc_samples, dim=0
+                )
             )
             y_prime.append(
-                model.sample(y_hat, num_samples=self.settings.cce_num_samples).flatten()
+                model.sample(
+                    y_hat, num_samples=self.settings.cce_settings.num_mc_samples
+                ).flatten()
             )
 
         x = torch.cat(x, dim=0)
@@ -330,14 +395,14 @@ class ProbabilisticEvaluator:
         return x, y, x_prime, y_prime
 
     def _get_kernel_functions(self, y: torch.Tensor) -> tuple[KernelFunction, KernelFunction]:
-        if self.settings.cce_input_kernel == "polynomial":
+        if self.settings.cce_settings.input_kernel == "polynomial":
             x_kernel = polynomial_kernel
         else:
-            x_kernel = self.settings.cce_input_kernel
+            x_kernel = self.settings.cce_settings.input_kernel
 
-        if self.settings.cce_output_kernel == "rbf":
+        if self.settings.cce_settings.output_kernel == "rbf":
             y_kernel = partial(rbf_kernel, gamma=(1 / (2 * y.float().var())).item())
-        elif self.settings.cce_output_kernel == "laplacian":
+        elif self.settings.cce_settings.output_kernel == "laplacian":
             y_kernel = partial(laplacian_kernel, gamma=(1 / (2 * y.float().var())).item())
 
         return x_kernel, y_kernel

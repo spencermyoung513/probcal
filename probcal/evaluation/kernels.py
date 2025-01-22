@@ -69,7 +69,7 @@ def laplacian_kernel(
 def polynomial_kernel(
     x: torch.Tensor,
     x_prime: torch.Tensor,
-    gamma: float | None = None,
+    gamma: float = 1.0,
     coef0: float = 1.0,
     degree: int = 3,
 ) -> torch.Tensor:
@@ -78,7 +78,7 @@ def polynomial_kernel(
     Args:
         x (torch.Tensor): A (n,) or (n,d) feature tensor.
         x_prime (torch.Tensor): A (m,) or (m,d) feature tensor.
-        gamma (float | None, optional): Gamma parameter for the kernel. If None, defaults to 1.0 / d.
+        gamma (float, optional): Gamma parameter for the kernel. Defaults to 1.0.
         coef0 (float, optional): Coef0 parameter for the kernel (added to the inner product before applying the exponent). Defaults to 1.
         degree (int, optional): Degree of the polynomial kernel. Defaults to 3.
 
@@ -100,8 +100,6 @@ def polynomial_kernel(
     if x.shape[-1] != x_prime.shape[-1]:
         raise ValueError("x and x_prime must have same feature dimension.")
 
-    if gamma is None:
-        gamma = 1.0 / x.shape[1]
     K = torch.matmul(x, x_prime.T)
     K *= gamma
     K += coef0

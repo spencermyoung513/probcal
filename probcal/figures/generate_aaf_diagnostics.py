@@ -18,14 +18,12 @@ from probcal.data_modules import AAFDataModule
 from probcal.evaluation.kernels import polynomial_kernel
 from probcal.evaluation.kernels import rbf_kernel
 from probcal.evaluation.metrics import compute_mcmd_torch
-from probcal.models import DoublePoissonNN
 from probcal.models import FaithfulGaussianNN
 from probcal.models import GaussianNN
 from probcal.models import NaturalGaussianNN
 from probcal.models import NegBinomNN
 from probcal.models import PoissonNN
 from probcal.models.probabilistic_regression_nn import ProbabilisticRegressionNN
-from probcal.training.losses import double_poisson_nll
 from probcal.training.losses import faithful_gaussian_nll
 from probcal.training.losses import gaussian_nll
 from probcal.training.losses import natural_gaussian_nll
@@ -50,9 +48,7 @@ def draw_mcmd_samples_and_compute_losses(
     val_embeddings: torch.Tensor,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
 
-    if isinstance(model, DoublePoissonNN):
-        loss_fn = double_poisson_nll
-    elif isinstance(model, GaussianNN):
+    if isinstance(model, GaussianNN):
         loss_fn = gaussian_nll
     elif isinstance(model, FaithfulGaussianNN):
         loss_fn = faithful_gaussian_nll
@@ -261,7 +257,7 @@ if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument(
         "--model-type",
-        choices=["ddpn", "faithful", "natural", "gaussian", "seitzer", "poisson", "nbinom"],
+        choices=["faithful", "natural", "gaussian", "seitzer", "poisson", "nbinom"],
     )
     parser.add_argument("--model-ckpt", type=str)
     parser.add_argument(
@@ -270,9 +266,7 @@ if __name__ == "__main__":
     parser.add_argument("-n", type=int, default=5)
     args = parser.parse_args()
 
-    if args.model_type == "ddpn":
-        constructor = DoublePoissonNN
-    elif args.model_type == "faithful":
+    if args.model_type == "faithful":
         constructor = FaithfulGaussianNN
     elif args.model_type == "natural":
         constructor = NaturalGaussianNN

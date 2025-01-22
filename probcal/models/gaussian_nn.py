@@ -4,7 +4,7 @@ from typing import Type
 
 import torch
 from torch import nn
-from torchmetrics import Metric
+from torchmetrics import BootStrapper
 
 from probcal.enums import BetaSchedulerType
 from probcal.enums import LRSchedulerType
@@ -79,8 +79,8 @@ class GaussianNN(ProbabilisticRegressionNN):
         )
         self.head = nn.Linear(self.backbone.output_dim, 2)
 
-        self.mp = MedianPrecision()
-        self.crps = ContinuousRankedProbabilityScore(mode="gaussian")
+        self.mp = BootStrapper(MedianPrecision())
+        self.crps = BootStrapper(ContinuousRankedProbabilityScore(mode="gaussian"))
         self.save_hyperparameters()
 
     def _forward_impl(self, x: torch.Tensor) -> torch.Tensor:
@@ -184,15 +184,7 @@ class GaussianNN(ProbabilisticRegressionNN):
             self.loss_fn = partial(gaussian_nll, beta=self.beta_scheduler.current_value)
         super().on_train_epoch_end()
 
-    def _addl_test_metrics_dict(self) -> dict[str, Metric]:
-        return {
-            "mp": self.mp,
-            "crps": self.crps,
-        }
-
-    def _update_addl_test_metrics_batch(
-        self, x: torch.Tensor, y_hat: torch.Tensor, y: torch.Tensor
-    ):
+    def _update_addl_test_metrics(self, x: torch.Tensor, y_hat: torch.Tensor, y: torch.Tensor):
         mu, var = torch.split(y_hat, [1, 1], dim=-1)
         mu = mu.flatten()
         var = var.flatten()
@@ -201,3 +193,9 @@ class GaussianNN(ProbabilisticRegressionNN):
 
         self.mp.update(precision)
         self.crps.update(y_hat, targets)
+
+    def _log_addl_test_metrics(self):
+        for name, metric in zip(("mp", "crps"), (self.mp, self.crps)):
+            result = metric.compute()
+            self.log(f"{name}_mean", result["mean"])
+            self.log(f"{name}_std", result["std"])

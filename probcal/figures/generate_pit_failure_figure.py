@@ -3,7 +3,6 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
-import torch
 from scipy.stats import nbinom
 from scipy.stats import norm
 from scipy.stats import poisson
@@ -12,7 +11,6 @@ from sklearn.metrics.pairwise import rbf_kernel
 
 from probcal.evaluation.metrics import compute_mcmd_numpy
 from probcal.evaluation.metrics import compute_regression_ece
-from probcal.random_variables import DoublePoisson
 
 
 def plot_posterior_predictive(
@@ -81,16 +79,8 @@ def plot_regression_calibration_curve_cdf(
         show (bool): Specifies whether/not to display the resultant plot.
     """
     epsilon = 1e-4
-    if isinstance(posterior_predictive, DoublePoisson):
-        p_vals = torch.linspace(0 + epsilon, 1 - epsilon, steps=num_bins).reshape(-1, 1)
-        actual_pct_where_cdf_less_than_p = (
-            (posterior_predictive.cdf(y_true) <= p_vals).float().mean(axis=1)
-        )
-    else:
-        p_vals = np.linspace(0 + epsilon, 1 - epsilon, num=num_bins).reshape(-1, 1)
-        actual_pct_where_cdf_less_than_p = (posterior_predictive.cdf(y_true) <= p_vals).mean(
-            axis=1
-        )
+    p_vals = np.linspace(0 + epsilon, 1 - epsilon, num=num_bins).reshape(-1, 1)
+    actual_pct_where_cdf_less_than_p = (posterior_predictive.cdf(y_true) <= p_vals).mean(axis=1)
     expected_pct_where_cdf_less_than_p = p_vals
 
     ece = compute_regression_ece(
@@ -178,7 +168,6 @@ def produce_figure(save_path: str | Path):
     nbinom_y = nbinom.rvs(
         n=(mean**2 / (variance + eps - mean)).round(), p=(mean / (variance + eps))
     )
-    ddpn_y = DoublePoisson(mu=mean, phi=1).rvs(size=(1, len(mean))).flatten()
 
     mu_hat = mean
     gaussian_post_pred = norm(loc=mean, scale=np.sqrt(variance))
@@ -191,10 +180,7 @@ def produce_figure(save_path: str | Path):
         n=(mean**2 / (variance + eps - mean)).round(), p=(mean / (variance + eps))
     )
 
-    ddpn_mu_hat = mean
-    ddpn_post_pred = DoublePoisson(mu=torch.tensor(mean), phi=torch.tensor(1))
-
-    fig, axs = plt.subplots(4, 4, figsize=(7, 5), sharey="row")
+    fig, axs = plt.subplots(4, 3, figsize=(7, 5), sharey="row")
     hist_alpha = 0.6
     hist_rwidth = 0.9
 
@@ -268,27 +254,6 @@ def produce_figure(save_path: str | Path):
     axs[1, 2].set_yticks([])
     plot_regression_calibration_curve_cdf(nbinom_y, nbinom_post_pred, ax=axs[2, 2], show=False)
     plot_cce_curve(cont_x, nbinom_y, nbinom_post_pred, ax=axs[3, 2])
-
-    plot_posterior_predictive(
-        cont_x,
-        ddpn_y,
-        ddpn_mu_hat,
-        ddpn_post_pred.ppf(0.025),
-        ddpn_post_pred.ppf(0.975),
-        ax=axs[0, 3],
-        show=False,
-        error_color="gray",
-    )
-    axs[1, 3].hist(
-        ddpn_post_pred.cdf(ddpn_y),
-        density=True,
-        alpha=hist_alpha,
-        rwidth=hist_rwidth,
-    )
-    axs[1, 3].set_xticks([])
-    axs[1, 3].set_yticks([])
-    plot_regression_calibration_curve_cdf(ddpn_y, ddpn_post_pred, ax=axs[2, 3], show=False)
-    plot_cce_curve(cont_x, ddpn_y, ddpn_post_pred, ax=axs[3, 3])
 
     row_labels = ["Posterior Predictive", "PIT", "Reliability Diagram", "CCE"]
     for ax, row in zip(axs[:, 0], row_labels):

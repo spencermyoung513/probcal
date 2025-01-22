@@ -1,9 +1,9 @@
-experiment_name: discrete_sine_wave_ddpn
+experiment_name: poisson
 random_seed: 1998
-head_type: double_poisson
+head_type: poisson
 dataset:
   type: tabular
-  path: data/discrete_sine_wave/discrete_sine_wave.npz
+  path: data/discrete-wave/discrete_sine_wave.npz
   input_dim: 1
 training:
   accelerator: cpu

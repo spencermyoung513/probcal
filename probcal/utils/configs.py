@@ -27,6 +27,7 @@ class BaseConfig(object):
         input_dim: int,
         hidden_dim: int,
         batch_size: int,
+        num_workers: int,
         accelerator_type: AcceleratorType,
         log_dir: Path,
     ):
@@ -38,6 +39,7 @@ class BaseConfig(object):
         self.input_dim = input_dim
         self.hidden_dim = hidden_dim
         self.batch_size = batch_size
+        self.num_workers = num_workers
         self.accelerator_type = accelerator_type
         self.log_dir = log_dir
 
@@ -110,6 +112,7 @@ class TrainingConfig(BaseConfig):
         chkp_dir: Path,
         chkp_freq: int,
         batch_size: int,
+        num_workers: int,
         num_epochs: int,
         optim_type: OptimizerType,
         optim_kwargs: dict,
@@ -136,6 +139,7 @@ class TrainingConfig(BaseConfig):
             input_dim=input_dim,
             hidden_dim=hidden_dim,
             batch_size=batch_size,
+            num_workers=num_workers,
             accelerator_type=accelerator_type,
             log_dir=log_dir,
         )
@@ -172,6 +176,7 @@ class TrainingConfig(BaseConfig):
         chkp_dir = Path(training_dict["chkp_dir"])
         chkp_freq = training_dict["chkp_freq"]
         batch_size = training_dict["batch_size"]
+        num_workers = training_dict.get("num_workers", 8)
         num_epochs = training_dict["num_epochs"]
         precision = training_dict.get("precision")
         optim_type = OptimizerType(training_dict["optimizer"]["type"])
@@ -209,6 +214,7 @@ class TrainingConfig(BaseConfig):
             chkp_dir=chkp_dir,
             chkp_freq=chkp_freq,
             batch_size=batch_size,
+            num_workers=num_workers,
             num_epochs=num_epochs,
             optim_type=optim_type,
             optim_kwargs=optim_kwargs,
@@ -241,13 +247,14 @@ class EvaluationConfig(BaseConfig):
         input_dim: int,
         hidden_dim: int,
         batch_size: int,
+        num_workers: int,
         accelerator_type: AcceleratorType,
         log_dir: Path,
         model_ckpt_path: Path,
         cce_num_trials: int,
         cce_output_kernel: Literal["rbf", "laplacian"],
         cce_lambda: float,
-        cce_num_samples: int,
+        cce_num_mc_samples: int,
         ece_bins: int,
         ece_weights: Literal["uniform", "frequency"],
         ece_alpha: float,
@@ -261,6 +268,7 @@ class EvaluationConfig(BaseConfig):
             input_dim=input_dim,
             hidden_dim=hidden_dim,
             batch_size=batch_size,
+            num_workers=num_workers,
             accelerator_type=accelerator_type,
             log_dir=log_dir,
         )
@@ -268,7 +276,7 @@ class EvaluationConfig(BaseConfig):
         self.cce_num_trials = cce_num_trials
         self.cce_output_kernel = cce_output_kernel
         self.cce_lambda = cce_lambda
-        self.cce_num_samples = cce_num_samples
+        self.cce_num_mc_samples = cce_num_mc_samples
         self.ece_bins = ece_bins
         self.ece_weights = ece_weights
         self.ece_alpha = ece_alpha
@@ -298,18 +306,23 @@ class EvaluationConfig(BaseConfig):
         input_dim = config_dict["dataset"].get("input_dim", 1)
         hidden_dim = config_dict.get("hidden_dim", 64)
         batch_size = config_dict.get("batch_size", 1)
+        num_workers = config_dict.get("num_workers", 0)
         accelerator_type = AcceleratorType(config_dict.get("accelerator", "cpu"))
-        cce_num_trials = config_dict.get("cce_num_trials", 1)
-        cce_output_kernel = config_dict.get("cce_output_kernel", "rbf")
+
+        cce_settings: dict = config_dict.get("cce_settings", {})
+        cce_num_trials = cce_settings.get("num_trials", 5)
+        cce_output_kernel = cce_settings.get("output_kernel", "rbf")
         if cce_output_kernel not in ("rbf", "laplacian"):
-            raise ValueError("cce_output_kernel must be either 'rbf' or 'laplacian'.")
-        cce_lambda = config_dict.get("cce_lambda", 0.1)
-        cce_num_samples = config_dict.get("cce_num_samples", 1)
-        ece_bins = config_dict.get("ece_bins", 50)
-        ece_weights = config_dict.get("ece_weights", "frequency")
+            raise ValueError("output_kernel for CCE must be either 'rbf' or 'laplacian'.")
+        cce_lambda = cce_settings.get("lambda", 0.1)
+        cce_num_mc_samples = cce_settings.get("num_mc_samples", 1)
+
+        ece_settings: dict = config_dict.get("ece_settings", {})
+        ece_bins = ece_settings.get("num_bins", 50)
+        ece_weights = ece_settings.get("weights", "frequency")
         if ece_weights not in ("frequency", "uniform"):
-            raise ValueError("ece_weights must be either 'frequency' or 'uniform'.")
-        ece_alpha = config_dict.get("ece_alpha", 1.0)
+            raise ValueError("weights for ECE must be either 'frequency' or 'uniform'.")
+        ece_alpha = ece_settings.get("alpha", 1.0)
 
         return EvaluationConfig(
             experiment_name=experiment_name,
@@ -320,13 +333,14 @@ class EvaluationConfig(BaseConfig):
             input_dim=input_dim,
             hidden_dim=hidden_dim,
             batch_size=batch_size,
+            num_workers=num_workers,
             accelerator_type=accelerator_type,
             log_dir=log_dir,
             model_ckpt_path=model_ckpt_path,
             cce_num_trials=cce_num_trials,
             cce_output_kernel=cce_output_kernel,
             cce_lambda=cce_lambda,
-            cce_num_samples=cce_num_samples,
+            cce_num_mc_samples=cce_num_mc_samples,
             ece_bins=ece_bins,
             ece_weights=ece_weights,
             ece_alpha=ece_alpha,

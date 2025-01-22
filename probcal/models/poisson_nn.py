@@ -5,7 +5,7 @@ from typing import Type
 import torch
 from torch import nn
 from torch.nn.functional import poisson_nll_loss
-from torchmetrics import Metric
+from torchmetrics import BootStrapper
 
 from probcal.enums import LRSchedulerType
 from probcal.enums import OptimizerType
@@ -58,9 +58,8 @@ class PoissonNN(ProbabilisticRegressionNN):
         )
         self.head = nn.Linear(self.backbone.output_dim, 1)
 
-        self.mp = MedianPrecision()
-        self.crps = ContinuousRankedProbabilityScore(mode="discrete")
-
+        self.mp = BootStrapper(MedianPrecision())
+        self.crps = BootStrapper(ContinuousRankedProbabilityScore(mode="discrete"))
         self.save_hyperparameters()
 
     def _forward_impl(self, x: torch.Tensor) -> torch.Tensor:
@@ -141,15 +140,7 @@ class PoissonNN(ProbabilisticRegressionNN):
         lmbda = y_hat.exp() if training else y_hat
         return lmbda.floor()
 
-    def _addl_test_metrics_dict(self) -> dict[str, Metric]:
-        return {
-            "mp": self.mp,
-            "crps": self.crps,
-        }
-
-    def _update_addl_test_metrics_batch(
-        self, x: torch.Tensor, y_hat: torch.Tensor, y: torch.Tensor
-    ):
+    def _update_addl_test_metrics(self, x: torch.Tensor, y_hat: torch.Tensor, y: torch.Tensor):
         lmbda = y_hat.flatten()
         targets = y.flatten()
         precision = 1 / lmbda
@@ -159,3 +150,9 @@ class PoissonNN(ProbabilisticRegressionNN):
 
         self.mp.update(precision)
         self.crps.update(probs_over_support, targets)
+
+    def _log_addl_test_metrics(self):
+        for name, metric in zip(("mp", "crps"), (self.mp, self.crps)):
+            result = metric.compute()
+            self.log(f"{name}_mean", result["mean"])
+            self.log(f"{name}_std", result["std"])

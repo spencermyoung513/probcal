@@ -6,12 +6,11 @@ import lightning as L
 import torch
 from torchmetrics import MeanAbsoluteError
 from torchmetrics import MeanSquaredError
-from torchmetrics import Metric
+from torchmetrics.wrappers import BootStrapper
 
 from probcal.enums import LRSchedulerType
 from probcal.enums import OptimizerType
 from probcal.models.backbones import Backbone
-from probcal.random_variables.discrete_random_variable import DiscreteRandomVariable
 
 
 class ProbabilisticRegressionNN(L.LightningModule):
@@ -60,8 +59,8 @@ class ProbabilisticRegressionNN(L.LightningModule):
         self.train_mae = MeanAbsoluteError()
         self.val_rmse = MeanSquaredError(squared=False)
         self.val_mae = MeanAbsoluteError()
-        self.test_rmse = MeanSquaredError(squared=False)
-        self.test_mae = MeanAbsoluteError()
+        self.test_rmse = BootStrapper(MeanSquaredError(squared=False))
+        self.test_mae = BootStrapper(MeanAbsoluteError())
 
     def configure_optimizers(self) -> dict:
         if self.optim_type is None:
@@ -146,7 +145,7 @@ class ProbabilisticRegressionNN(L.LightningModule):
 
     def predictive_dist(
         self, y_hat: torch.Tensor, training: bool = False
-    ) -> torch.distributions.Distribution | DiscreteRandomVariable:
+    ) -> torch.distributions.Distribution:
         """Transform the network's outputs into the implied predictive distribution.
 
         Args:
@@ -154,7 +153,7 @@ class ProbabilisticRegressionNN(L.LightningModule):
             training (bool, optional): Boolean indicator specifying if `y_hat` is a training output or not. This particularly matters when outputs are in log space during training, for example. Defaults to False.
 
         Returns:
-            torch.distributions.Distribution | DiscreteRandomVariable: The predictive distribution.
+            torch.distributions.Distribution: The predictive distribution.
         """
         return self._predictive_dist_impl(y_hat, training)
 
@@ -209,12 +208,16 @@ class ProbabilisticRegressionNN(L.LightningModule):
         point_predictions = self.point_prediction(y_hat, training=False).flatten()
         self.test_rmse.update(point_predictions, y.flatten().float())
         self.test_mae.update(point_predictions, y.flatten().float())
-        self._update_addl_test_metrics_batch(x, y_hat, y.view(-1, 1).float())
+        self._update_addl_test_metrics(x, y_hat, y.view(-1, 1).float())
 
-        self.log("test_rmse", self.test_rmse, on_epoch=True)
-        self.log("test_mae", self.test_mae, on_epoch=True)
-        for name, metric_tracker in self._addl_test_metrics_dict().items():
-            self.log(name, metric_tracker, on_epoch=True)
+    def on_test_epoch_end(self):
+        test_rmse_result = self.test_rmse.compute()
+        test_mae_result = self.test_mae.compute()
+        self.log("test_rmse_mean", test_rmse_result["mean"])
+        self.log("test_rmse_std", test_rmse_result["std"])
+        self.log("test_mae_mean", test_mae_result["mean"])
+        self.log("test_mae_std", test_mae_result["std"])
+        self._log_addl_test_metrics()
 
     def predict_step(self, batch: torch.Tensor) -> torch.Tensor:
         x, _ = batch
@@ -239,19 +242,17 @@ class ProbabilisticRegressionNN(L.LightningModule):
 
     def _predictive_dist_impl(
         self, y_hat: torch.Tensor, training: bool = False
-    ) -> torch.distributions.Distribution | DiscreteRandomVariable:
+    ) -> torch.distributions.Distribution:
         raise NotImplementedError("Should be implemented by subclass.")
 
     def _point_prediction_impl(self, y_hat: torch.Tensor, training: bool) -> torch.Tensor:
         raise NotImplementedError("Should be implemented by subclass.")
 
-    def _addl_test_metrics_dict(self) -> dict[str, Metric]:
-        """Return a dict with the metric trackers used by this model beyond the default rmse/mae."""
+    def _log_addl_test_metrics(self):
+        """Log any test metrics beyond RMSE/MAE (tracked by default)."""
         raise NotImplementedError("Should be implemented by subclass.")
 
-    def _update_addl_test_metrics_batch(
-        self, x: torch.Tensor, y_hat: torch.Tensor, y: torch.Tensor
-    ):
+    def _update_addl_test_metrics(self, x: torch.Tensor, y_hat: torch.Tensor, y: torch.Tensor):
         """Update additional test metric states (beyond default rmse/mae) given a batch of inputs/outputs/targets.
 
         Args:

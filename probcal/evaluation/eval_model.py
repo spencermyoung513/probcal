@@ -9,9 +9,11 @@ import torch
 import yaml
 
 from probcal.enums import DatasetType
+from probcal.evaluation.calibration_evaluator import CalibrationEvaluator
+from probcal.evaluation.calibration_evaluator import CalibrationEvaluatorSettings
+from probcal.evaluation.calibration_evaluator import CCESettings
+from probcal.evaluation.calibration_evaluator import ECESettings
 from probcal.evaluation.kernels import rbf_kernel
-from probcal.evaluation.probabilistic_evaluator import ProbabilisticEvaluator
-from probcal.evaluation.probabilistic_evaluator import ProbabilisticEvaluatorSettings
 from probcal.models.probabilistic_regression_nn import ProbabilisticRegressionNN
 from probcal.utils.configs import EvaluationConfig
 from probcal.utils.experiment_utils import get_datamodule
@@ -21,13 +23,15 @@ from probcal.utils.experiment_utils import get_model
 def main(config_path: Path):
 
     config = EvaluationConfig.from_yaml(config_path)
-    if not config.log_dir.exists():
-        os.makedirs(config.log_dir)
+    log_dir = config.log_dir / config.experiment_name
+    if not log_dir.exists():
+        os.makedirs(log_dir)
 
     datamodule = get_datamodule(
         config.dataset_type,
         config.dataset_path_or_spec,
         config.batch_size,
+        config.num_workers,
     )
 
     initializer: Type[ProbabilisticRegressionNN] = get_model(config, return_initializer=True)[1]
@@ -49,29 +53,37 @@ def main(config_path: Path):
     else:
         cce_input_kernel = "polynomial"
 
-    prob_eval_settings = ProbabilisticEvaluatorSettings(
+    cce_settings = CCESettings(
+        num_trials=config.cce_num_trials,
+        num_mc_samples=config.cce_num_mc_samples,
+        input_kernel=cce_input_kernel,
+        output_kernel=config.cce_output_kernel,
+        lmbda=config.cce_lambda,
+    )
+    ece_settings = ECESettings(
+        num_bins=config.ece_bins,
+        weights=config.ece_weights,
+        alpha=config.ece_alpha,
+    )
+    prob_eval_settings = CalibrationEvaluatorSettings(
         dataset_type=config.dataset_type,
         device=torch.device(config.accelerator_type.value),
-        cce_num_trials=config.cce_num_trials,
-        cce_input_kernel=cce_input_kernel,
-        cce_output_kernel=config.cce_output_kernel,
-        cce_lambda=config.cce_lambda,
-        cce_num_samples=config.cce_num_samples,
-        ece_bins=config.ece_bins,
-        ece_weights=config.ece_weights,
-        ece_alpha=config.ece_alpha,
+        cce_settings=cce_settings,
+        ece_settings=ece_settings,
     )
-    prob_evaluator = ProbabilisticEvaluator(settings=prob_eval_settings)
-    print("Evaluating probabilistic fit...")
-    results = prob_evaluator(model=model, data_module=datamodule)
+    calib_evaluator = CalibrationEvaluator(settings=prob_eval_settings)
+    print("Evaluating calibration...")
+    results = calib_evaluator(model=model, data_module=datamodule)
 
     metrics.update(
-        mean_cce=[float(result.mean_cce) for result in results.cce_results],
-        ece=float(results.ece),
+        mean_cce_bar=results.cce.mean_cce_bar,
+        std_cce_bar=results.cce.std_cce_bar,
+        mean_ece=results.ece.mean_ece,
+        std_ece=results.ece.std_ece,
     )
-    with open(config.log_dir / "test_metrics.yaml", "w") as f:
+    with open(log_dir / "test_metrics.yaml", "w") as f:
         yaml.safe_dump(metrics, f)
-    results.save(config.log_dir / "probabilistic_results.npz")
+    results.save(log_dir / "calibration_results.pt")
 
 
 if __name__ == "__main__":

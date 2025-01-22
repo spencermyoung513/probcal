@@ -7,7 +7,6 @@ import torch
 from sklearn.metrics.pairwise import rbf_kernel
 
 from probcal.evaluation.metrics import compute_mcmd_numpy
-from probcal.models import DoublePoissonNN
 from probcal.models import GaussianNN
 from probcal.models import NegBinomNN
 from probcal.models import PoissonNN
@@ -23,7 +22,7 @@ def produce_figure(
     """Create a figure showcasing how CCE behaves with uniform downsampling.
 
     Args:
-        models (list[DiscreteRegressionNN]): List of models to plot CCE distributions of.
+        models (list[ProbabilisticRegressionNN]): List of models to plot CCE distributions of.
         names (list[str]): List of display names for each respective model in `models`.
         save_path (Path | str): Path to save figure to.
         dataset_path (Path | str): Path with dataset models were fit on.
@@ -95,7 +94,6 @@ if __name__ == "__main__":
         PoissonNN.load_from_checkpoint("weights/discrete_sine_wave_poisson.ckpt"),
         NegBinomNN.load_from_checkpoint("weights/discrete_sine_wave_nbinom.ckpt"),
         GaussianNN.load_from_checkpoint("weights/discrete_sine_wave_gaussian.ckpt"),
-        DoublePoissonNN.load_from_checkpoint("weights/discrete_sine_wave_ddpn.ckpt"),
     ]
-    names = ["Poisson NN", "NB NN", "Gaussian NN", "Double Poisson NN"]
+    names = ["Poisson NN", "NB NN", "Gaussian NN"]
     produce_figure(models, names, save_path, dataset_path)

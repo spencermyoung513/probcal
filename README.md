@@ -52,8 +52,8 @@ All regression models should inherit from the `ProbabilisticRegressionNN` class 
 - `_rsample_impl` (defines how to sample with a differentiable relaxation from the predictive distribution)
 - `_predictive_dist_impl` (defines how to produce a predictive distribution from network output)
 - `_point_prediction_impl` (defines how to interpret network output as a single point prediction for a regression target)
-- `_addl_test_metrics_dict` (defines any metrics beyond rmse/mae that are computed during model evaluation)
-- `_update_addl_test_metrics_batch` (defines how to update additional metrics beyond rmse/mae for each test batch).
+- `_update_addl_test_metrics` (defines how to update additional metrics beyond rmse/mae for each test batch)
+- `_log_addl_test_metrics` (defines how to log additional test metrics beyond rmse/mae after inference is done)
 
 See existing model classes like `GaussianNN` (found [here](probcal/models/gaussian_nn.py)) for an example of these steps.
 
@@ -73,18 +73,18 @@ Two results files will be saved to the `log_dir` you specify in your config:
 
 ## Measuring Probabilistic Fit
 
-Once a `ProbabilisticRegressionNN` subclass is trained, its probabilistic fit can be measured on a dataset via the `ProbabilisticEvaluator`. Example usage:
+Once a `ProbabilisticRegressionNN` subclass is trained, its probabilistic fit can be measured on a dataset via the `CalibrationEvaluator`. Example usage:
 
 ```python
 from probcal.data_modules import COCOPeopleDataModule
 from probcal.enums import DatasetType
-from probcal.evaluation import ProbabilisticEvaluator
-from probcal.evaluation import ProbabilisticEvaluatorSettings
+from probcal.evaluation import CalibrationEvaluator
+from probcal.evaluation import CalibrationEvaluatorSettings
 from probcal.models import GaussianNN
 
 
-# You can customize the settings for the CCE / ECE computation.
-settings = ProbabilisticEvaluatorSettings(
+# You can customize the settings for the calibration computation.
+settings = CalibrationEvaluatorSettings(
     dataset_type=DatasetType.IMAGE,
     cce_input_kernel="polynomial",
     cce_output_kernel="rbf",
@@ -95,7 +95,7 @@ settings = ProbabilisticEvaluatorSettings(
     ece_alpha=1,
     # etc.
 )
-evaluator = ProbabilisticEvaluator(settings)
+evaluator = CalibrationEvaluator(settings)
 
 model = GaussianNN.load_from_checkpoint("path/to/model.ckpt")
 
@@ -105,4 +105,4 @@ results = evaluator(model=model, data_module=data_module)
 results.save("path/to/results.npz")
 ```
 
-Invoking the `ProbabilisticEvaluator`'s `__call__` method (as above) kicks off an extensive evaluation wherein CCE and ECE are computed for the specified model. This passes back an `ProbabilisticResults` object, which will contain the computed metrics and other helpful variables for further analysis.
+Invoking the `CalibrationEvaluator`'s `__call__` method (as above) kicks off an extensive evaluation wherein calibration metrics are computed for the specified model. This passes back a `CalibrationResults` object, which will contain the computed metrics and other helpful variables for further analysis.

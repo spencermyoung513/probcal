@@ -2,7 +2,7 @@ from typing import Type
 
 import torch
 from torch import nn
-from torchmetrics import Metric
+from torchmetrics import BootStrapper
 
 from probcal.enums import LRSchedulerType
 from probcal.enums import OptimizerType
@@ -61,8 +61,8 @@ class NegBinomNN(ProbabilisticRegressionNN):
             nn.Softplus(),  # To ensure positivity of output params.
         )
 
-        self.mp = MedianPrecision()
-        self.crps = ContinuousRankedProbabilityScore(mode="discrete")
+        self.mp = BootStrapper(MedianPrecision())
+        self.crps = BootStrapper(ContinuousRankedProbabilityScore(mode="discrete"))
         self.save_hyperparameters()
 
     def _forward_impl(self, x: torch.Tensor) -> torch.Tensor:
@@ -161,15 +161,7 @@ class NegBinomNN(ProbabilisticRegressionNN):
         dist = self.predictive_dist(y_hat, training)
         return dist.mode
 
-    def _addl_test_metrics_dict(self) -> dict[str, Metric]:
-        return {
-            "mp": self.mp,
-            "crps": self.crps,
-        }
-
-    def _update_addl_test_metrics_batch(
-        self, x: torch.Tensor, y_hat: torch.Tensor, y: torch.Tensor
-    ):
+    def _update_addl_test_metrics(self, x: torch.Tensor, y_hat: torch.Tensor, y: torch.Tensor):
         dist = self.predictive_dist(y_hat)
         var = dist.variance
         precision = 1 / var
@@ -179,3 +171,9 @@ class NegBinomNN(ProbabilisticRegressionNN):
 
         self.mp.update(precision)
         self.crps.update(probs_over_support, targets)
+
+    def _log_addl_test_metrics(self):
+        for name, metric in zip(("mp", "crps"), (self.mp, self.crps)):
+            result = metric.compute()
+            self.log(f"{name}_mean", result["mean"])
+            self.log(f"{name}_std", result["std"])

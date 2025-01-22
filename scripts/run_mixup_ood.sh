@@ -26,15 +26,3 @@ do
     #python3 probcal/experiments/ood.py --cfg-path configs/experiments/ood_mixup_coco_poisson_${j}.yaml
     done
 done
-
-
-# DDPN
-echo "OOD DDPN"
-for ((i=0; i<n; i++))
-do
-  for ((j=0; j<m; j++))
-    do
-    echo "SKIP"
-    #python3 probcal/experiments/ood.py --cfg-path configs/experiments/ood_mixup_coco_ddpn_${j}.yaml
-    done
-done

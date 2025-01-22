@@ -1,8 +1,6 @@
 from pathlib import Path
 
-import lightning as L
 import numpy as np
-from torch.utils.data import DataLoader
 from torch.utils.data import Subset
 from torchvision.transforms import AutoAugment
 from torchvision.transforms import Compose
@@ -12,9 +10,10 @@ from torchvision.transforms import ToTensor
 
 from probcal.custom_datasets import AAFDataset
 from probcal.custom_datasets import ImageDatasetWrapper
+from probcal.data_modules.probcal_datamodule import ProbcalDataModule
 
 
-class AAFDataModule(L.LightningDataModule):
+class AAFDataModule(ProbcalDataModule):
 
     IMG_SIZE = 224
 
@@ -26,11 +25,12 @@ class AAFDataModule(L.LightningDataModule):
         persistent_workers: bool,
         surface_image_path: bool = False,
     ):
-        super().__init__()
-        self.root_dir = Path(root_dir)
-        self.batch_size = batch_size
-        self.num_workers = num_workers
-        self.persistent_workers = persistent_workers
+        super().__init__(
+            root_dir=root_dir,
+            batch_size=batch_size,
+            num_workers=num_workers,
+            persistent_workers=persistent_workers,
+        )
         self.surface_image_path = surface_image_path
 
     def setup(self, stage):
@@ -67,31 +67,4 @@ class AAFDataModule(L.LightningDataModule):
         self.test = ImageDatasetWrapper(
             base_dataset=Subset(full_dataset, test_indices),
             transforms=inference_transforms,
-        )
-
-    def train_dataloader(self) -> DataLoader:
-        return DataLoader(
-            self.train,
-            batch_size=self.batch_size,
-            shuffle=True,
-            num_workers=self.num_workers,
-            persistent_workers=self.persistent_workers,
-        )
-
-    def val_dataloader(self) -> DataLoader:
-        return DataLoader(
-            self.val,
-            batch_size=self.batch_size,
-            shuffle=False,
-            num_workers=self.num_workers,
-            persistent_workers=self.persistent_workers,
-        )
-
-    def test_dataloader(self) -> DataLoader:
-        return DataLoader(
-            self.test,
-            batch_size=self.batch_size,
-            shuffle=False,
-            num_workers=self.num_workers,
-            persistent_workers=self.persistent_workers,
         )
