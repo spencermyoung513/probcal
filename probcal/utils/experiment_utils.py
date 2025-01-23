@@ -81,7 +81,7 @@ def get_model(
         backbone_type = DistilBert
         backbone_kwargs = {"freeze_backbone": True}  # No need to train the whole thing.
     elif config.dataset_type == DatasetType.IMAGE:
-        if config.dataset_path_or_spec == ImageDatasetName.MNIST:
+        if config.dataset_path_or_spec == ImageDatasetName.ROTATED_MNIST:
             backbone_type = MNISTCNN
         elif config.dataset_path_or_spec == ImageDatasetName.COCO_PEOPLE:
             backbone_type = ViT
@@ -130,7 +130,7 @@ def get_datamodule(
             persistent_workers=True if num_workers > 0 else False,
         )
     elif dataset_type == DatasetType.IMAGE:
-        if dataset_path_or_spec == ImageDatasetName.MNIST:
+        if dataset_path_or_spec == ImageDatasetName.ROTATED_MNIST:
             return RotatedMNISTDataModule(
                 root_dir=os.path.join(GLOBAL_DATA_DIR, "rotated-mnist"),
                 batch_size=batch_size,

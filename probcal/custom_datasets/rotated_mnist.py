@@ -38,7 +38,7 @@ class RotatedMNIST(Dataset):
 
     def __getitem__(self, idx):
         image, angle = torch.load(self.data_dir / f"{idx}.pt", weights_only=True)
-        image = self.to_pil(image)
+        image = self.to_pil(image.repeat(3, 1, 1))  # Simulate RGB
 
         if self.transform is not None:
             image = self.transform(image)

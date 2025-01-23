@@ -251,6 +251,7 @@ class EvaluationConfig(BaseConfig):
         accelerator_type: AcceleratorType,
         log_dir: Path,
         model_ckpt_path: Path,
+        cce_use_val_split_for_S: bool,
         cce_num_trials: int,
         cce_output_kernel: Literal["rbf", "laplacian"],
         cce_lambda: float,
@@ -273,6 +274,7 @@ class EvaluationConfig(BaseConfig):
             log_dir=log_dir,
         )
         self.model_ckpt_path = model_ckpt_path
+        self.cce_use_val_split_for_S = cce_use_val_split_for_S
         self.cce_num_trials = cce_num_trials
         self.cce_output_kernel = cce_output_kernel
         self.cce_lambda = cce_lambda
@@ -310,6 +312,7 @@ class EvaluationConfig(BaseConfig):
         accelerator_type = AcceleratorType(config_dict.get("accelerator", "cpu"))
 
         cce_settings: dict = config_dict.get("cce_settings", {})
+        cce_use_val_split_for_S = cce_settings.get("use_val_split_for_S", False)
         cce_num_trials = cce_settings.get("num_trials", 5)
         cce_output_kernel = cce_settings.get("output_kernel", "rbf")
         if cce_output_kernel not in ("rbf", "laplacian"):
@@ -337,6 +340,7 @@ class EvaluationConfig(BaseConfig):
             accelerator_type=accelerator_type,
             log_dir=log_dir,
             model_ckpt_path=model_ckpt_path,
+            cce_use_val_split_for_S=cce_use_val_split_for_S,
             cce_num_trials=cce_num_trials,
             cce_output_kernel=cce_output_kernel,
             cce_lambda=cce_lambda,

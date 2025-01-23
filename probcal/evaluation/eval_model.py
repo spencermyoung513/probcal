@@ -54,6 +54,7 @@ def main(config_path: Path):
         cce_input_kernel = "polynomial"
 
     cce_settings = CCESettings(
+        use_val_split_for_S=config.cce_use_val_split_for_S,
         num_trials=config.cce_num_trials,
         num_mc_samples=config.cce_num_mc_samples,
         input_kernel=cce_input_kernel,
@@ -70,6 +71,7 @@ def main(config_path: Path):
         device=torch.device(config.accelerator_type.value),
         cce_settings=cce_settings,
         ece_settings=ece_settings,
+        num_bootstrap_samples=10,
     )
     calib_evaluator = CalibrationEvaluator(settings=prob_eval_settings)
     print("Evaluating calibration...")

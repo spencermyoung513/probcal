@@ -1,3 +1,7 @@
+import warnings
+
+warnings.filterwarnings("ignore", category=FutureWarning)
+
 import torch
 from torch import nn
 from torchvision.models.mobilenet import mobilenet_v3_large
@@ -203,7 +207,7 @@ class DistilBert(Backbone):
 
 
 class MNISTCNN(Backbone):
-    """A CNN feature extractor for MNIST images (1x28x28 image tensors)."""
+    """A CNN feature extractor for MNIST images (repeated along the channel dim to be 3x28x28)."""
 
     def __init__(self, output_dim: int = 64):
         """Initialize an MNISTCNN.
@@ -213,7 +217,7 @@ class MNISTCNN(Backbone):
         """
         super(MNISTCNN, self).__init__(output_dim=output_dim)
 
-        self.conv1 = nn.Conv2d(1, 32, kernel_size=3)
+        self.conv1 = nn.Conv2d(3, 32, kernel_size=3)
         self.bn1 = nn.BatchNorm2d(32)
         self.conv2 = nn.Conv2d(32, 64, kernel_size=3)
         self.bn2 = nn.BatchNorm2d(64)
