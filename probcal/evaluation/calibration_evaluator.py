@@ -28,7 +28,6 @@ from probcal.evaluation.kernels import rbf_kernel
 from probcal.evaluation.metrics import compute_mcmd_torch
 from probcal.evaluation.metrics import compute_regression_ece
 from probcal.models.probabilistic_regression_nn import ProbabilisticRegressionNN
-from probcal.utils.experiment_utils import fix_random_seed
 
 
 @dataclass
@@ -116,7 +115,6 @@ class ECESettings:
 
 @dataclass
 class CalibrationEvaluatorSettings:
-    random_seed: int | None = None
     dataset_type: DatasetType = DatasetType.IMAGE
     device: torch.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     num_bootstrap_samples: int = 10
@@ -140,7 +138,6 @@ class CalibrationEvaluator:
     def __call__(
         self, model: ProbabilisticRegressionNN, data_module: ProbcalDataModule
     ) -> CalibrationResults:
-        fix_random_seed(self.settings.random_seed)
 
         model.to(self.device)
         data_module.prepare_data()
