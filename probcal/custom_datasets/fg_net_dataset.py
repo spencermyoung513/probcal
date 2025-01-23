@@ -1,11 +1,9 @@
 import os
 from pathlib import Path
-from shutil import rmtree
-from shutil import unpack_archive
 from typing import Callable
+from typing import Literal
 
 import pandas as pd
-import wget
 from PIL import Image
 from PIL.Image import Image as PILImage
 from torch.utils.data import Dataset
@@ -19,6 +17,7 @@ class FGNetDataset(Dataset):
     def __init__(
         self,
         root_dir: str | Path,
+        split: Literal["train", "val", "test"],
         transform: Callable[[PILImage], PILImage] | None = None,
         target_transform: Callable[[int], int] | None = None,
         ignore_grayscale: bool = True,
@@ -28,37 +27,30 @@ class FGNetDataset(Dataset):
 
         Args:
             root_dir (str | Path): Root directory where dataset files should be stored.
+            split (str): The dataset split to load (train, val, or test)
             transform (Callable, optional): A function/transform that takes in a PIL image and returns a transformed version. e.g, `transforms.RandomCrop`. Defaults to None.
             target_transform (Callable, optional): A function/transform that takes in the target and transforms it. Defaults to None.
             ignore_grayscale (bool, optional): Whether/not to ignore grayscale images in FGNet (there are 175 grayscale and 827 color) when serving data. Defaults to True.
             surface_image_path (bool, optional): Whether/not to return the image path along with the image and count in __getitem__.
         """
         self.root_dir = Path(root_dir)
-        self.image_dir = self.root_dir / "FGNET" / "images"
+        self.split = split
+        self.image_dir = self.root_dir / "FGNET" / "images" / split
         self.ignore_grayscale = ignore_grayscale
         self.surface_image_path = surface_image_path
 
         if not self.root_dir.exists():
             os.makedirs(self.root_dir)
         if not self._already_downloaded():
-            self._download()
-
+            raise Exception(
+                "Dataset is not present in the specified location. Contact authors for access."
+            )
         self.transform = transform
         self.target_transform = target_transform
         self.instances = self._get_instances_df()
 
     def _already_downloaded(self) -> bool:
         return self.image_dir.exists() and any(self.image_dir.iterdir())
-
-    def _download(self):
-        if not self.image_dir.exists():
-            print("Downloading data...")
-            annotations_zip_fname = wget.download(self.URL, out=f"{self.root_dir}/fgnet.zip")
-            unpack_archive(annotations_zip_fname, self.root_dir)
-            rmtree(self.root_dir / "__MACOSX")
-            rmtree(self.root_dir / "FGNET" / "Data_files")
-            rmtree(self.root_dir / "FGNET" / "points")
-            os.remove(self.root_dir / "fgnet.zip")
 
     def _get_instances_df(self) -> pd.DataFrame:
         instances = {"image_path": [], "age": []}

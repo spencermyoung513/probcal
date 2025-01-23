@@ -1,7 +1,5 @@
 from pathlib import Path
 
-import numpy as np
-from torch.utils.data import Subset
 from torchvision.transforms import AutoAugment
 from torchvision.transforms import Compose
 from torchvision.transforms import Normalize
@@ -9,7 +7,6 @@ from torchvision.transforms import Resize
 from torchvision.transforms import ToTensor
 
 from probcal.custom_datasets import FGNetDataset
-from probcal.custom_datasets import ImageDatasetWrapper
 from probcal.data_modules.probcal_datamodule import ProbcalDataModule
 
 
@@ -39,7 +36,7 @@ class FGNetDataModule(ProbcalDataModule):
 
     def prepare_data(self) -> None:
         # Force images to be downloaded.
-        FGNetDataset(self.root_dir)
+        FGNetDataset(self.root_dir, split="train")
 
     def setup(self, stage: str):
         resize = Resize((self.IMG_SIZE, self.IMG_SIZE))
@@ -49,29 +46,24 @@ class FGNetDataModule(ProbcalDataModule):
         train_transforms = Compose([resize, augment, to_tensor, normalize])
         inference_transforms = Compose([resize, to_tensor, normalize])
 
-        full_dataset = FGNetDataset(
+        self.train = FGNetDataset(
             root_dir=self.root_dir,
+            split="train",
+            transform=train_transforms,
             ignore_grayscale=self.ignore_grayscale,
             surface_image_path=self.surface_image_path,
         )
-        num_instances = len(full_dataset)
-        generator = np.random.default_rng(seed=1998)
-        shuffled_indices = generator.permutation(np.arange(num_instances))
-        num_train = int(0.7 * num_instances)
-        num_val = int(0.1 * num_instances)
-        train_indices = shuffled_indices[:num_train]
-        val_indices = shuffled_indices[num_train : num_train + num_val]
-        test_indices = shuffled_indices[num_train + num_val :]
-
-        self.train = ImageDatasetWrapper(
-            base_dataset=Subset(full_dataset, train_indices),
-            transforms=train_transforms,
+        self.val = FGNetDataset(
+            root_dir=self.root_dir,
+            split="val",
+            transform=inference_transforms,
+            ignore_grayscale=self.ignore_grayscale,
+            surface_image_path=self.surface_image_path,
         )
-        self.val = ImageDatasetWrapper(
-            base_dataset=Subset(full_dataset, val_indices),
-            transforms=inference_transforms,
-        )
-        self.test = ImageDatasetWrapper(
-            base_dataset=Subset(full_dataset, test_indices),
-            transforms=inference_transforms,
+        self.test = FGNetDataset(
+            root_dir=self.root_dir,
+            split="test",
+            transform=inference_transforms,
+            ignore_grayscale=self.ignore_grayscale,
+            surface_image_path=self.surface_image_path,
         )
