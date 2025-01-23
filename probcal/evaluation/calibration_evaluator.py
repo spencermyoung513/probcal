@@ -28,6 +28,7 @@ from probcal.evaluation.kernels import rbf_kernel
 from probcal.evaluation.metrics import compute_mcmd_torch
 from probcal.evaluation.metrics import compute_regression_ece
 from probcal.models.probabilistic_regression_nn import ProbabilisticRegressionNN
+from probcal.utils.experiment_utils import fix_random_seed
 
 
 @dataclass
@@ -115,6 +116,7 @@ class ECESettings:
 
 @dataclass
 class CalibrationEvaluatorSettings:
+    random_seed: int | None = None
     dataset_type: DatasetType = DatasetType.IMAGE
     device: torch.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     num_bootstrap_samples: int = 10
@@ -138,6 +140,8 @@ class CalibrationEvaluator:
     def __call__(
         self, model: ProbabilisticRegressionNN, data_module: ProbcalDataModule
     ) -> CalibrationResults:
+        fix_random_seed(self.settings.random_seed)
+
         model.to(self.device)
         data_module.prepare_data()
         data_module.setup("")
@@ -313,11 +317,9 @@ class CalibrationEvaluator:
         """
         cce_means = results.cce.expected_values
         cce_stdevs = results.cce.stdevs
-        mean_cce_bar = results.cce.mean_cce_bar
-        std_cce_bar = results.cce.std_cce_bar
         input_grid_2d = results.input_grid_2d
 
-        fig, axs = plt.subplots(1, 3, figsize=(9, 3))
+        fig, axs = plt.subplots(1, 3, figsize=(11, 3))
         axs: Sequence[plt.Axes]
         grid_x, grid_y = np.mgrid[
             min(input_grid_2d[:, 0]) : max(input_grid_2d[:, 0]) : gridsize * 1j,
@@ -334,12 +336,12 @@ class CalibrationEvaluator:
         mappable_0 = axs[0].contourf(grid_x, grid_y, grid_data, levels=5, cmap="viridis")
         fig.colorbar(mappable_0, ax=axs[0])
 
-        axs[1].set_title(rf"$\overline{{\mathrm{{CCE}}}}$: {mean_cce_bar:.3f} ({std_cce_bar:.3f})")
+        axs[1].set_title("CCE (Mean)")
         grid_cce_means = griddata(input_grid_2d, cce_means, (grid_x, grid_y), method="linear")
         mappable_1 = axs[1].contourf(grid_x, grid_y, grid_cce_means, levels=5, cmap="viridis")
         fig.colorbar(mappable_1, ax=axs[1])
 
-        axs[2].set_title("Uncertainty")
+        axs[2].set_title("CCE (Std)")
         grid_cce_stdevs = griddata(input_grid_2d, cce_stdevs, (grid_x, grid_y), method="linear")
         mappable_2 = axs[2].contourf(grid_x, grid_y, grid_cce_stdevs, levels=5, cmap="viridis")
         fig.colorbar(mappable_2, ax=axs[2])

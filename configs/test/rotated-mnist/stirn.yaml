@@ -4,8 +4,9 @@ head_type: faithful_gaussian
 dataset:
   type: image
   spec: rotated_mnist
-batch_size: 32
-accelerator: cpu
+batch_size: 1024
+num_workers: 20
+accelerator: gpu
 log_dir: results/rotated-mnist
 model_ckpt_path: chkp/rotated-mnist/stirn/version_0/best_loss.ckpt
 cce_settings:

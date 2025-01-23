@@ -23,5 +23,4 @@ for head in "${head_list[@]}"; do
     echo "Evaluating ${head} model on ${dataset}"
     python probcal/evaluation/eval_model.py \
         --config ${configs_dir}/${head}.yaml
-    done
 done

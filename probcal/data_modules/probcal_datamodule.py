@@ -37,12 +37,21 @@ class ProbcalDataModule(L.LightningDataModule, BootstrapMixin):
         raise NotImplementedError("Must be implemented by subclass.")
 
     def set_bootstrap_indices(self, split: Literal["val", "test"]):
+        """Randomly generate indices that define a new bootstrap sample of the given split.
+        
+        Args:
+            split (Literal["val", "test"]): The dataset split to sample from.
+        
+        Raises:
+            AttributeError: If the specified split has not yet been set in this data module (happens in the `setup` method).
+            ValueError: If an invalid split name is passed.
+        """
         if split == "val":
             if self.val is None:
-                raise ValueError("The `val` attribute has not been set. Did you call `setup` yet?")
+                raise AttributeError("The `val` attribute has not been set. Did you call `setup` yet?")
         elif split == "test":
             if self.test is None:
-                raise ValueError(
+                raise AttributeError(
                     "The `test` attribute has not been set. Did you call `setup` yet?"
                 )
         else:
