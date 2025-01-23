@@ -4,6 +4,7 @@ import zipfile
 from glob import glob
 from pathlib import Path
 from typing import Callable
+from typing import Literal
 
 import numpy as np
 import pandas as pd
@@ -22,6 +23,7 @@ class EVADataset(Dataset):
     def __init__(
         self,
         root_dir: str | Path,
+        split: Literal["train", "val", "test"],
         transform: Callable[[PILImage], PILImage] | None = None,
         target_transform: Callable[[int], int] | None = None,
         surface_image_path: bool = False,
@@ -39,20 +41,21 @@ class EVADataset(Dataset):
         self.transform = transform
         self.target_transform = target_transform
         self.surface_image_path = surface_image_path
+        self.split = split
 
         self.repo_url = "https://github.com/kang-gnak/eva-dataset"
 
         self.root_dir = Path(root_dir)
         self.labels_dir = self.root_dir.joinpath("data")
-        self.image_dir = self.root_dir.joinpath("images", "EVA_together")
+        # self.image_dir = self.root_dir.joinpath("images", "EVA_together")
 
-        if not self._check_for_eva_data():
-            self._download_dataset()
-            return
+        # if not self._check_for_eva_data():
+        #     self._download_dataset()
+        #     return
 
-        if not self._check_for_eva_images():
-            print("Images not found. Concatenating and extracting zip parts.")
-            self._concatenate_and_extract_zip()
+        # if not self._check_for_eva_images():
+        #     print("Images not found. Concatenating and extracting zip parts.")
+        #     self._concatenate_and_extract_zip()
 
         # read the label data in from the data folder
         self.votes_filtered_df = pd.read_csv(self.labels_dir.joinpath(self.LABELS_CSV), sep="=")
@@ -155,8 +158,7 @@ class EVADataset(Dataset):
 
 
 # instantiate the dataset
-eva_dataset = EVADataset(root_dir="data/eva")
-print(eva_dataset.__getitem__(0))
+eva_dataset = EVADataset(root_dir="data/eva", split="train")
 print(len(eva_dataset.labels_df))
 # make a train/test/val split
 train_size = int(0.7 * len(eva_dataset))
@@ -176,18 +178,31 @@ train_dir.mkdir(parents=True, exist_ok=True)
 val_dir.mkdir(parents=True, exist_ok=True)
 test_dir.mkdir(parents=True, exist_ok=True)
 
+# add split column to the labels_df
+eva_dataset.labels_df["split"] = ""
+
+# move the files and update the labels_df
 for idx, indices in enumerate([train_indices, val_indices, test_indices]):
     for i in indices:
         row = eva_dataset.labels_df.iloc[i]
         image_path = eva_dataset.image_dir.joinpath(row["file_name"])
         if idx == 0:
             image_path.rename(train_dir.joinpath(row["file_name"]))
+            eva_dataset.labels_df.loc[i, "split"] = "train"
         elif idx == 1:
             image_path.rename(val_dir.joinpath(row["file_name"]))
+            eva_dataset.labels_df.loc[i, "split"] = "val"
         else:
             image_path.rename(test_dir.joinpath(row["file_name"]))
+            eva_dataset.labels_df.loc[i, "split"] = "test"
 
 # check the number of images in each folder
 print(len(list(train_dir.glob("*.jpg"))))
 print(len(list(val_dir.glob("*.jpg"))))
 print(len(list(test_dir.glob("*.jpg"))))
+
+
+# write the labels_df to a csv file
+eva_dataset.labels_df.to_csv("data/eva/labels.csv", index=False)
+# TODO rewrite the dataset class to read the labels from the new csv
+# TODO rewrite the dataset class to read the images from the new folders
