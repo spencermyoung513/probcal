@@ -17,6 +17,7 @@ from probcal.data_modules import FGNetDataModule
 from probcal.data_modules import OodBlurCocoPeopleDataModule
 from probcal.data_modules import OodLabelNoiseCocoPeopleDataModule
 from probcal.data_modules import OodMixupCocoPeopleDataModule
+from probcal.data_modules import RotatedMNISTDataModule
 from probcal.data_modules import TabularDataModule
 from probcal.data_modules.readability_datamodule import ReadabilityDataModule
 from probcal.enums import DatasetType
@@ -78,7 +79,7 @@ def get_model(
         backbone_kwargs = {"input_dim": config.input_dim}
     elif config.dataset_type == DatasetType.TEXT:
         backbone_type = DistilBert
-        backbone_kwargs = {}
+        backbone_kwargs = {"freeze_backbone": True}  # No need to train the whole thing.
     elif config.dataset_type == DatasetType.IMAGE:
         if config.dataset_path_or_spec == ImageDatasetName.MNIST:
             backbone_type = MNISTCNN
@@ -130,7 +131,12 @@ def get_datamodule(
         )
     elif dataset_type == DatasetType.IMAGE:
         if dataset_path_or_spec == ImageDatasetName.MNIST:
-            return ValueError("MNIST not supported.")
+            return RotatedMNISTDataModule(
+                root_dir=os.path.join(GLOBAL_DATA_DIR, "rotated-mnist"),
+                batch_size=batch_size,
+                num_workers=num_workers,
+                persistent_workers=True if num_workers > 0 else False,
+            )
         elif dataset_path_or_spec == ImageDatasetName.COCO_PEOPLE:
             return COCOPeopleDataModule(
                 root_dir=os.path.join(GLOBAL_DATA_DIR, "coco_people"),
@@ -186,7 +192,7 @@ def get_datamodule(
                 root_dir=os.path.join(GLOBAL_DATA_DIR, "readability"),
                 batch_size=batch_size,
                 num_workers=num_workers,
-                persistent_workers=True,
+                persistent_workers=True if num_workers > 0 else False,
             )
 
 

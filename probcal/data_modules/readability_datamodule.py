@@ -24,33 +24,40 @@ class ReadabilityDataModule(ProbcalDataModule):
         self.test = ReadabilityDataset(self.root_dir, split="test")
 
     def train_dataloader(self) -> DataLoader:
+        if self.train is None:
+            raise ValueError("The `train` attribute has not been set. Did you call `setup` yet?")
         return DataLoader(
             self.train,
             batch_size=self.batch_size,
-            num_workers=self.num_workers,
             shuffle=True,
             collate_fn=self.collate_fn,
+            num_workers=self.num_workers,
             persistent_workers=self.persistent_workers,
-            drop_last=True,
         )
 
     def val_dataloader(self) -> DataLoader:
-        return DataLoader(
-            self.val,
+        if self.val is None:
+            raise ValueError("The `val` attribute has not been set. Did you call `setup` yet?")
+        return self.get_dataloader(
+            split="val",
+            dataset=self.val,
             batch_size=self.batch_size,
-            num_workers=self.num_workers,
             shuffle=False,
             collate_fn=self.collate_fn,
+            num_workers=self.num_workers,
             persistent_workers=self.persistent_workers,
         )
 
     def test_dataloader(self) -> DataLoader:
-        return DataLoader(
-            self.test,
+        if self.test is None:
+            raise ValueError("The `test` attribute has not been set. Did you call `setup` yet?")
+        return self.get_dataloader(
+            split="test",
+            dataset=self.test,
             batch_size=self.batch_size,
-            num_workers=self.num_workers,
             shuffle=False,
             collate_fn=self.collate_fn,
+            num_workers=self.num_workers,
             persistent_workers=self.persistent_workers,
         )
 
