@@ -73,9 +73,3 @@ class EVADataModule(ProbcalDataModule):
             t.mul_(s).add_(m)
 
         return tensor
-
-
-# instance = EVADataModule(root_dir="data/eva", batch_size=32, num_workers=4, persistent_workers=True)
-# instance.prepare_data()
-# instance.setup("fit")
-# print(instance.train)
