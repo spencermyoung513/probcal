@@ -1,12 +1,7 @@
-import os
-import subprocess
-import zipfile
-from glob import glob
 from pathlib import Path
 from typing import Callable
 from typing import Literal
 
-import numpy as np
 import pandas as pd
 from PIL import Image
 from PIL.Image import Image as PILImage
@@ -16,9 +11,8 @@ from torch.utils.data import Dataset
 class EVADataset(Dataset):
     """
     EVA dataset with images voted on how asthetic they are (labeled with the average asthetic score for each image).\n
+    The original dataset is available at https://github.com/kang-gnak/eva-dataset.
     """
-
-    LABELS_CSV = "votes_filtered.csv"
 
     def __init__(
         self,
@@ -43,37 +37,26 @@ class EVADataset(Dataset):
         self.surface_image_path = surface_image_path
         self.split = split
 
-        self.repo_url = "https://github.com/kang-gnak/eva-dataset"
-
         self.root_dir = Path(root_dir)
-        self.labels_dir = self.root_dir.joinpath("data")
-        # self.image_dir = self.root_dir.joinpath("images", "EVA_together")
+        self.labels_csv = self.root_dir.joinpath("labels.csv")
+        self.image_dir = self.root_dir.joinpath("images", self.split)
 
-        # if not self._check_for_eva_data():
-        #     self._download_dataset()
-        #     return
+        self.labels_df = pd.read_csv(self.labels_csv)
+        self.instances = self._get_instances_df()
 
-        # if not self._check_for_eva_images():
-        #     print("Images not found. Concatenating and extracting zip parts.")
-        #     self._concatenate_and_extract_zip()
-
-        # read the label data in from the data folder
-        self.votes_filtered_df = pd.read_csv(self.labels_dir.joinpath(self.LABELS_CSV), sep="=")
-
-        # find the average of all the votes to create the label for the image
-        self.labels_df = (
-            self.votes_filtered_df.groupby("image_id")["score"]
-            .agg(["mean", "count", "std"])
-            .reset_index()
-        )
-        self.labels_df.columns = ["image_id", "avg_score", "vote_count", "score_std"]
-
-        # the file name for each image is just {image_id}.jpg
-        self.labels_df["file_name"] = self.labels_df["image_id"].astype(str) + ".jpg"
+    def _get_instances_df(self) -> pd.DataFrame:
+        mask = self.labels_df["split"] == self.split
+        instances = {"image_path": [], "avg_score": []}
+        for _, row in self.labels_df[mask].iterrows():
+            image_path = str(self.image_dir / f"{row['image_id']}.jpg")
+            score = float(row["avg_score"])
+            instances["image_path"].append(image_path)
+            instances["avg_score"].append(score)
+        return pd.DataFrame(instances)
 
     def __getitem__(self, idx: int) -> tuple[PILImage, int] | tuple[PILImage, tuple[str, int]]:
-        row = self.labels_df.iloc[idx]
-        image_path = self.image_dir.joinpath(row["file_name"])
+        row = self.instances.iloc[idx]
+        image_path = row["image_path"]
         image = Image.open(image_path)
         image = self._ensure_rgb(image)
         score = row["avg_score"]
@@ -87,16 +70,12 @@ class EVADataset(Dataset):
             return image, score
 
     def __len__(self):
-        return len(self.labels_df)
+        return len(self.instances)
 
     def _ensure_rgb(self, image: PILImage):
         if image.mode != "RGB":
             return image.convert("RGB")
         return image
-
-    def _download_dataset(self):
-        print(f"Downloading repository to {self.root_dir}")
-        subprocess.run(["git", "clone", self.repo_url, self.root_dir], check=True)
 
     def _check_for_eva_data(self) -> bool:
         return (
@@ -108,101 +87,3 @@ class EVADataset(Dataset):
 
     def _check_for_eva_images(self) -> bool:
         return self.image_dir.exists()
-
-    def _concatenate_and_extract_zip(self):
-        original_dir = os.getcwd()
-
-        zip_prefix = "EVA_together.zip"
-
-        # Change to the source directory
-        os.chdir(self.root_dir.joinpath("images"))
-        print(f"Changed working directory to: {os.getcwd()}")
-
-        # Find all zip parts
-        zip_parts = sorted(glob(f"{zip_prefix}.00*"))
-        if not zip_parts:
-            print(f"No zip parts found with prefix '{zip_prefix}' in the current directory.")
-            return
-
-        print(f"Found {len(zip_parts)} zip parts: {zip_parts}")
-
-        # Concatenate zip parts
-        full_zip = f"{zip_prefix}"
-        with open(full_zip, "wb") as outfile:
-            for zip_part in zip_parts:
-                print(f"Concatenating: {zip_part}")
-                with open(zip_part, "rb") as infile:
-                    outfile.write(infile.read())
-
-        print(f"Finished concatenating. Created: {full_zip}")
-
-        # Extract the full zip file
-        print(f"Extracting {full_zip}...")
-        with zipfile.ZipFile(full_zip, "r") as zip_ref:
-            zip_ref.extractall()
-
-        print("Extraction complete.")
-
-        if os.path.isfile(full_zip):
-            os.remove(full_zip)
-            print(f"Removed concatenated zip file: {full_zip}")
-
-        os.chdir(original_dir)
-
-    def _print_stats(self):
-        """
-        Print the statistics of the average scores for the dataset.
-        """
-        print("\nStatistics of average scores:")
-        print(self.labels_df["avg_score"].describe())
-
-
-# instantiate the dataset
-eva_dataset = EVADataset(root_dir="data/eva", split="train")
-print(len(eva_dataset.labels_df))
-# make a train/test/val split
-train_size = int(0.7 * len(eva_dataset))
-val_size = int(0.1 * len(eva_dataset))
-test_size = len(eva_dataset) - train_size - val_size
-print(train_size, val_size, test_size)
-shuffled_indices = np.random.permutation(np.arange(len(eva_dataset)))
-print(shuffled_indices[:10])
-train_indices = shuffled_indices[:train_size]
-val_indices = shuffled_indices[train_size : train_size + val_size]
-test_indices = shuffled_indices[train_size + val_size :]
-# move the images from the EVA_together folder to the train/val/test folders
-train_dir = Path("data/eva/images/train")
-val_dir = Path("data/eva/images/val")
-test_dir = Path("data/eva/images/test")
-train_dir.mkdir(parents=True, exist_ok=True)
-val_dir.mkdir(parents=True, exist_ok=True)
-test_dir.mkdir(parents=True, exist_ok=True)
-
-# add split column to the labels_df
-eva_dataset.labels_df["split"] = ""
-
-# move the files and update the labels_df
-for idx, indices in enumerate([train_indices, val_indices, test_indices]):
-    for i in indices:
-        row = eva_dataset.labels_df.iloc[i]
-        image_path = eva_dataset.image_dir.joinpath(row["file_name"])
-        if idx == 0:
-            image_path.rename(train_dir.joinpath(row["file_name"]))
-            eva_dataset.labels_df.loc[i, "split"] = "train"
-        elif idx == 1:
-            image_path.rename(val_dir.joinpath(row["file_name"]))
-            eva_dataset.labels_df.loc[i, "split"] = "val"
-        else:
-            image_path.rename(test_dir.joinpath(row["file_name"]))
-            eva_dataset.labels_df.loc[i, "split"] = "test"
-
-# check the number of images in each folder
-print(len(list(train_dir.glob("*.jpg"))))
-print(len(list(val_dir.glob("*.jpg"))))
-print(len(list(test_dir.glob("*.jpg"))))
-
-
-# write the labels_df to a csv file
-eva_dataset.labels_df.to_csv("data/eva/labels.csv", index=False)
-# TODO rewrite the dataset class to read the labels from the new csv
-# TODO rewrite the dataset class to read the images from the new folders
