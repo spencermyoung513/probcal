@@ -1,17 +1,19 @@
 experiment_name: gaussian
 random_seed: 1998
-log_dir: results/discrete-wave
 head_type: gaussian
-model_ckpt_path: weights/discrete-wave/gaussian.ckpt
 dataset:
-  type: tabular
-  path: data/discrete-wave/discrete_sine_wave.npz
+  type: image
+  spec: rotated_mnist
+batch_size: 1024
+num_workers: 20
+accelerator: gpu
+log_dir: results/rotated-mnist
+model_ckpt_path: chkp/rotated-mnist/gaussian/version_0/best_loss.ckpt
 cce_settings:
   num_trials: 5
   output_kernel: rbf
   lambda: 0.1
   num_mc_samples: 1
-  use_val_split_for_S: false
 ece_settings:
   num_bins: 50
   weights: frequency

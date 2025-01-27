@@ -1,6 +1,5 @@
 from pathlib import Path
 
-from deep_uncertainty.custom_datasets import COCOPeopleDataset
 from torchvision.transforms import AutoAugment
 from torchvision.transforms import Compose
 from torchvision.transforms import GaussianBlur
@@ -8,6 +7,7 @@ from torchvision.transforms import Normalize
 from torchvision.transforms import Resize
 from torchvision.transforms import ToTensor
 
+from probcal.custom_datasets import COCOPeopleDataset
 from probcal.custom_datasets.image_dataset_wrapper import LabelNoiseImageDatasetWrapper
 from probcal.custom_datasets.image_dataset_wrapper import MixupImageDatasetWrapper
 from probcal.data_modules.probcal_datamodule import ProbcalDataModule

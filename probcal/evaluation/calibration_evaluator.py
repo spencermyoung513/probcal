@@ -17,7 +17,7 @@ from open_clip import CLIP
 from scipy.interpolate import griddata
 from sklearn.manifold import TSNE
 from torch.utils.data import DataLoader
-from torchvision.transforms import Compose
+from torchvision.transforms import Resize
 from tqdm import tqdm
 
 from probcal.data_modules.probcal_datamodule import ProbcalDataModule
@@ -87,7 +87,7 @@ class CalibrationResults:
         cce_results = CCEResults(**data["cce"])
         return CalibrationResults(
             input_grid_2d=data["input_grid_2d"],
-            targets=data["regression_targets"],
+            targets=data["targets"],
             cce=cce_results,
             ece=ece_results,
         )
@@ -128,14 +128,17 @@ class CalibrationEvaluator:
     def __init__(self, settings: CalibrationEvaluatorSettings = CalibrationEvaluatorSettings()):
         self.settings = settings
         self.device = settings.device
+        self.image_preprocess = Resize(size=224)
         self._clip_model = None
-        self._image_preprocess = None
         self._tokenizer = None
+        self._grid_cache_path = Path("/tmp/cce_grid_cache.pt")
+        self._cleanup()
 
     @torch.inference_mode()
     def __call__(
         self, model: ProbabilisticRegressionNN, data_module: ProbcalDataModule
     ) -> CalibrationResults:
+
         model.to(self.device)
         data_module.prepare_data()
         data_module.setup("")
@@ -146,7 +149,7 @@ class CalibrationEvaluator:
 
         ece_draws = torch.zeros(b)
         cce_draws = torch.zeros(b, t, n)
-        for i in tqdm(range(b), desc="Computing calibration metrics on bootstrap samples..."):
+        for i in tqdm(range(b), desc="Computing metrics on bootstraps"):
 
             # We first define our iterator over a bootstrap sample of S.
             if self.settings.cce_settings.use_val_split_for_S:
@@ -164,7 +167,7 @@ class CalibrationEvaluator:
             data_module.set_bootstrap_indices("test")
             ece_loader = data_module.test_dataloader()
 
-            for j in tqdm(range(t), desc=f"Computing CCE across {t} trials...", leave=False):
+            for j in tqdm(range(t), desc=f"Running {t} CCE computations", leave=False):
                 cce_vals, grid, targets = self.compute_cce(
                     model=model,
                     grid_loader=grid_loader,
@@ -180,8 +183,7 @@ class CalibrationEvaluator:
                     if self.settings.dataset_type == DatasetType.TABULAR:
                         grid_2d = np.array([])
                     else:
-                        print("Running TSNE to project grid to 2d...")
-                        grid_2d = TSNE().fit_transform(grid.detach().cpu().numpy())
+                        grid_2d = TSNE(n_jobs=-1).fit_transform(grid.detach().cpu().numpy())
                     regression_targets = targets.detach().cpu().numpy()
 
             ece_draws[i] = self.compute_ece(model, ece_loader)
@@ -209,6 +211,8 @@ class CalibrationEvaluator:
                 std_ece=ece_draws.std().item(),
                 quantiles=ece_quantiles,
             )
+
+        self._cleanup()
 
         return CalibrationResults(
             input_grid_2d=grid_2d,
@@ -240,18 +244,7 @@ class CalibrationEvaluator:
             torch.Tensor | tuple[torch.Tensor, torch.Tensor] | tuple[torch.Tensor, torch.Tensor, torch.Tensor]: The computed CCE values, along with the grid of inputs these values correspond to (if return_grid is True) and the regression targets (if return_targets is True).
         """
         x, y, x_prime, y_prime = self._get_samples_for_mcmd(model, sample_loader)
-        if self.settings.dataset_type == DatasetType.TABULAR:
-            grid = torch.cat([inputs.to(self.device) for inputs, _ in grid_loader])
-        elif self.settings.dataset_type == DatasetType.IMAGE:
-            grid = torch.cat(
-                [
-                    self.clip_model.encode_image(inputs.to(self.device), normalize=True)
-                    for inputs, _ in grid_loader
-                ],
-                dim=0,
-            )
-        else:
-            raise NotImplementedError("Only supporting tabular and image currently")
+        grid = self._load_or_compute_grid(grid_loader)
         x_kernel, y_kernel = self._get_kernel_functions(y)
         cce_vals = compute_mcmd_torch(
             grid=grid,
@@ -302,8 +295,8 @@ class CalibrationEvaluator:
         )
         return ece
 
+    @staticmethod
     def plot_cce_results(
-        self,
         results: CalibrationResults,
         gridsize: int = 100,
         show: bool = False,
@@ -320,12 +313,10 @@ class CalibrationEvaluator:
             Figure: Matplotlib figure with the visualized CCE values.
         """
         cce_means = results.cce.expected_values
-        cce_stdevs = results.cce.draws.flatten(0, 1).std(dim=0)
-        mean_cce_bar = results.cce.mean_cce_bar
-        std_cce_bar = results.cce.std_cce_bar
+        cce_stdevs = results.cce.stdevs
         input_grid_2d = results.input_grid_2d
 
-        fig, axs = plt.subplots(1, 3, figsize=(9, 3))
+        fig, axs = plt.subplots(1, 3, figsize=(11, 3))
         axs: Sequence[plt.Axes]
         grid_x, grid_y = np.mgrid[
             min(input_grid_2d[:, 0]) : max(input_grid_2d[:, 0]) : gridsize * 1j,
@@ -342,14 +333,14 @@ class CalibrationEvaluator:
         mappable_0 = axs[0].contourf(grid_x, grid_y, grid_data, levels=5, cmap="viridis")
         fig.colorbar(mappable_0, ax=axs[0])
 
-        axs[1].set_title(rf"$\overline{{\mathrm{{CCE}}}}$: {mean_cce_bar:.3f} ({std_cce_bar:.3f})")
+        axs[1].set_title("CCE (Mean)")
         grid_cce_means = griddata(input_grid_2d, cce_means, (grid_x, grid_y), method="linear")
         mappable_1 = axs[1].contourf(grid_x, grid_y, grid_cce_means, levels=5, cmap="viridis")
         fig.colorbar(mappable_1, ax=axs[1])
 
-        axs[2].set_title("Uncertainty")
+        axs[2].set_title("CCE (Std)")
         grid_cce_stdevs = griddata(input_grid_2d, cce_stdevs, (grid_x, grid_y), method="linear")
-        mappable_2 = axs[1].contourf(grid_x, grid_y, grid_cce_stdevs, levels=5, cmap="viridis")
+        mappable_2 = axs[2].contourf(grid_x, grid_y, grid_cce_stdevs, levels=5, cmap="viridis")
         fig.colorbar(mappable_2, ax=axs[2])
 
         fig.tight_layout()
@@ -361,31 +352,40 @@ class CalibrationEvaluator:
     def _get_samples_for_mcmd(
         self,
         model: ProbabilisticRegressionNN,
-        data_loader: DataLoader,
+        sample_loader: DataLoader,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         x = []
         y = []
         x_prime = []
         y_prime = []
-        for inputs, targets in data_loader:
+        loop = tqdm(sample_loader, desc="Drawing samples", leave=False)
+        for inputs, targets in loop:
+            inputs: torch.Tensor
+            targets: torch.Tensor
+
             if self.settings.dataset_type == DatasetType.TABULAR:
-                x.append(inputs)
+                encoder = self._encode_tabular
             elif self.settings.dataset_type == DatasetType.IMAGE:
-                x.append(self.clip_model.encode_image(inputs.to(self.device), normalize=True))
-            elif self.settings.dataset_type == DatasetType.TEXT:
-                x.append(self.clip_model.encode_text(inputs.to(self.device), normalize=True))
+                encoder = self._encode_image
+            else:
+                encoder = self._encode_text
+
+            encoded_inputs = encoder(inputs.to(self.device))
+            x.append(encoded_inputs)
             y.append(targets.to(self.device))
+
             y_hat = model.predict(inputs.to(self.device))
-            x_prime.append(
-                torch.repeat_interleave(
-                    x[-1], repeats=self.settings.cce_settings.num_mc_samples, dim=0
-                )
+            x_samples = torch.repeat_interleave(
+                encoded_inputs,
+                repeats=self.settings.cce_settings.num_mc_samples,
+                dim=0,
             )
-            y_prime.append(
-                model.sample(
-                    y_hat, num_samples=self.settings.cce_settings.num_mc_samples
-                ).flatten()
-            )
+            y_samples = model.sample(
+                y_hat,
+                num_samples=self.settings.cce_settings.num_mc_samples,
+            ).flatten()
+            x_prime.append(x_samples)
+            y_prime.append(y_samples)
 
         x = torch.cat(x, dim=0)
         y = torch.cat(y).float()
@@ -407,25 +407,49 @@ class CalibrationEvaluator:
 
         return x_kernel, y_kernel
 
+    def _encode_tabular(self, x: torch.Tensor) -> torch.Tensor:
+        return x
+
+    def _encode_image(self, x: torch.Tensor) -> torch.Tensor:
+        return self.clip_model.encode_image(self.image_preprocess(x), normalize=True)
+
+    def _encode_text(self, x: torch.Tensor) -> torch.Tensor:
+        return self.clip_model.encode_text(x, normalize=True)
+
+    def _load_or_compute_grid(self, grid_loader: DataLoader) -> torch.Tensor:
+        if self._grid_cache_path.exists():
+            return torch.load(self._grid_cache_path)
+
+        if self.settings.dataset_type == DatasetType.TABULAR:
+            encoder = self._encode_tabular
+        elif self.settings.dataset_type == DatasetType.IMAGE:
+            encoder = self._encode_image
+        else:
+            encoder = self._encode_text
+
+        grid = torch.cat(
+            [
+                encoder(inputs.to(self.device))
+                for inputs, _ in tqdm(grid_loader, desc="Encoding grid points", leave=False)
+            ],
+            dim=0,
+        )
+        torch.save(grid, self._grid_cache_path)
+        return grid
+
+    def _cleanup(self):
+        if self._grid_cache_path.exists():
+            self._grid_cache_path.unlink()
+
     @property
     def clip_model(self) -> CLIP:
         if self._clip_model is None:
-            self._clip_model, _, self._image_preprocess = open_clip.create_model_and_transforms(
+            self._clip_model = open_clip.create_model_and_transforms(
                 model_name="ViT-B-32",
                 pretrained="laion2b_s34b_b79k",
                 device=self.device,
-            )
+            )[0]
         return self._clip_model
-
-    @property
-    def image_preprocess(self) -> Compose:
-        if self._image_preprocess is None:
-            self._clip_model, _, self._image_preprocess = open_clip.create_model_and_transforms(
-                model_name="ViT-B-32",
-                pretrained="laion2b_s34b_b79k",
-                device=self.device,
-            )
-        return self._image_preprocess
 
     @property
     def tokenizer(self):

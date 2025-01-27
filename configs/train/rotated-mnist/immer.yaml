@@ -1,17 +1,15 @@
-experiment_name: name_of_experiment_here
+experiment_name: immer
 random_seed: 1998
-head_type: gaussian
+head_type: natural_gaussian
 dataset:
-  type: tabular
-  path: path/to/dataset.npz
-  input_dim: 1
+  type: image
+  spec: rotated_mnist
 training:
   accelerator: cpu
   batch_size: 32
-  num_workers: 8
-  chkp_dir: path/to/weights/dir
+  chkp_dir: chkp/rotated-mnist
   chkp_freq: 50
-  num_epochs: 200
+  num_epochs: 50
   optimizer:
     type: adam_w
     kwargs:
@@ -20,9 +18,9 @@ training:
   lr_scheduler:
     type: cosine_annealing
     kwargs:
-      T_max: 200
+      T_max: 50
       eta_min: 0
       last_epoch: -1
 evaluation:
   num_trials: 1
-  log_dir: path/to/log/dir
+  log_dir: logs/rotated-mnist

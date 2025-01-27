@@ -1,0 +1,20 @@
+experiment_name: stirn
+random_seed: 1998
+head_type: faithful_gaussian
+dataset:
+  type: image
+  spec: rotated_mnist
+batch_size: 1024
+num_workers: 20
+accelerator: gpu
+log_dir: results/rotated-mnist
+model_ckpt_path: chkp/rotated-mnist/stirn/version_0/best_loss.ckpt
+cce_settings:
+  num_trials: 5
+  output_kernel: rbf
+  lambda: 0.1
+  num_mc_samples: 1
+ece_settings:
+  num_bins: 50
+  weights: frequency
+  alpha: 1.0

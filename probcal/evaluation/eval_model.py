@@ -53,7 +53,11 @@ def main(config_path: Path):
     else:
         cce_input_kernel = "polynomial"
 
+    # TODO: For pure evaluation, we should use the test split for S. Separate file for forecasting error?
+    use_val_split_for_S = True
+
     cce_settings = CCESettings(
+        use_val_split_for_S=use_val_split_for_S,
         num_trials=config.cce_num_trials,
         num_mc_samples=config.cce_num_mc_samples,
         input_kernel=cce_input_kernel,
@@ -70,6 +74,7 @@ def main(config_path: Path):
         device=torch.device("cuda" if config.accelerator_type.value == "gpu" else "cpu"),
         cce_settings=cce_settings,
         ece_settings=ece_settings,
+        num_bootstrap_samples=10,
     )
     calib_evaluator = CalibrationEvaluator(settings=prob_eval_settings)
     print("Evaluating calibration...")
