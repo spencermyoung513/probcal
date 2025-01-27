@@ -1,4 +1,4 @@
-experiment_name: eva_faithful_gaussian
+experiment_name: stirn
 random_seed: 1998
 head_type: faithful_gaussian
 dataset:
@@ -6,5 +6,5 @@ dataset:
   spec: eva
 batch_size: 4
 accelerator: cpu
-log_dir: logs/faithful_gaussian_results
-model_ckpt_path: chkp/eva_faithful_gaussian/version_0/best_loss.ckpt
+log_dir: results/eva
+model_ckpt_path: chkp/eva/stirn/version_0/best_loss.ckpt

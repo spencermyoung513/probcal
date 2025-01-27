@@ -245,7 +245,7 @@ class CalibrationEvaluator:
         elif self.settings.dataset_type == DatasetType.IMAGE:
             grid = torch.cat(
                 [
-                    self.clip_model.encode_image(inputs.to(self.device), normalize=False)
+                    self.clip_model.encode_image(inputs.to(self.device), normalize=True)
                     for inputs, _ in grid_loader
                 ],
                 dim=0,

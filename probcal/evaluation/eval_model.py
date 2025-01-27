@@ -67,7 +67,7 @@ def main(config_path: Path):
     )
     prob_eval_settings = CalibrationEvaluatorSettings(
         dataset_type=config.dataset_type,
-        device=torch.device(config.accelerator_type.value),
+        device=torch.device("cuda" if config.accelerator_type.value == "gpu" else "cpu"),
         cce_settings=cce_settings,
         ece_settings=ece_settings,
     )

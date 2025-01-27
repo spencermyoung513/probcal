@@ -39,7 +39,12 @@ class EVADataset(Dataset):
 
         self.root_dir = Path(root_dir)
         self.labels_csv = self.root_dir.joinpath("labels.csv")
-        self.image_dir = self.root_dir.joinpath("images", self.split)
+        self.image_dir = self.root_dir.joinpath("images")
+
+        if not self._check_for_eva_data():
+            raise FileNotFoundError(
+                "Dataset is not present in the specified location. Contact the authors for access."
+            )
 
         self.labels_df = pd.read_csv(self.labels_csv)
         self.instances = self._get_instances_df()
@@ -55,7 +60,10 @@ class EVADataset(Dataset):
         return pd.DataFrame(instances)
 
     def __getitem__(self, idx: int) -> tuple[PILImage, int] | tuple[PILImage, tuple[str, int]]:
-        row = self.instances.iloc[idx]
+        try:
+            row = self.instances.iloc[idx]
+        except TypeError:
+            row = self.instances.iloc[idx.item()]
         image_path = row["image_path"]
         image = Image.open(image_path)
         image = self._ensure_rgb(image)
@@ -78,12 +86,4 @@ class EVADataset(Dataset):
         return image
 
     def _check_for_eva_data(self) -> bool:
-        return (
-            self.root_dir.exists()
-            and self.labels_dir.exists()
-            and self.labels_dir.joinpath(self.LABELS_CSV).exists()
-            and self.root_dir.joinpath("images")
-        )
-
-    def _check_for_eva_images(self) -> bool:
-        return self.image_dir.exists()
+        return self.root_dir.exists() and self.image_dir.exists() and self.labels_csv.exists()
