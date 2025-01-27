@@ -5,9 +5,13 @@ from shutil import move
 from shutil import rmtree
 from shutil import unpack_archive
 from typing import Callable
+from typing import Literal
+
 
 import gdown
 import pandas as pd
+import numpy as np
+from torch.utils.data import Subset
 from PIL import Image
 from PIL.Image import Image as PILImage
 from torch.utils.data import Dataset
@@ -22,12 +26,13 @@ class AAFDataset(Dataset):
     def __init__(
         self,
         root_dir: str | Path,
+        # split: Literal["train", "val", "test"],
         limit: int | None = None,
         transform: Callable[[PILImage], PILImage] | None = None,
         target_transform: Callable[[int], int] | None = None,
         surface_image_path: bool = False,
     ):
-        """Create an instance of the COCOPeople dataset.
+        """Create an instance of the AAF dataset.
 
         Args:
             root_dir (str | Path): Root directory where dataset files should be stored.
@@ -38,6 +43,7 @@ class AAFDataset(Dataset):
         """
 
         self.root_dir = Path(root_dir)
+        # self.split = split
         self.limit = limit
         self.image_dir = self.root_dir / "images"
         self.annotations_dir = self.root_dir / "annotations"
@@ -54,6 +60,7 @@ class AAFDataset(Dataset):
         self.transform = transform
         self.target_transform = target_transform
         self.instances = self._get_instances_df()
+        self.annotations_df = pd.read_csv(self.annotations_csv_path)
 
     def _already_downloaded(self) -> bool:
         return (
@@ -127,3 +134,51 @@ class AAFDataset(Dataset):
 
     def __len__(self):
         return len(self.instances)
+
+
+aaf_data = AAFDataset(root_dir='data/aaf')#, split='train')
+print("Dataset length:")
+print(f"{len(aaf_data.annotations_df)} images")
+
+num_instances = len(aaf_data)
+generator = np.random.default_rng(seed=117)
+shuffled_indices = generator.permutation(np.arange(num_instances))
+num_train = int(0.7 * num_instances)
+num_val = int(0.1 * num_instances)
+train_indices = shuffled_indices[:num_train]
+val_indices = shuffled_indices[num_train : num_train + num_val]
+test_indices = shuffled_indices[num_train + num_val :]
+
+train_dir = Path("data/aaf/images/train")
+val_dir = Path("data/aaf/images/val")
+test_dir = Path("data/aaf/images/test")
+train_dir.mkdir(parents=True, exist_ok=True)
+val_dir.mkdir(parents=True, exist_ok=True)
+test_dir.mkdir(parents=True, exist_ok=True)
+
+# add split column to the labels_df
+aaf_data.annotations_df["split"] = ""
+
+# move the files and update the labels_df
+for idx, indices in enumerate([train_indices, val_indices, test_indices]):
+    for i in indices:
+        row = aaf_data.annotations_df.iloc[i]
+        image_path = aaf_data.image_dir.joinpath(row["image_path"])
+        if idx == 0:
+            image_path.rename(train_dir.joinpath(row["image_path"]))
+            aaf_data.annotations_df.loc[i, "split"] = "train"
+        elif idx == 1:
+            image_path.rename(val_dir.joinpath(row["image_path"]))
+            aaf_data.annotations_df.loc[i, "split"] = "val"
+        else:
+            image_path.rename(test_dir.joinpath(row["image_path"]))
+            aaf_data.annotations_df.loc[i, "split"] = "test"
+
+# check the number of images in each folder
+print(len(list(train_dir.glob("*.jpg"))))
+print(len(list(val_dir.glob("*.jpg"))))
+print(len(list(test_dir.glob("*.jpg"))))
+
+
+# write the labels_df to a csv file
+aaf_data.annotations_df.to_csv("data/aaf/labels.csv", index=False)
