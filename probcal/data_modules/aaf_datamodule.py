@@ -1,7 +1,5 @@
 from pathlib import Path
 
-import numpy as np
-from torch.utils.data import Subset
 from torchvision.transforms import AutoAugment
 from torchvision.transforms import Compose
 from torchvision.transforms import Normalize
@@ -9,7 +7,6 @@ from torchvision.transforms import Resize
 from torchvision.transforms import ToTensor
 
 from probcal.custom_datasets import AAFDataset
-from probcal.custom_datasets import ImageDatasetWrapper
 from probcal.data_modules.probcal_datamodule import ProbcalDataModule
 
 
@@ -43,31 +40,22 @@ class AAFDataModule(ProbcalDataModule):
         train_transforms = Compose([resize, augment, to_tensor, normalize])
         inference_transforms = Compose([resize, to_tensor, normalize])
 
-        train_data = AAFDataset(
+        self.train = AAFDataset(
             self.root_dir,
             split='train',
+            transform=train_transforms,
             surface_image_path=self.surface_image_path,
         )
-        val_data = AAFDataset(
+        self.val = AAFDataset(
             self.root_dir,
             split='val',
+            transform=inference_transforms,
             surface_image_path=self.surface_image_path,
         )
-        test_data = AAFDataset(
+        self.test = AAFDataset(
             self.root_dir,
             split='test',
+            transform=inference_transforms,
             surface_image_path=self.surface_image_path,
         )
 
-        self.train = ImageDatasetWrapper(
-            base_dataset=train_data,
-            transforms=train_transforms,
-        )
-        self.val = ImageDatasetWrapper(
-            base_dataset=val_data,
-            transforms=inference_transforms,
-        )
-        self.test = ImageDatasetWrapper(
-            base_dataset=test_data,
-            transforms=inference_transforms,
-        )
