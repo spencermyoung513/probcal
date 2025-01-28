@@ -30,6 +30,10 @@ class AAFDataModule(ProbcalDataModule):
         )
         self.surface_image_path = surface_image_path
 
+    def prepare_data(self) -> None:
+        # download and extract the data
+        AAFDataset(self.root_dir, split="train")
+
     def setup(self, stage):
         resize = Resize((self.IMG_SIZE, self.IMG_SIZE))
         augment = AutoAugment()
@@ -42,20 +46,19 @@ class AAFDataModule(ProbcalDataModule):
 
         self.train = AAFDataset(
             self.root_dir,
-            split='train',
+            split="train",
             transform=train_transforms,
             surface_image_path=self.surface_image_path,
         )
         self.val = AAFDataset(
             self.root_dir,
-            split='val',
+            split="val",
             transform=inference_transforms,
             surface_image_path=self.surface_image_path,
         )
         self.test = AAFDataset(
             self.root_dir,
-            split='test',
+            split="test",
             transform=inference_transforms,
             surface_image_path=self.surface_image_path,
         )
-

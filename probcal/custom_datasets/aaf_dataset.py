@@ -1,14 +1,9 @@
 import os
 from pathlib import Path
-from shutil import move
-from shutil import rmtree
-from shutil import unpack_archive
 from typing import Callable
 from typing import Literal
 
-
 import pandas as pd
-from torch.utils.data import Subset
 from PIL import Image
 from PIL.Image import Image as PILImage
 from torch.utils.data import Dataset
@@ -68,11 +63,16 @@ class AAFDataset(Dataset):
 
     def _get_instances_df(self) -> pd.DataFrame:
         annotations = str(self.annotations_csv_path)
-        return pd.read_csv(annotations)
+        df = pd.read_csv(annotations)
+        df = df[df["split"] == self.split]
+        return df
 
     def __getitem__(self, idx: int) -> tuple[PILImage, int] | tuple[PILImage, tuple[str, int]]:
-        row = self.instances.iloc[idx]
-        image_path = self.root_dir / self.split / row["image_path"]
+        try:
+            row = self.instances.iloc[idx]
+        except Exception:
+            row = self.instances.iloc[idx.item()]
+        image_path = self.image_dir / self.split / row["image_path"]
         image = Image.open(image_path)
         age = row["age"]
         if self.transform is not None:
