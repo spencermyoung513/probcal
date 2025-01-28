@@ -14,5 +14,3 @@ data
 # Specific exceptions
 !data/discrete-wave/
 !weights
-
-*.png

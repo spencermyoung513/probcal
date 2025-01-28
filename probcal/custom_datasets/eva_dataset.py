@@ -10,7 +10,7 @@ from torch.utils.data import Dataset
 
 class EVADataset(Dataset):
     """
-    EVA dataset with images voted on how asthetic they are (labeled with the average asthetic score for each image).\n
+    EVA dataset with images voted on how asthetic they are (labeled with the average asthetic score for each image).
     The original dataset is available at https://github.com/kang-gnak/eva-dataset.
     """
 
