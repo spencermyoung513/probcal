@@ -87,9 +87,7 @@ class OodBlurEVADataModule(OodBlurDataModule):
     ):
         super().__init__(root_dir, batch_size, num_workers, persistent_workers, surface_image_path)
 
-    def _get_test_set(
-        self, root_dir: str | Path, transform: Compose, surface_image_path: str | Path
-    ):
+    def _get_test_set(self, root_dir: str | Path, transform: Compose, surface_image_path: bool):
         return EVADataset(
             root_dir, split="test", transform=transform, surface_image_path=surface_image_path
         )

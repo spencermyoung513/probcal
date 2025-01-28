@@ -37,6 +37,6 @@ class OodBlurDataModule(ProbcalDataModule):
         )
 
     def _get_test_set(
-        self, root_dir: str | Path, transform: Compose, surface_image_path: str | Path
+        self, root_dir: str | Path, transform: Compose, surface_image_path: bool
     ) -> Dataset:
         raise NotImplementedError("Must be implemented by subclass.")
