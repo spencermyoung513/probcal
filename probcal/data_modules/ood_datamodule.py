@@ -40,3 +40,13 @@ class OodBlurDataModule(ProbcalDataModule):
         self, root_dir: str | Path, transform: Compose, surface_image_path: bool
     ) -> Dataset:
         raise NotImplementedError("Must be implemented by subclass.")
+
+
+class OodMixupDataModule(ProbcalDataModule):
+    # TODO implement this class
+    pass
+
+
+class OodLabelNoiseDataModule(ProbcalDataModule):
+    # TODO implement this class
+    pass
