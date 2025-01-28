@@ -7,6 +7,7 @@ from torchvision.transforms import Resize
 from torchvision.transforms import ToTensor
 
 from probcal.custom_datasets import EVADataset
+from probcal.data_modules.ood_datamodule import OodBlurDataModule
 from probcal.data_modules.probcal_datamodule import ProbcalDataModule
 
 
@@ -73,3 +74,22 @@ class EVADataModule(ProbcalDataModule):
             t.mul_(s).add_(m)
 
         return tensor
+
+
+class OodBlurEVADataModule(OodBlurDataModule):
+    def __init__(
+        self,
+        root_dir: str | Path,
+        batch_size: int,
+        num_workers: int,
+        persistent_workers: bool,
+        surface_image_path: bool = False,
+    ):
+        super().__init__(root_dir, batch_size, num_workers, persistent_workers, surface_image_path)
+
+    def _get_test_set(
+        self, root_dir: str | Path, transform: Compose, surface_image_path: str | Path
+    ):
+        return EVADataset(
+            root_dir, split="test", transform=transform, surface_image_path=surface_image_path
+        )
