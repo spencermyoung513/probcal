@@ -43,28 +43,31 @@ class AAFDataModule(ProbcalDataModule):
         train_transforms = Compose([resize, augment, to_tensor, normalize])
         inference_transforms = Compose([resize, to_tensor, normalize])
 
-        full_dataset = AAFDataset(
+        train_data = AAFDataset(
             self.root_dir,
+            split='train',
             surface_image_path=self.surface_image_path,
         )
-        num_instances = len(full_dataset)
-        generator = np.random.default_rng(seed=1998)
-        shuffled_indices = generator.permutation(np.arange(num_instances))
-        num_train = int(0.7 * num_instances)
-        num_val = int(0.1 * num_instances)
-        train_indices = shuffled_indices[:num_train]
-        val_indices = shuffled_indices[num_train : num_train + num_val]
-        test_indices = shuffled_indices[num_train + num_val :]
+        val_data = AAFDataset(
+            self.root_dir,
+            split='val',
+            surface_image_path=self.surface_image_path,
+        )
+        test_data = AAFDataset(
+            self.root_dir,
+            split='test',
+            surface_image_path=self.surface_image_path,
+        )
 
         self.train = ImageDatasetWrapper(
-            base_dataset=Subset(full_dataset, train_indices),
+            base_dataset=train_data,
             transforms=train_transforms,
         )
         self.val = ImageDatasetWrapper(
-            base_dataset=Subset(full_dataset, val_indices),
+            base_dataset=val_data,
             transforms=inference_transforms,
         )
         self.test = ImageDatasetWrapper(
-            base_dataset=Subset(full_dataset, test_indices),
+            base_dataset=test_data,
             transforms=inference_transforms,
         )
