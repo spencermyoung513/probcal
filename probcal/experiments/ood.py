@@ -171,7 +171,6 @@ def main(cfg: dict) -> None:
             lmbda=cfg["hyperparams"]["lmbda"],
         )
 
-    print(cce_vals)
     print(cce_vals.mean())
     logging.info(f"Final CCE: {cce_vals.mean()}")
 
