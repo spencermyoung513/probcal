@@ -3,6 +3,7 @@ import logging
 import os.path
 from datetime import datetime
 from functools import partial
+from typing import Type
 
 import matplotlib.pyplot as plt
 import open_clip
@@ -14,6 +15,7 @@ from probcal.enums import ImageDatasetName
 from probcal.evaluation.kernels import polynomial_kernel
 from probcal.evaluation.kernels import rbf_kernel
 from probcal.evaluation.metrics import compute_mcmd_torch
+from probcal.models.probabilistic_regression_nn import ProbabilisticRegressionNN
 from probcal.utils.configs import EvaluationConfig
 from probcal.utils.experiment_utils import from_yaml
 from probcal.utils.experiment_utils import get_datamodule
@@ -82,10 +84,15 @@ def main(cfg: dict) -> None:
 
     # instantiate model
     model_cfg = EvaluationConfig.from_yaml(cfg["model"]["test_cfg"])
-    model = get_model(model_cfg).to(device)
-    weights_fpath = cfg["model"]["weights"]
-    state_dict = torch.load(weights_fpath, map_location=device, weights_only=True)
-    model.load_state_dict(state_dict)
+    # model = get_model(model_cfg).to(device)
+    initializer: Type[ProbabilisticRegressionNN] = get_model(model_cfg, return_initializer=True)[1]
+    model = initializer.load_from_checkpoint(model_cfg.model_ckpt_path)
+    model = model.to(device)
+    logging.info("Model loaded")
+    logging.info(f"Model: {type(model)}")
+    # weights_fpath = cfg["model"]["weights"]
+    # state_dict = torch.load(weights_fpath, map_location=device, weights_only=True)
+    # model.load_state_dict(state_dict)
 
     # get embeder
     embedder, _, transform = open_clip.create_model_and_transforms(
