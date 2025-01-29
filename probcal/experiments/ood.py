@@ -35,9 +35,7 @@ def mk_log_dir(log_dir, exp_name):
     """
     now = datetime.now()
     ts = now.strftime("%Y-%m-%d %H:%M").replace(" ", "-")
-    log_dir = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)), log_dir, exp_name + "_" + ts
-    )
+    log_dir = os.path.join(log_dir, exp_name + "_" + ts)
     log_file = os.path.join(log_dir, "log.txt")
     if not os.path.exists("logs"):
         os.makedirs("logs")
@@ -182,10 +180,10 @@ def main(cfg: dict) -> None:
 
 if __name__ == "__main__":
     args = argparse.ArgumentParser()
-    args.add_argument("--cfg-path", type=str)
+    args.add_argument("--config", type=str)
     args = args.parse_args()
 
-    cfg = from_yaml(args.cfg_path)
+    cfg = from_yaml(args.config)
     try:
         main(cfg)
     except Exception as e:
