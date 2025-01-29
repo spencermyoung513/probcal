@@ -19,6 +19,7 @@ from probcal.data_modules import OodLabelNoiseCocoPeopleDataModule
 from probcal.data_modules import OodMixupCocoPeopleDataModule
 from probcal.data_modules import RotatedMNISTDataModule
 from probcal.data_modules import TabularDataModule
+from probcal.data_modules.eva_datamodule import OodBlurEVADataModule
 from probcal.data_modules.readability_datamodule import ReadabilityDataModule
 from probcal.enums import DatasetType
 from probcal.enums import HeadType
@@ -174,6 +175,13 @@ def get_datamodule(
             )
         elif dataset_path_or_spec == ImageDatasetName.EVA:
             return EVADataModule(
+                root_dir=os.path.join(GLOBAL_DATA_DIR, "eva"),
+                batch_size=batch_size,
+                num_workers=num_workers,
+                persistent_workers=True if num_workers > 0 else False,
+            )
+        elif dataset_path_or_spec == ImageDatasetName.OOD_BLUR_EVA:
+            return OodBlurEVADataModule(
                 root_dir=os.path.join(GLOBAL_DATA_DIR, "eva"),
                 batch_size=batch_size,
                 num_workers=num_workers,

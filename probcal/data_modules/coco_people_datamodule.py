@@ -65,7 +65,7 @@ class COCOPeopleDataModule(ProbcalDataModule):
         )
 
 
-class OodBlurCocoPeopleDataModule(OodBlurDataModule):
+class OodBlurCocoPeopleDataModule(OodBlurDataModule, COCOPeopleDataModule):
     def __init__(
         self,
         root_dir: str | Path,

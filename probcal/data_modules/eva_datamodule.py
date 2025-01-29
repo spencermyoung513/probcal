@@ -76,7 +76,7 @@ class EVADataModule(ProbcalDataModule):
         return tensor
 
 
-class OodBlurEVADataModule(OodBlurDataModule):
+class OodBlurEVADataModule(OodBlurDataModule, EVADataModule):
     def __init__(
         self,
         root_dir: str | Path,
