@@ -74,7 +74,7 @@ def main(cfg: dict) -> None:
         DatasetType.IMAGE, ImageDatasetName(cfg["data"]["module"]), 1, num_workers=0
     )
     logging.info(f"DataModule: {type(datamodule)}")
-    if cfg["data"]["module"] == ImageDatasetName.COCO_PEOPLE.value:
+    if cfg["data"]["perturb"] is None:
         datamodule.setup(stage="test")
     else:
         datamodule.setup(stage="test", perturb=cfg["data"]["perturb"])
@@ -88,9 +88,6 @@ def main(cfg: dict) -> None:
     model = model.to(device)
     logging.info("Model loaded")
     logging.info(f"Model: {type(model)}")
-    # weights_fpath = cfg["model"]["weights"]
-    # state_dict = torch.load(weights_fpath, map_location=device, weights_only=True)
-    # model.load_state_dict(state_dict)
 
     # get embeder
     embedder, _, transform = open_clip.create_model_and_transforms(
@@ -174,6 +171,7 @@ def main(cfg: dict) -> None:
             lmbda=cfg["hyperparams"]["lmbda"],
         )
 
+    print(cce_vals)
     print(cce_vals.mean())
     logging.info(f"Final CCE: {cce_vals.mean()}")
 
