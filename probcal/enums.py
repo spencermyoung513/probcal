@@ -43,6 +43,8 @@ class ImageDatasetName(Enum):
     AAF = "aaf"
     EVA = "eva"
     OOD_BLUR_EVA = "ood_blur_eva"
+    OOD_MIXUP_EVA = "ood_mixup_eva"
+    OOD_LABEL_NOISE_EVA = "ood_label_noise_eva"
     OOD_BLUR_COCO_PEOPLE = "ood_blur_coco_people"
     OOD_MIXUP_COCO_PEOPLE = "ood_mixup_coco_people"
     OOD_LABEL_NOISE_COCO_PEOPLE = "ood_label_noise_coco_people"

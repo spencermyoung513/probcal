@@ -8,6 +8,8 @@ from torchvision.transforms import ToTensor
 
 from probcal.custom_datasets import EVADataset
 from probcal.data_modules.ood_datamodule import OodBlurDataModule
+from probcal.data_modules.ood_datamodule import OodLabelNoiseDataModule
+from probcal.data_modules.ood_datamodule import OodMixupDataModule
 from probcal.data_modules.probcal_datamodule import ProbcalDataModule
 
 
@@ -93,11 +95,35 @@ class OodBlurEVADataModule(OodBlurDataModule, EVADataModule):
         )
 
 
-class OodMixupEVADataModule(ProbcalDataModule):
-    # TODO implement this class
-    pass
+class OodMixupEVADataModule(OodMixupDataModule, EVADataModule):
+    def __init__(
+        self,
+        root_dir: str | Path,
+        batch_size: int,
+        num_workers: int,
+        persistent_workers: bool,
+        surface_image_path: bool = False,
+    ):
+        super().__init__(root_dir, batch_size, num_workers, persistent_workers, surface_image_path)
+
+    def _get_test_set(self, root_dir: str | Path, transform: Compose, surface_image_path: bool):
+        return EVADataset(
+            root_dir, split="test", transform=transform, surface_image_path=surface_image_path
+        )
 
 
-class OodLabelNoiseEVADataModule(ProbcalDataModule):
-    # TODO implement this class
-    pass
+class OodLabelNoiseEVADataModule(OodLabelNoiseDataModule, EVADataModule):
+    def __init__(
+        self,
+        root_dir: str | Path,
+        batch_size: int,
+        num_workers: int,
+        persistent_workers: bool,
+        surface_image_path: bool = False,
+    ):
+        super().__init__(root_dir, batch_size, num_workers, persistent_workers, surface_image_path)
+
+    def _get_test_set(self, root_dir: str | Path, transform: Compose, surface_image_path: bool):
+        return EVADataset(
+            root_dir, split="test", transform=transform, surface_image_path=surface_image_path
+        )
