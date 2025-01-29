@@ -23,7 +23,8 @@ class OodBlurDataModule(ProbcalDataModule):
         persistent_workers: bool,
         surface_image_path: bool = False,
     ):
-        super().__init__(root_dir, batch_size, num_workers, persistent_workers, surface_image_path)
+        super().__init__(root_dir, batch_size, num_workers, persistent_workers)
+        self.surface_image_path = surface_image_path
 
     def setup(self, stage, *args, **kwargs):
         if stage != "test":
@@ -55,7 +56,8 @@ class OodMixupDataModule(ProbcalDataModule):
         persistent_workers: bool,
         surface_image_path: bool = False,
     ):
-        super().__init__(root_dir, batch_size, num_workers, persistent_workers, surface_image_path)
+        super().__init__(root_dir, batch_size, num_workers, persistent_workers)
+        self.surface_image_path = surface_image_path
 
     def setup(self, stage, *args, **kwargs):
         if stage != "test":
@@ -90,7 +92,8 @@ class OodLabelNoiseDataModule(ProbcalDataModule):
         persistent_workers: bool,
         surface_image_path: bool = False,
     ):
-        super().__init__(root_dir, batch_size, num_workers, persistent_workers, surface_image_path)
+        super().__init__(root_dir, batch_size, num_workers, persistent_workers)
+        self.surface_image_path = surface_image_path
 
     def setup(self, stage, *args, **kwargs):
         if stage != "test":
