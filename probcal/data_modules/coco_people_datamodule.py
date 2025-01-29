@@ -85,7 +85,7 @@ class OodBlurCocoPeopleDataModule(OodBlurDataModule, COCOPeopleDataModule):
         )
 
 
-class OodMixupCocoPeopleDataModule(OodMixupDataModule):
+class OodMixupCocoPeopleDataModule(OodMixupDataModule, COCOPeopleDataModule):
     def __init__(
         self,
         root_dir: str | Path,
@@ -105,7 +105,7 @@ class OodMixupCocoPeopleDataModule(OodMixupDataModule):
         )
 
 
-class OodLabelNoiseCocoPeopleDataModule(OodLabelNoiseDataModule):
+class OodLabelNoiseCocoPeopleDataModule(OodLabelNoiseDataModule, COCOPeopleDataModule):
     def __init__(
         self,
         root_dir: str | Path,
