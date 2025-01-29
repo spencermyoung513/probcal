@@ -1,0 +1,17 @@
+exp:
+  name: ood_blur_eva_gaussian_3
+  log_dir: logs
+model:
+  weights: chkp/eva/gaussian/version_0/best_loss.ckpt
+  test_cfg: configs/test/eva/gaussian.yaml
+data:
+  test_examples: Null
+  n_samples: 1
+  perturb: 7.5
+  module: ood_blur_eva
+hyperparams:
+  lmbda: 0.1
+  y_kernel_gamma: 'auto' # {'auto', float}
+plot:
+  gen_fig: True
+  num_img_to_plot: 4
