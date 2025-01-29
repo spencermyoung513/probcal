@@ -91,3 +91,13 @@ class OodBlurEVADataModule(OodBlurDataModule):
         return EVADataset(
             root_dir, split="test", transform=transform, surface_image_path=surface_image_path
         )
+
+
+class OodMixupEVADataModule(ProbcalDataModule):
+    # TODO implement this class
+    pass
+
+
+class OodLabelNoiseEVADataModule(ProbcalDataModule):
+    # TODO implement this class
+    pass
