@@ -80,7 +80,6 @@ class OodBlurCocoPeopleDataModule(OodBlurDataModule, COCOPeopleDataModule):
         return COCOPeopleDataset(
             root_dir,
             split="test",
-            transform=transform,
             surface_image_path=surface_image_path,
         )
 
@@ -100,7 +99,6 @@ class OodMixupCocoPeopleDataModule(OodMixupDataModule, COCOPeopleDataModule):
         return COCOPeopleDataset(
             root_dir,
             split="test",
-            transform=transform,
             surface_image_path=surface_image_path,
         )
 
@@ -120,6 +118,5 @@ class OodLabelNoiseCocoPeopleDataModule(OodLabelNoiseDataModule, COCOPeopleDataM
         return COCOPeopleDataset(
             root_dir,
             split="test",
-            transform=transform,
             surface_image_path=surface_image_path,
         )

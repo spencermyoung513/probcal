@@ -107,9 +107,7 @@ class OodMixupEVADataModule(OodMixupDataModule, EVADataModule):
         super().__init__(root_dir, batch_size, num_workers, persistent_workers, surface_image_path)
 
     def _get_test_set(self, root_dir: str | Path, transform: Compose, surface_image_path: bool):
-        return EVADataset(
-            root_dir, split="test", transform=transform, surface_image_path=surface_image_path
-        )
+        return EVADataset(root_dir, split="test", surface_image_path=surface_image_path)
 
 
 class OodLabelNoiseEVADataModule(OodLabelNoiseDataModule, EVADataModule):
@@ -124,6 +122,4 @@ class OodLabelNoiseEVADataModule(OodLabelNoiseDataModule, EVADataModule):
         super().__init__(root_dir, batch_size, num_workers, persistent_workers, surface_image_path)
 
     def _get_test_set(self, root_dir: str | Path, transform: Compose, surface_image_path: bool):
-        return EVADataset(
-            root_dir, split="test", transform=transform, surface_image_path=surface_image_path
-        )
+        return EVADataset(root_dir, split="test", surface_image_path=surface_image_path)
