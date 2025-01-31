@@ -1,5 +1,5 @@
 exp:
-  name: ood_blur_eva_gaussian_4
+  name: ood_blur_eva_gaussian_3
   log_dir: logs
 model:
   weights: chkp/eva/gaussian/version_0/best_loss.ckpt
@@ -7,8 +7,8 @@ model:
 data:
   test_examples: Null
   n_samples: 1
-  perturb: 1.0
-  module: ood_blur_eva
+  perturb: {'mean': 4.0, 'std': 1.0}
+  module: ood_label_noise_eva
 hyperparams:
   lmbda: 0.1
   y_kernel_gamma: 'auto' # {'auto', float}

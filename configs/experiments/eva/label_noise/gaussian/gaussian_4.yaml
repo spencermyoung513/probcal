@@ -7,8 +7,8 @@ model:
 data:
   test_examples: Null
   n_samples: 1
-  perturb: 1.0
-  module: ood_blur_eva
+  perturb: {'mean': 5.0, 'std': 1.0}
+  module: ood_label_noise_eva
 hyperparams:
   lmbda: 0.1
   y_kernel_gamma: 'auto' # {'auto', float}

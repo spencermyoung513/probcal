@@ -1,14 +1,14 @@
 exp:
-  name: ood_blur_eva_seitzer_2
+  name: ood_mixup_eva_gaussian_4
   log_dir: logs
 model:
-  weights: chkp/eva/seitzer/version_0/best_loss.ckpt
-  test_cfg: configs/test/eva/seitzer.yaml
+  weights: chkp/eva/gaussian/version_0/best_loss.ckpt
+  test_cfg: configs/test/eva/gaussian.yaml
 data:
   test_examples: Null
   n_samples: 1
-  perturb: 5
-  module: ood_blur_eva
+  perturb: 0.5
+  module: ood_mixup_eva
 hyperparams:
   lmbda: 0.1
   y_kernel_gamma: 'auto' # {'auto', float}
