@@ -1,5 +1,5 @@
 exp:
-  name: ood_blur_eva_gaussian_3
+  name: ood_label_noise_eva_gaussian_3
   log_dir: logs
 model:
   weights: chkp/eva/gaussian/version_0/best_loss.ckpt

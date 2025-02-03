@@ -171,6 +171,10 @@ def main(cfg: dict) -> None:
             lmbda=cfg["hyperparams"]["lmbda"],
         )
 
+    if torch.isnan(cce_vals).any():
+        print("Nans in CCE values")
+        cce_vals = cce_vals[~torch.isnan(cce_vals)]
+
     print(cce_vals.mean())
     logging.info(f"Final CCE: {cce_vals.mean()}")
 

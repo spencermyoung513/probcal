@@ -7,7 +7,7 @@ model:
 data:
   test_examples: Null
   n_samples: 1
-  perturb: 1.0
+  perturb: 10
   module: ood_blur_eva
 hyperparams:
   lmbda: 0.1
