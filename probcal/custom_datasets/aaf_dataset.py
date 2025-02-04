@@ -4,6 +4,7 @@ from typing import Callable
 from typing import Literal
 
 import pandas as pd
+import torch
 from PIL import Image
 from PIL.Image import Image as PILImage
 from torch.utils.data import Dataset
@@ -68,10 +69,11 @@ class AAFDataset(Dataset):
         return df
 
     def __getitem__(self, idx: int) -> tuple[PILImage, int] | tuple[PILImage, tuple[str, int]]:
-        try:
-            row = self.instances.iloc[idx]
-        except TypeError:
+        if isinstance(idx, torch.Tensor):
             row = self.instances.iloc[idx.item()]
+        else:
+            row = self.instances.iloc[idx]
+            
         image_path = self.image_dir / self.split / row["image_path"]
         image = Image.open(image_path)
         age = row["age"]
