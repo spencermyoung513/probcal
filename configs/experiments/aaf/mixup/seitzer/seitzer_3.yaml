@@ -2,7 +2,7 @@ exp:
   name: ood_mixup_aaf_seitzer_3
   log_dir: logs
 model:
-  weights: chkp/aaf_seitzer/version_0/best_loss.ckpt
+  weights: chkp/aaf/seitzer/version_0/best_loss.ckpt
   test_cfg: configs/test/aaf/seitzer.yaml
 data:
   test_examples: Null

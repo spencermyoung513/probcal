@@ -2,7 +2,7 @@ exp:
   name: ood_blur_aaf_seitzer_1
   log_dir: logs
 model:
-  weights: chkp/aaf_seitzer/version_0/best_loss.ckpt
+  weights: chkp/aaf/seitzer/version_0/best_loss.ckpt
   test_cfg: configs/test/aaf/seitzer.yaml
 data:
   test_examples: Null

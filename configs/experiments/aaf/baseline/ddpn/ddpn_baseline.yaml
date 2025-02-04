@@ -1,9 +1,9 @@
 exp:
-  name: ood_baseline_aaf_gaussian
+  name: aaf_ddpn
   log_dir: logs
 model:
-  weights: chkp/aaf/gaussian/version_0/best_loss.ckpt
-  test_cfg: configs/test/aaf/aaf_gaussian.yaml
+  weights: chkp/aaf/ddpn/best_loss.ckpt
+  test_cfg: configs/test/aaf/ddpn.yaml
 data:
   test_examples: Null
   n_samples: 1

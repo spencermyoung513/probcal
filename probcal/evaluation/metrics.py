@@ -6,6 +6,8 @@ from scipy.linalg import cho_factor
 from scipy.linalg import cho_solve
 from scipy.stats import rv_continuous
 
+from probcal.random_variables.discrete_random_variable import DiscreteRandomVariable
+
 
 def _compute_discrete_torch_dist_cdf(
     dist: torch.distributions.Poisson | torch.distributions.NegativeBinomial,
@@ -21,7 +23,9 @@ def _compute_discrete_torch_dist_cdf(
 
 def compute_regression_ece(
     y_true: np.ndarray,
-    posterior_predictive: rv_continuous | torch.distributions.Distribution,
+    posterior_predictive: rv_continuous
+    | DiscreteRandomVariable
+    | torch.distributions.Distribution,
     num_bins: int = 100,
     weights: str = "uniform",
     alpha: float = 1.0,
@@ -38,7 +42,7 @@ def compute_regression_ece(
 
     Args:
         y_true (np.ndarray): The true values of the regression targets.
-        posterior_predictive (rv_continuous | torch.distributions.Distribution): Random variable representing the posterior predictive distribution over the targets.
+        posterior_predictive (rv_continuous | DiscreteRandomVariable | torch.distributions.Distribution): Random variable representing the posterior predictive distribution over the targets.
         num_bins (int): The number of bins to use for the ECE. Defaults to 100.
         weights (str, optional): Strategy for choosing the weights in the ECE sum. Must be either "uniform" or "frequency" (terms are weighted by the numerator of q_j). Defaults to "uniform".
         alpha (float, optional): Controls how severely we penalize the model for the distance between p_j and q_j. Defaults to 1 (error term is |p_j - q_j|).
@@ -46,16 +50,19 @@ def compute_regression_ece(
     Returns:
         float: The expected calibration error.
     """
+    TorchDistribution: TypeAlias = torch.distributions.Distribution | DiscreteRandomVariable
     eps = 1e-5
     p_j = np.linspace(eps, 1 - eps, num=num_bins)
 
-    if isinstance(posterior_predictive, torch.distributions.Distribution):
-        device = None
-        for param in posterior_predictive.__dict__.values():
-            if isinstance(param, torch.Tensor) and str(param.device) != "cpu":
-                device = param.device
-        device = device or torch.device("cpu")
-
+    if isinstance(posterior_predictive, TorchDistribution):
+        if isinstance(posterior_predictive, torch.distributions.Distribution):
+            device = None
+            for param in posterior_predictive.__dict__.values():
+                if isinstance(param, torch.Tensor) and str(param.device) != "cpu":
+                    device = param.device
+            device = device or torch.device("cpu")
+        elif isinstance(posterior_predictive, DiscreteRandomVariable):
+            device = posterior_predictive.device
         y_true_torch = torch.tensor(y_true, device=device)
         p_j_torch = torch.tensor(p_j, device=device).reshape(-1, 1)
 

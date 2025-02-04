@@ -2,7 +2,7 @@ exp:
   name: ood_blur_aaf_gaussian_3
   log_dir: logs
 model:
-  weights: chkp/aaf_gaussian/version_0/best_loss.ckpt
+  weights: chkp/aaf/gaussian/version_0/best_loss.ckpt
   test_cfg: configs/test/aaf/aaf_gaussian.yaml
 data:
   test_examples: Null
