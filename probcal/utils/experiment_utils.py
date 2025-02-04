@@ -22,6 +22,9 @@ from probcal.data_modules import TabularDataModule
 from probcal.data_modules.eva_datamodule import OodBlurEVADataModule
 from probcal.data_modules.eva_datamodule import OodLabelNoiseEVADataModule
 from probcal.data_modules.eva_datamodule import OodMixupEVADataModule
+from probcal.data_modules.fg_net_datamodule import OodBlurFGNetDataModule
+from probcal.data_modules.fg_net_datamodule import OodLabelNoiseFGNetDataModule
+from probcal.data_modules.fg_net_datamodule import OodMixupFGNetDataModule
 from probcal.data_modules.readability_datamodule import ReadabilityDataModule
 from probcal.enums import DatasetType
 from probcal.enums import HeadType
@@ -205,6 +208,27 @@ def get_datamodule(
             )
         elif dataset_path_or_spec == ImageDatasetName.FG_NET:
             return FGNetDataModule(
+                root_dir=GLOBAL_DATA_DIR,
+                batch_size=batch_size,
+                num_workers=num_workers,
+                persistent_workers=True if num_workers > 0 else False,
+            )
+        elif dataset_path_or_spec == ImageDatasetName.OOD_BLUR_FG_NET:
+            return OodBlurFGNetDataModule(
+                root_dir=GLOBAL_DATA_DIR,
+                batch_size=batch_size,
+                num_workers=num_workers,
+                persistent_workers=True if num_workers > 0 else False,
+            )
+        elif dataset_path_or_spec == ImageDatasetName.OOD_MIXUP_FG_NET:
+            return OodMixupFGNetDataModule(
+                root_dir=GLOBAL_DATA_DIR,
+                batch_size=batch_size,
+                num_workers=num_workers,
+                persistent_workers=True if num_workers > 0 else False,
+            )
+        elif dataset_path_or_spec == ImageDatasetName.OOD_LABEL_NOISE_FG_NET:
+            return OodLabelNoiseFGNetDataModule(
                 root_dir=GLOBAL_DATA_DIR,
                 batch_size=batch_size,
                 num_workers=num_workers,

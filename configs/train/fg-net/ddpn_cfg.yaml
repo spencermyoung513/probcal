@@ -1,6 +1,6 @@
-experiment_name: fg_net_natural_gaussian
+experiment_name: fg_net_ddpn
 random_seed: 1998
-head_type: natural_gaussian
+head_type: ddpn
 dataset:
   type: image
   spec: fg_net
