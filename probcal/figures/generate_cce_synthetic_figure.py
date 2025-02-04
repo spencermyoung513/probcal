@@ -39,7 +39,7 @@ def produce_figure(
         save_path (Path | str): Path to save figure to.
         dataset_path (Path | str): Path with dataset models were fit on.
     """
-    plt.rc("text", usetex=True)
+    plt.rc("text", usetex=False)
     plt.rc("font", family="serif")
 
     fig, axs = plt.subplots(
@@ -58,7 +58,7 @@ def produce_figure(
         dataset_path, batch_size=16, num_workers=0, persistent_workers=False
     )
     cce_settings = CCESettings(
-        num_trials=5, num_mc_samples=1, input_kernel=x_kernel, output_kernel="rbf"
+        num_trials=5, num_mc_samples=5, input_kernel=x_kernel, output_kernel="rbf"
     )
     settings = CalibrationEvaluatorSettings(
         dataset_type=DatasetType.TABULAR,
@@ -131,8 +131,8 @@ def produce_figure(
         crps_std = eval_results_dict["crps_std"]
 
         posterior_ax.set_title(model_name)
-        posterior_ax.annotate(f"CRPS: {crps_mean:.3f} ({crps_std:.2f})", (0.2, 41))
-        posterior_ax.annotate(f"ECE: {ece_mean:.3f} ({ece_std:.2f})", (0.2, 38))
+        posterior_ax.annotate(f"CRPS: {crps_mean:.3f} ({crps_std:.3f})", (0.2, 41))
+        posterior_ax.annotate(f"ECE: {ece_mean:.3f} ({ece_std:.3f})", (0.2, 38))
         posterior_ax.xaxis.set_major_locator(MultipleLocator(np.pi))
         posterior_ax.xaxis.set_major_formatter(FuncFormatter(multiple_formatter()))
         posterior_ax.set_xlabel(None)
@@ -149,7 +149,7 @@ def produce_figure(
         )
         cce_ax.set_ylim(-0.01, 0.5)
         cce_ax.annotate(
-            rf"$\overline{{\mathrm{{CCE}}}}$: {results.cce.mean_cce_bar:.3f} ({results.cce.std_cce_bar:.2f})",
+            rf"$\overline{{\mathrm{{CCE}}}}$: {results.cce.mean_cce_bar:.3f} ({results.cce.std_cce_bar:.3f})",
             (X.min() + 0.1, cce_ax.get_ylim()[1] * 0.8),
         )
 
