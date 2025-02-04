@@ -27,6 +27,7 @@ from probcal.enums import DatasetType
 from probcal.enums import HeadType
 from probcal.enums import ImageDatasetName
 from probcal.enums import TextDatasetName
+from probcal.models import DoublePoissonNN
 from probcal.models import FaithfulGaussianNN
 from probcal.models import GaussianNN
 from probcal.models import NaturalGaussianNN
@@ -70,6 +71,8 @@ def get_model(
         initializer = PoissonNN
     elif config.head_type == HeadType.NEGATIVE_BINOMIAL:
         initializer = NegBinomNN
+    elif config.head_type == HeadType.DOUBLE_POISSON:
+        initializer = DoublePoissonNN
     else:
         raise ValueError(f"Head type {config.head_type} not recognized.")
 

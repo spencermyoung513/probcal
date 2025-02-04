@@ -4,6 +4,7 @@ from typing import Callable
 from typing import Literal
 
 import pandas as pd
+import torch
 from PIL import Image
 from PIL.Image import Image as PILImage
 from torch.utils.data import Dataset
