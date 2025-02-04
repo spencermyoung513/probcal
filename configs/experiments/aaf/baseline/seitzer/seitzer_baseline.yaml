@@ -1,0 +1,17 @@
+exp:
+  name: ood_baseline_aaf_seitzer
+  log_dir: logs
+model:
+  weights: chkp/aaf_seitzer/version_0/best_loss.ckpt
+  test_cfg: configs/test/aaf/seitzer.yaml
+data:
+  test_examples: Null
+  n_samples: 1
+  perturb: Null
+  module: aaf
+hyperparams:
+  lmbda: 0.1
+  y_kernel_gamma: 'auto' # {'auto', float}
+plot:
+  gen_fig: True
+  num_img_to_plot: 4

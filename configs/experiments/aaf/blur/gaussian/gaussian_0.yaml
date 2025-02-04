@@ -1,0 +1,17 @@
+exp:
+  name: ood_blur_aaf_gaussian_0
+  log_dir: logs
+model:
+  weights: chkp/aaf_gaussian/version_0/best_loss.ckpt
+  test_cfg: configs/test/aaf/aaf_gaussian.yaml
+data:
+  test_examples: Null
+  n_samples: 1
+  perturb: 1.0
+  module: ood_blur_aaf
+hyperparams:
+  lmbda: 0.1
+  y_kernel_gamma: 'auto' # {'auto', float}
+plot:
+  gen_fig: True
+  num_img_to_plot: 4
