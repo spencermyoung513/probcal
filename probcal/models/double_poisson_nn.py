@@ -171,17 +171,11 @@ class DoublePoissonNN(ProbabilisticRegressionNN):
         mode = torch.argmax(dist.pmf_vals, axis=0)
         return mode
 
-    def _update_addl_test_metrics_batch(
-        self, x: torch.Tensor, y_hat: torch.Tensor, y: torch.Tensor
-    ):
+    def _update_addl_test_metrics(self, x: torch.Tensor, y_hat: torch.Tensor, y: torch.Tensor):
         dist: DoublePoisson = self.predictive_dist(y_hat, training=False)
         mu, phi = dist.mu, dist.phi
         precision = phi / mu
         targets = y.flatten()
-        target_probs = dist.pmf(targets.long())
-
-        if not isinstance(target_probs, torch.Tensor):
-            target_probs = torch.tensor(target_probs, device=self.device)
 
         self.mp.update(precision)
         self.crps.update(y_hat, targets)
