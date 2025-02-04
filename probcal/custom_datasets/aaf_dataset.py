@@ -70,7 +70,7 @@ class AAFDataset(Dataset):
     def __getitem__(self, idx: int) -> tuple[PILImage, int] | tuple[PILImage, tuple[str, int]]:
         try:
             row = self.instances.iloc[idx]
-        except Exception:
+        except TypeError:
             row = self.instances.iloc[idx.item()]
         image_path = self.image_dir / self.split / row["image_path"]
         image = Image.open(image_path)
