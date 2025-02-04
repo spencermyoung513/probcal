@@ -1,0 +1,17 @@
+exp:
+  name: ood_blur_fg_net_seitzer_4
+  log_dir: logs
+model:
+  weights: chkp/fg-net/seitzer/version_0/best_loss.ckpt
+  test_cfg: configs/test/fg-net/seitzer.yaml
+data:
+  test_examples: Null
+  n_samples: 1
+  perturb: 10.0
+  module: ood_blur_fg_net
+hyperparams:
+  lmbda: 0.1
+  y_kernel_gamma: 'auto' # {'auto', float}
+plot:
+  gen_fig: True
+  num_img_to_plot: 4

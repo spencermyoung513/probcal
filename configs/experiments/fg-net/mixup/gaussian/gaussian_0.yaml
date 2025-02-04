@@ -1,0 +1,17 @@
+exp:
+  name: ood_mixup_fg_net_gaussian_0
+  log_dir: logs
+model:
+  weights: chkp/fg_net/gaussian/version_0/best_loss.ckpt
+  test_cfg: configs/test/fg_net/gaussian.yaml
+data:
+  test_examples: Null
+  n_samples: 1
+  perturb: 0.1
+  module: ood_mixup_fg_net
+hyperparams:
+  lmbda: 0.1
+  y_kernel_gamma: 'auto' # {'auto', float}
+plot:
+  gen_fig: True
+  num_img_to_plot: 4
