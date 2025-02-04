@@ -1,4 +1,5 @@
 from functools import partial
+from typing import Optional
 from typing import Type
 
 import torch
@@ -11,14 +12,15 @@ from probcal.enums import OptimizerType
 from probcal.evaluation.custom_torchmetrics import AverageNLL
 from probcal.evaluation.custom_torchmetrics import MedianPrecision
 from probcal.models.backbones import Backbone
-from probcal.models.discrete_regression_nn import DiscreteRegressionNN
+from probcal.models.probabilistic_regression_nn import ProbabilisticRegressionNN
 from probcal.random_variables import DoublePoisson
 from probcal.training.beta_schedulers import CosineAnnealingBetaScheduler
 from probcal.training.beta_schedulers import LinearBetaScheduler
 from probcal.training.losses import double_poisson_nll
+from probcal.utils.differentiable_samplers import get_differentiable_sample_from_gaussian
 
 
-class DoublePoissonNN(DiscreteRegressionNN):
+class DoublePoissonNN(ProbabilisticRegressionNN):
     """A neural network that learns the parameters of a Double Poisson distribution over each regression target (conditioned on the input).
 
     Attributes:
@@ -36,12 +38,12 @@ class DoublePoissonNN(DiscreteRegressionNN):
         self,
         backbone_type: Type[Backbone],
         backbone_kwargs: dict,
-        optim_type: OptimizerType,
-        optim_kwargs: dict,
-        lr_scheduler_type: LRSchedulerType | None = None,
-        lr_scheduler_kwargs: dict | None = None,
-        beta_scheduler_type: BetaSchedulerType | None = None,
-        beta_scheduler_kwargs: dict | None = None,
+        optim_type: Optional[OptimizerType] = None,
+        optim_kwargs: Optional[dict] = None,
+        lr_scheduler_type: Optional[LRSchedulerType] = None,
+        lr_scheduler_kwargs: Optional[dict] = None,
+        beta_scheduler_type: BetaSchedulerType = None,
+        beta_scheduler_kwargs: Optional[dict] = None,
     ):
         """Instantiate a DoublePoissonNN.
 
@@ -115,8 +117,57 @@ class DoublePoissonNN(DiscreteRegressionNN):
 
         return torch.exp(y_hat)
 
-    def _point_prediction(self, y_hat: torch.Tensor, training: bool) -> torch.Tensor:
-        dist = self._convert_output_to_dist(y_hat, log_output=training)
+    def _sample_impl(
+        self, y_hat: torch.Tensor, training: bool = False, num_samples: int = 1
+    ) -> torch.Tensor:
+        """Sample from this network's posterior predictive distributions for a batch of data (as specified by y_hat).
+
+        Args:
+            y_hat (torch.Tensor): Output tensor from a regression network, with shape (N, ...).
+            training (bool, optional): Boolean indicator specifying if `y_hat` is a training output or not. This particularly matters when outputs are in log space during training, for example. Defaults to False.
+            num_samples (int, optional): Number of samples to take from each posterior predictive. Defaults to 1.
+
+        Returns:
+            torch.Tensor: Batched sample tensor, with shape (N, num_samples).
+        """
+        dist = self.predictive_dist(y_hat, training)
+        return dist.rvs((num_samples, dist.dimension)).T
+
+    def _rsample_impl(
+        self, y_hat: torch.Tensor, training: bool = False, num_samples: int = 1, **kwargs
+    ) -> torch.Tensor:
+        """Sample (using a differentiable relaxation) from this network's predictive distributions for a batch of data (as specified by y_hat).
+
+        Args:
+            y_hat (torch.Tensor): Output tensor from a regression network, with shape (N, ...).
+            training (bool, optional): Boolean indicator specifying if `y_hat` is a training output or not. This particularly matters when outputs are in log space during training, for example. Defaults to False.
+            num_samples (int, optional): Number of samples to take from each predictive distribution. Defaults to 1.
+
+        Returns:
+            torch.Tensor: Batched sample tensor, with shape (N, num_samples).
+        """
+        dist: DoublePoisson = self.predictive_dist(y_hat, training)
+        sample = (
+            get_differentiable_sample_from_gaussian(
+                mu=dist.mu,
+                stdev=torch.sqrt(dist.mu / dist.phi),
+                num_samples=num_samples,
+            )
+            .squeeze(-1)
+            .permute(1, 0)
+        )
+        return sample
+
+    def _predictive_dist_impl(self, y_hat: torch.Tensor, training: bool = False) -> DoublePoisson:
+        output = y_hat.exp() if training else y_hat
+        mu, phi = torch.split(output, [1, 1], dim=-1)
+        mu = mu.flatten()
+        phi = phi.flatten()
+        dist = DoublePoisson(mu, phi)
+        return dist
+
+    def _point_prediction_impl(self, y_hat: torch.Tensor, training: bool) -> torch.Tensor:
+        dist = self.predictive_dist(y_hat, training)
         mode = torch.argmax(dist.pmf_vals, axis=0)
         return mode
 
@@ -129,31 +180,17 @@ class DoublePoissonNN(DiscreteRegressionNN):
     def _update_addl_test_metrics_batch(
         self, x: torch.Tensor, y_hat: torch.Tensor, y: torch.Tensor
     ):
-        dist = self._convert_output_to_dist(y_hat, log_output=False)
+        dist: DoublePoisson = self.predictive_dist(y_hat, training=False)
         mu, phi = dist.mu, dist.phi
         precision = phi / mu
         targets = y.flatten()
         target_probs = dist.pmf(targets.long())
 
+        if not isinstance(target_probs, torch.Tensor):
+            target_probs = torch.tensor(target_probs, device=self.device)
+
         self.nll.update(target_probs)
         self.mp.update(precision)
-
-    def _convert_output_to_dist(self, y_hat: torch.Tensor, log_output: bool) -> DoublePoisson:
-        """Convert a network output to the implied Double Poisson distribution.
-
-        Args:
-            y_hat (torch.Tensor): Output from a `DoublePoissonNN` (mu, phi for the predicted distribution over y).
-            log_output (bool): Whether/not output is in log space (such as during training).
-
-        Returns:
-            DoublePoisson: The implied Double Poisson distribution over y.
-        """
-        output = y_hat.exp() if log_output else y_hat
-        mu, phi = torch.split(output, [1, 1], dim=-1)
-        mu = mu.flatten()
-        phi = phi.flatten()
-        dist = DoublePoisson(mu, phi)
-        return dist
 
     def on_train_epoch_end(self):
         if self.beta_scheduler is not None:
