@@ -4,6 +4,9 @@ from .coco_people_datamodule import OodBlurCocoPeopleDataModule
 from .coco_people_datamodule import OodLabelNoiseCocoPeopleDataModule
 from .coco_people_datamodule import OodMixupCocoPeopleDataModule
 from .eva_datamodule import EVADataModule
+from .eva_datamodule import OodBlurEVADataModule
+from .eva_datamodule import OodLabelNoiseEVADataModule
+from .eva_datamodule import OodMixupEVADataModule
 from .fg_net_datamodule import FGNetDataModule
 from .readability_datamodule import ReadabilityDataModule
 from .rotated_mnist_datamodule import RotatedMNISTDataModule

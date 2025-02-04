@@ -3,6 +3,7 @@ import logging
 import os.path
 from datetime import datetime
 from functools import partial
+from typing import Type
 
 import matplotlib.pyplot as plt
 import open_clip
@@ -14,6 +15,7 @@ from probcal.enums import ImageDatasetName
 from probcal.evaluation.kernels import polynomial_kernel
 from probcal.evaluation.kernels import rbf_kernel
 from probcal.evaluation.metrics import compute_mcmd_torch
+from probcal.models.probabilistic_regression_nn import ProbabilisticRegressionNN
 from probcal.utils.configs import EvaluationConfig
 from probcal.utils.experiment_utils import from_yaml
 from probcal.utils.experiment_utils import get_datamodule
@@ -33,9 +35,7 @@ def mk_log_dir(log_dir, exp_name):
     """
     now = datetime.now()
     ts = now.strftime("%Y-%m-%d %H:%M").replace(" ", "-")
-    log_dir = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)), log_dir, exp_name + "_" + ts
-    )
+    log_dir = os.path.join(log_dir, exp_name + "_" + ts)
     log_file = os.path.join(log_dir, "log.txt")
     if not os.path.exists("logs"):
         os.makedirs("logs")
@@ -74,7 +74,7 @@ def main(cfg: dict) -> None:
         DatasetType.IMAGE, ImageDatasetName(cfg["data"]["module"]), 1, num_workers=0
     )
     logging.info(f"DataModule: {type(datamodule)}")
-    if cfg["data"]["module"] == ImageDatasetName.COCO_PEOPLE.value:
+    if cfg["data"]["perturb"] is None:
         datamodule.setup(stage="test")
     else:
         datamodule.setup(stage="test", perturb=cfg["data"]["perturb"])
@@ -82,10 +82,12 @@ def main(cfg: dict) -> None:
 
     # instantiate model
     model_cfg = EvaluationConfig.from_yaml(cfg["model"]["test_cfg"])
-    model = get_model(model_cfg).to(device)
-    weights_fpath = cfg["model"]["weights"]
-    state_dict = torch.load(weights_fpath, map_location=device, weights_only=True)
-    model.load_state_dict(state_dict)
+    # model = get_model(model_cfg).to(device)
+    initializer: Type[ProbabilisticRegressionNN] = get_model(model_cfg, return_initializer=True)[1]
+    model = initializer.load_from_checkpoint(model_cfg.model_ckpt_path)
+    model = model.to(device)
+    logging.info("Model loaded")
+    logging.info(f"Model: {type(model)}")
 
     # get embeder
     embedder, _, transform = open_clip.create_model_and_transforms(
@@ -175,10 +177,10 @@ def main(cfg: dict) -> None:
 
 if __name__ == "__main__":
     args = argparse.ArgumentParser()
-    args.add_argument("--cfg-path", type=str)
+    args.add_argument("--config", type=str)
     args = args.parse_args()
 
-    cfg = from_yaml(args.cfg_path)
+    cfg = from_yaml(args.config)
     try:
         main(cfg)
     except Exception as e:
