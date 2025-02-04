@@ -1,14 +1,14 @@
 exp:
-  name: ood_blur_aaf_seitzer_2
+  name: ood_mixup_aaf_ddpn_4
   log_dir: logs/exp/aaf
 model:
-  weights: chkp/aaf/seitzer/version_0/best_loss.ckpt
-  test_cfg: configs/test/aaf/seitzer.yaml
+  weights: chkp/aaf/ddpn/best_loss.ckpt
+  test_cfg: configs/test/aaf/ddpn.yaml
 data:
   test_examples: Null
   n_samples: 1
-  perturb: 5.0
-  module: ood_blur_aaf
+  perturb: 0.5
+  module: ood_mixup_aaf
 hyperparams:
   lmbda: 0.1
   y_kernel_gamma: 'auto' # {'auto', float}

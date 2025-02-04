@@ -65,6 +65,17 @@ class AAFDataModule(ProbcalDataModule):
             transform=inference_transforms,
             surface_image_path=self.surface_image_path,
         )
+    
+    @classmethod
+    def denormalize(cls, tensor):
+        # Clone the tensor so the original stays unmodified
+        tensor = tensor.clone()
+
+        # De-normalize by multiplying by the std and then adding the mean
+        for t, m, s in zip(tensor, cls.IMAGE_NET_MEAN, cls.IMAGE_NET_STD):
+            t.mul_(s).add_(m)
+
+        return tensor
 
 class OodBlurAAFDataModule(OodBlurDataModule, AAFDataModule):
     def __init__(

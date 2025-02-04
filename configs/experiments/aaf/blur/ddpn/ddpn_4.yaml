@@ -1,9 +1,9 @@
 exp:
-  name: ood_blur_aaf_seitzer_4
+  name: ood_blur_aaf_ddpn_4
   log_dir: logs/exp/aaf
 model:
-  weights: chkp/aaf/seitzer/version_0/best_loss.ckpt
-  test_cfg: configs/test/aaf/seitzer.yaml
+  weights: chkp/aaf/ddpn/best_loss.ckpt
+  test_cfg: configs/test/aaf/ddpn.yaml
 data:
   test_examples: Null
   n_samples: 1
@@ -11,7 +11,7 @@ data:
   module: ood_blur_aaf
 hyperparams:
   lmbda: 0.1
-  y_kernel_gamma: 'auto' # {'auto', float}
+  y_kernel_gamma: 'auto'
 plot:
   gen_fig: True
   num_img_to_plot: 4

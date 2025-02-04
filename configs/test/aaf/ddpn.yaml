@@ -9,3 +9,4 @@ batch_size: 32
 dataset:
   type: image
   spec: aaf
+num_bootstrap_samples: 1

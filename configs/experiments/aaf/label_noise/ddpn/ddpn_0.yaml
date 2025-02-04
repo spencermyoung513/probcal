@@ -1,14 +1,14 @@
 exp:
-  name: aaf_ddpn
-  log_dir: logs/exp/aaf
+  name: ood_labelnoise_aaf_ddpn_0
+  log_dir: logs
 model:
   weights: chkp/aaf/ddpn/best_loss.ckpt
   test_cfg: configs/test/aaf/ddpn.yaml
 data:
   test_examples: Null
   n_samples: 1
-  perturb: Null
-  module: aaf
+  perturb: {'mean': 1.0, 'std': 1.0}
+  module: ood_label_noise_aaf
 hyperparams:
   lmbda: 0.1
   y_kernel_gamma: 'auto' # {'auto', float}

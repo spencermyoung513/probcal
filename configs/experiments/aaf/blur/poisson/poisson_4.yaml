@@ -1,6 +1,6 @@
 exp:
   name: ood_blur_aaf_poisson_4
-  log_dir: logs
+  log_dir: logs/exp/aaf
 model:
   weights: chkp/aaf/poisson/version_0/best_loss.ckpt
   test_cfg: configs/test/aaf/poisson.yaml

@@ -7,3 +7,4 @@ accelerator: gpu
 dataset:
   type: image
   spec: aaf
+num_bootstrap_samples: 1

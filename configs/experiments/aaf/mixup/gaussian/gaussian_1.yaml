@@ -1,6 +1,6 @@
 exp:
   name: ood_mixup_aaf_gaussian_1
-  log_dir: logs
+  log_dir: logs/exp/aaf
 model:
   weights: chkp/aaf/gaussian/version_0/best_loss.ckpt
   test_cfg: configs/test/aaf/aaf_gaussian.yaml
