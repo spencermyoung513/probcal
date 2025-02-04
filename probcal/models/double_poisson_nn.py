@@ -4,12 +4,12 @@ from typing import Type
 
 import torch
 from torch import nn
-from torchmetrics import Metric
+from torchmetrics import BootStrapper
 
 from probcal.enums import BetaSchedulerType
 from probcal.enums import LRSchedulerType
 from probcal.enums import OptimizerType
-from probcal.evaluation.custom_torchmetrics import AverageNLL
+from probcal.evaluation.custom_torchmetrics import ContinuousRankedProbabilityScore
 from probcal.evaluation.custom_torchmetrics import MedianPrecision
 from probcal.models.backbones import Backbone
 from probcal.models.probabilistic_regression_nn import ProbabilisticRegressionNN
@@ -80,8 +80,8 @@ class DoublePoissonNN(ProbabilisticRegressionNN):
         )
         self.head = nn.Linear(self.backbone.output_dim, 2)
 
-        self.nll = AverageNLL()
-        self.mp = MedianPrecision()
+        self.mp = BootStrapper(MedianPrecision())
+        self.crps = BootStrapper(ContinuousRankedProbabilityScore(mode="gaussian"))
 
         self.save_hyperparameters()
 
@@ -171,12 +171,6 @@ class DoublePoissonNN(ProbabilisticRegressionNN):
         mode = torch.argmax(dist.pmf_vals, axis=0)
         return mode
 
-    def _addl_test_metrics_dict(self) -> dict[str, Metric]:
-        return {
-            "nll": self.nll,
-            "mp": self.mp,
-        }
-
     def _update_addl_test_metrics_batch(
         self, x: torch.Tensor, y_hat: torch.Tensor, y: torch.Tensor
     ):
@@ -189,11 +183,17 @@ class DoublePoissonNN(ProbabilisticRegressionNN):
         if not isinstance(target_probs, torch.Tensor):
             target_probs = torch.tensor(target_probs, device=self.device)
 
-        self.nll.update(target_probs)
         self.mp.update(precision)
+        self.crps.update(y_hat, targets)
 
     def on_train_epoch_end(self):
         if self.beta_scheduler is not None:
             self.beta_scheduler.step()
             self.loss_fn = partial(double_poisson_nll, beta=self.beta_scheduler.current_value)
         super().on_train_epoch_end()
+
+    def _log_addl_test_metrics(self):
+        for name, metric in zip(("mp", "crps"), (self.mp, self.crps)):
+            result = metric.compute()
+            self.log(f"{name}_mean", result["mean"])
+            self.log(f"{name}_std", result["std"])
