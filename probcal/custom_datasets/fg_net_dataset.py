@@ -4,6 +4,7 @@ from typing import Callable
 from typing import Literal
 
 import pandas as pd
+import torch
 from PIL import Image
 from PIL.Image import Image as PILImage
 from torch.utils.data import Dataset
@@ -66,6 +67,8 @@ class FGNetDataset(Dataset):
         return pd.DataFrame(instances)
 
     def __getitem__(self, idx: int) -> tuple[PILImage, int] | tuple[PILImage, tuple[str, int]]:
+        if isinstance(idx, torch.Tensor):
+            idx = int(idx.item())
         row = self.instances.iloc[idx]
         image_path = row["image_path"]
         image = Image.open(image_path).convert("RGB")
