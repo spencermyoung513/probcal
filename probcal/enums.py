@@ -14,6 +14,7 @@ class HeadType(Enum):
     NATURAL_GAUSSIAN = "natural_gaussian"
     POISSON = "poisson"
     NEGATIVE_BINOMIAL = "negative_binomial"
+    DOUBLE_POISSON = "double_poisson"
 
 
 class OptimizerType(Enum):
