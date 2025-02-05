@@ -157,3 +157,18 @@ class ContinuousRankedProbabilityScore(Metric):
     def compute(self) -> torch.Tensor:
         all_crps = torch.cat(self.all_crps).flatten()
         return torch.mean(all_crps)
+
+
+class NLL(Metric):
+    """A custom `torchmetric` for computing the mean negative log-likelihood of predictive distributions."""
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.add_state("all_nlls", default=[], dist_reduce_fx="cat")
+
+    def update(self, nlls: torch.Tensor):
+        self.all_nlls.append(nlls)
+
+    def compute(self) -> torch.Tensor:
+        all_nlls = torch.cat(self.all_nlls).flatten()
+        return torch.mean(all_nlls)
