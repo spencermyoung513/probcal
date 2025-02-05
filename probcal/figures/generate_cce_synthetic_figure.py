@@ -18,10 +18,12 @@ from probcal.evaluation.calibration_evaluator import CalibrationEvaluatorSetting
 from probcal.evaluation.calibration_evaluator import CCESettings
 from probcal.evaluation.kernels import rbf_kernel
 from probcal.evaluation.plotting import plot_posterior_predictive
+from probcal.models import DoublePoissonNN
 from probcal.models import GaussianNN
 from probcal.models import NegBinomNN
 from probcal.models import PoissonNN
 from probcal.models.probabilistic_regression_nn import ProbabilisticRegressionNN
+from probcal.random_variables import DoublePoisson
 from probcal.utils.multiple_formatter import multiple_formatter
 
 
@@ -68,6 +70,7 @@ def produce_figure(
     evaluator = CalibrationEvaluator(settings=settings)
 
     for i, (model, model_name) in enumerate(zip(models, names)):
+        print(model_name)
         posterior_ax: plt.Axes = axs[0, i]
         cce_ax: plt.Axes = axs[1, i]
         y_hat = model.predict(torch.tensor(X).unsqueeze(1))
@@ -77,10 +80,12 @@ def produce_figure(
             mu = mu.flatten().detach().numpy()
             std = var.sqrt().flatten().detach().numpy()
             dist = norm(loc=mu, scale=std)
+            # nll = np.mean(-np.log(dist.cdf(y + 0.5) - dist.cdf(y - 0.5)))
 
         elif isinstance(model, PoissonNN):
             mu = y_hat.detach().numpy().flatten()
             dist = poisson(mu)
+            # nll = np.mean(-dist.logpmf(y))
 
         elif isinstance(model, NegBinomNN):
             mu, alpha = torch.split(y_hat, [1, 1], dim=-1)
@@ -92,6 +97,14 @@ def produce_figure(
             n = mu**2 / np.maximum(var - mu, eps)
             p = mu / np.maximum(var, eps)
             dist = nbinom(n=n, p=p)
+            # nll = np.mean(-dist.logpmf(y))
+
+        elif isinstance(model, DoublePoissonNN):
+            mu, phi = torch.split(y_hat, [1, 1], dim=-1)
+            mu = mu.flatten().detach().numpy()
+            phi = phi.flatten().detach().numpy()
+            dist = DoublePoisson(mu, phi)
+            # nll = np.mean(-dist._logpmf(y))
 
         lower, upper = dist.ppf(0.025), dist.ppf(0.975)
         plot_posterior_predictive(
@@ -121,6 +134,8 @@ def produce_figure(
             head_name = "nbinom"
         elif isinstance(model, GaussianNN):
             head_name = "gaussian"
+        elif isinstance(model, DoublePoissonNN):
+            head_name = "ddpn"
         else:
             raise NotImplementedError(
                 "Plot only generates for Poisson, NegBinom, or Gaussian NNs."
@@ -164,6 +179,7 @@ if __name__ == "__main__":
         PoissonNN.load_from_checkpoint("weights/discrete-wave/poisson.ckpt"),
         NegBinomNN.load_from_checkpoint("weights/discrete-wave/nbinom.ckpt"),
         GaussianNN.load_from_checkpoint("weights/discrete-wave/gaussian.ckpt"),
+        DoublePoissonNN.load_from_checkpoint("weights/discrete-wave/ddpn.ckpt"),
     ]
-    names = ["Poisson NN", "NB NN", "Gaussian NN"]
+    names = ["Poisson NN", "NB NN", "Gaussian NN", "DDPN"]
     produce_figure(models, names, save_path, dataset_path)
