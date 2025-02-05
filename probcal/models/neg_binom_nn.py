@@ -8,6 +8,7 @@ from probcal.enums import LRSchedulerType
 from probcal.enums import OptimizerType
 from probcal.evaluation.custom_torchmetrics import ContinuousRankedProbabilityScore
 from probcal.evaluation.custom_torchmetrics import MedianPrecision
+from probcal.evaluation.custom_torchmetrics import NLL
 from probcal.models.backbones import Backbone
 from probcal.models.probabilistic_regression_nn import ProbabilisticRegressionNN
 from probcal.training.losses import neg_binom_nll
@@ -61,6 +62,7 @@ class NegBinomNN(ProbabilisticRegressionNN):
             nn.Softplus(),  # To ensure positivity of output params.
         )
 
+        self.nll = BootStrapper(NLL())
         self.mp = BootStrapper(MedianPrecision())
         self.crps = BootStrapper(ContinuousRankedProbabilityScore(mode="discrete"))
         self.save_hyperparameters()
@@ -169,11 +171,12 @@ class NegBinomNN(ProbabilisticRegressionNN):
         support = torch.arange(2000, device=y_hat.device).view(-1, 1)
         probs_over_support = torch.exp(dist.log_prob(support)).T
 
+        self.nll.update(-dist.log_prob(targets))
         self.mp.update(precision)
         self.crps.update(probs_over_support, targets)
 
     def _log_addl_test_metrics(self):
-        for name, metric in zip(("mp", "crps"), (self.mp, self.crps)):
+        for name, metric in zip(("nll", "mp", "crps"), (self.nll, self.mp, self.crps)):
             result = metric.compute()
             self.log(f"{name}_mean", result["mean"])
             self.log(f"{name}_std", result["std"])

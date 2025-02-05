@@ -1,4 +1,5 @@
 from typing import Callable
+from typing import TypeAlias
 
 import numpy as np
 import torch
