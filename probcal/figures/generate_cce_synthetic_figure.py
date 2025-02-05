@@ -142,11 +142,12 @@ def produce_figure(
             )
         with open(f"results/discrete-wave/{head_name}/test_metrics.yaml") as f:
             eval_results_dict = yaml.safe_load(f)
-        crps_mean = eval_results_dict["crps_mean"]
-        crps_std = eval_results_dict["crps_std"]
+
+        nll_mean = eval_results_dict["nll_mean"]
+        nll_std = eval_results_dict["nll_std"]
 
         posterior_ax.set_title(model_name)
-        posterior_ax.annotate(f"CRPS: {crps_mean:.3f} ({crps_std:.3f})", (0.2, 41))
+        posterior_ax.annotate(f"NLL: {nll_mean:.3f} ({nll_std:.3f})", (0.2, 41))
         posterior_ax.annotate(f"ECE: {ece_mean:.3f} ({ece_std:.3f})", (0.2, 38))
         posterior_ax.xaxis.set_major_locator(MultipleLocator(np.pi))
         posterior_ax.xaxis.set_major_formatter(FuncFormatter(multiple_formatter()))
