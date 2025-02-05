@@ -173,6 +173,7 @@ def main(cfg: dict) -> None:
 
     if torch.isnan(cce_vals).any():
         print("Nans in CCE values")
+        print(cce_vals)
         cce_vals = cce_vals[~torch.isnan(cce_vals)]
 
     print(cce_vals.mean())

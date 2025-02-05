@@ -1,17 +1,17 @@
 exp:
   name: ood_blur_eva_seitzer_2
-  log_dir: logs
+  log_dir: logs/ood
 model:
   weights: chkp/eva/seitzer/version_0/best_loss.ckpt
   test_cfg: configs/test/eva/seitzer.yaml
 data:
-  test_examples: Null
+  test_examples:
   n_samples: 1
   perturb: 5
   module: ood_blur_eva
 hyperparams:
-  lmbda: 0.1
+  lmbda: 100
   y_kernel_gamma: 'auto' # {'auto', float}
 plot:
-  gen_fig: True
+  gen_fig: true
   num_img_to_plot: 4

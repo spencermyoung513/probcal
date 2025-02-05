@@ -1,4 +1,8 @@
 #!/bin/bash
+
+# Record the start time of the script
+start_time=$(date +%s)
+
 if [ -z "$1" ]; then
     echo "Usage: $0 <dataset-name> <experiment-name> <num-runs>"
     echo "Example: $0 coco blur 5"
@@ -40,6 +44,9 @@ else
 fi
 
 for ((i=0; i<num_runs; i++)); do
+    # Record the start time for each run
+    run_start_time=$(date +%s)
+
     echo "=> Running ${experiment_name} exp on ${dataset} run ${i}"
     for model_dir in ${experiment_dir}/*; do
         model_name=$(basename "$model_dir")
@@ -57,4 +64,24 @@ for ((i=0; i<num_runs; i++)); do
         done
         echo "=> ${experiment_name} ood exp on ${dataset} ${model_name} head done."
     done
+
+    # Calculate and display time taken for this run
+    run_end_time=$(date +%s)
+    run_duration=$((run_end_time - run_start_time))
+    echo "=> Run ${i} completed in ${run_duration} seconds"
 done
+
+# Calculate and display total execution time
+end_time=$(date +%s)
+total_duration=$((end_time - start_time))
+
+# Convert seconds to hours, minutes, and seconds for better readability
+hours=$((total_duration / 3600))
+minutes=$(((total_duration % 3600) / 60))
+seconds=$((total_duration % 60))
+
+echo "----------------------------------------"
+echo "Total execution time:"
+echo "  ${hours} hours, ${minutes} minutes, ${seconds} seconds"
+echo "  (${total_duration} seconds total)"
+echo "----------------------------------------"

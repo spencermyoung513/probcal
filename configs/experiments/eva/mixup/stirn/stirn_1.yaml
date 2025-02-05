@@ -1,9 +1,9 @@
 exp:
-  name: ood_mixup_eva_gaussian_1
+  name: ood_mixup_eva_stirn_1
   log_dir: logs/ood
 model:
-  weights: chkp/eva/gaussian/version_0/best_loss.ckpt
-  test_cfg: configs/test/eva/gaussian.yaml
+  weights: chkp/eva/stirn/version_0/best_loss.ckpt
+  test_cfg: configs/test/eva/stirn.yaml
 data:
   test_examples:
   n_samples: 1

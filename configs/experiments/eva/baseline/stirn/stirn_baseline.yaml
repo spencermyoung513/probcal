@@ -1,14 +1,14 @@
 exp:
-  name: ood_mixup_eva_gaussian_1
+  name: ood_baseline_eva_stirn
   log_dir: logs/ood
 model:
-  weights: chkp/eva/gaussian/version_0/best_loss.ckpt
-  test_cfg: configs/test/eva/gaussian.yaml
+  weights: chkp/eva/stirn/version_0/best_loss.ckpt
+  test_cfg: configs/test/eva/stirn.yaml
 data:
   test_examples:
   n_samples: 1
-  perturb: 0.17
-  module: ood_mixup_eva
+  perturb:
+  module: eva
 hyperparams:
   lmbda: 100
   y_kernel_gamma: 'auto' # {'auto', float}
