@@ -1,0 +1,10 @@
+experiment_name: coco_stirn
+random_seed: 1998
+head_type: faithful_gaussian
+hidden_dim: 64
+accelerator: gpu
+log_dir: results/coco-people
+model_ckpt_path: weights/coco_people/stirn/version_0/state_dict_best_loss.ckpt
+dataset:
+  type: image
+  spec: coco_people
