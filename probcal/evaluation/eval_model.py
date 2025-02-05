@@ -35,7 +35,13 @@ def main(config_path: Path):
     )
 
     initializer: Type[ProbabilisticRegressionNN] = get_model(config, return_initializer=True)[1]
-    model = initializer.load_from_checkpoint(config.model_ckpt_path)
+    try:
+        model = initializer.load_from_checkpoint(config.model_ckpt_path)
+    except Exception as e:
+        print(f"{e} loading model from checkpoint. Trying to load from state dict...")
+        model.load_state_dict(torch.load(config.model_ckpt_path))
+        print("Model loaded from state dict.")
+
     evaluator = L.Trainer(
         accelerator=config.accelerator_type.value,
         enable_model_summary=False,
