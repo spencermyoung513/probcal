@@ -2,10 +2,11 @@ experiment_name: aaf_poisson
 random_seed: 1998
 head_type: poisson
 hidden_dim: 64
-log_dir: results/aaf/bootstrap_1
+log_dir: results/aaf
 model_ckpt_path: chkp/aaf/poisson/version_0/best_loss.ckpt
 accelerator: gpu
 dataset:
   type: image
   spec: aaf
-num_bootstrap_samples: 1
+batch_size: 32
+num_bootstrap_samples: 10

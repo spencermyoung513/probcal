@@ -1,10 +1,11 @@
 experiment_name: nbinom
 random_seed: 1998
-log_dir: results/aaf/bootstrap_1
+log_dir: results/aaf
 head_type: negative_binomial
 model_ckpt_path: chkp/aaf/negative_binomial/version_0/best_loss.ckpt
 accelerator: gpu
 dataset:
   type: image
   spec: aaf
-num_bootstrap_samples: 1
+batch_size: 32
+num_bootstrap_samples: 10
