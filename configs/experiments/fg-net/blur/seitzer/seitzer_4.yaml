@@ -1,6 +1,6 @@
 exp:
   name: ood_blur_fg_net_seitzer_4
-  log_dir: logs
+  log_dir: logs/fg-net
 model:
   weights: chkp/fg-net/seitzer/version_0/best_loss.ckpt
   test_cfg: configs/test/fg-net/seitzer.yaml

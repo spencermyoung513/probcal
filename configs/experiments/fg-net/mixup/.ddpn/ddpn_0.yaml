@@ -1,14 +1,14 @@
 exp:
-  name: ood_blur_ddpn_gaussian_1
+  name: ood_mixup_fg_net_ddpn_0
   log_dir: logs
 model:
-  weights: chkp/fg-net/ddpn/version_0/best_loss.ckpt
-  test_cfg: configs/test/fg-net/ddpn.yaml
+  weights: chkp/fg_net/fg_net_ddpn/version_0/best_loss.ckpt
+  test_cfg: configs/test/fg_net/ddpn.yaml
 data:
   test_examples: Null
   n_samples: 1
-  perturb: 2.5
-  module: ood_blur_fg_net
+  perturb: 0.1
+  module: ood_mixup_fg_net
 hyperparams:
   lmbda: 0.1
   y_kernel_gamma: 'auto' # {'auto', float}

@@ -1,9 +1,9 @@
 exp:
   name: ood_blur_fg_net_gaussian_0
-  log_dir: logs
+  log_dir: logs/fg-net
 model:
-  weights: chkp/fg_net/gaussian/version_0/best_loss.ckpt
-  test_cfg: configs/test/fg_net/gaussian.yaml
+  weights: chkp/fg-net/gaussian/version_0/best_loss.ckpt
+  test_cfg: configs/test/fg-net/gaussian.yaml
 data:
   test_examples: Null
   n_samples: 1

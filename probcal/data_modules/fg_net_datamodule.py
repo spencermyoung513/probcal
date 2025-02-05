@@ -70,6 +70,17 @@ class FGNetDataModule(ProbcalDataModule):
             surface_image_path=self.surface_image_path,
         )
 
+    @classmethod
+    def denormalize(cls, tensor):
+        # Clone the tensor so the original stays unmodified
+        tensor = tensor.clone()
+
+        # De-normalize by multiplying by the std and then adding the mean
+        for t, m, s in zip(tensor, cls.IMAGE_NET_MEAN, cls.IMAGE_NET_STD):
+            t.mul_(s).add_(m)
+
+        return tensor
+
 
 class OodBlurFGNetDataModule(OodBlurDataModule, FGNetDataModule):
     def __init__(
@@ -87,8 +98,8 @@ class OodBlurFGNetDataModule(OodBlurDataModule, FGNetDataModule):
             num_workers=num_workers,
             persistent_workers=persistent_workers,
             surface_image_path=surface_image_path,
-            ignore_grayscale=ignore_grayscale,
         )
+        self.ignore_grayscale = ignore_grayscale
 
     def _get_test_set(self, root_dir: str | Path, transform: Compose, surface_image_path: bool):
         return FGNetDataset(
@@ -96,6 +107,7 @@ class OodBlurFGNetDataModule(OodBlurDataModule, FGNetDataModule):
             split="test",
             transform=transform,
             surface_image_path=surface_image_path,
+            ignore_grayscale=self.ignore_grayscale,
         )
 
 
@@ -114,9 +126,9 @@ class OodMixupFGNetDataModule(OodMixupDataModule, FGNetDataModule):
             batch_size=batch_size,
             num_workers=num_workers,
             persistent_workers=persistent_workers,
-            ignore_grayscale=ignore_grayscale,
             surface_image_path=surface_image_path,
         )
+        self.ignore_grayscale = ignore_grayscale
 
     def _get_test_set(self, root_dir: str | Path, transform: Compose, surface_image_path: bool):
         return FGNetDataset(root_dir=root_dir, split="test", surface_image_path=surface_image_path)
@@ -137,9 +149,9 @@ class OodLabelNoiseFGNetDataModule(OodLabelNoiseDataModule, FGNetDataModule):
             batch_size=batch_size,
             num_workers=num_workers,
             persistent_workers=persistent_workers,
-            ignore_grayscale=ignore_grayscale,
             surface_image_path=surface_image_path,
         )
+        self.ignore_grayscale = ignore_grayscale
 
     def _get_test_set(self, root_dir: str | Path, transform: Compose, surface_image_path: bool):
         return FGNetDataset(
@@ -147,4 +159,5 @@ class OodLabelNoiseFGNetDataModule(OodLabelNoiseDataModule, FGNetDataModule):
             split="test",
             transform=transform,
             surface_image_path=surface_image_path,
+            ignore_grayscale=self.ignore_grayscale,
         )

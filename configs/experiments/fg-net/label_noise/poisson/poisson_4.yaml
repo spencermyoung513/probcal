@@ -1,6 +1,6 @@
 exp:
   name: ood_label_noise_fg_net_poisson_4
-  log_dir: logs
+  log_dir: logs/fg-net
 model:
   weights: chkp/fg_net/poisson/version_0/best_loss.ckpt
   test_cfg: configs/test/fg_net/poisson.yaml

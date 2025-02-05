@@ -1,6 +1,6 @@
 exp:
   name: ood_mixup_fg_net_seitzer_4
-  log_dir: logs
+  log_dir: logs/fg-net
 model:
   weights: chkp/fg_net/seitzer/version_0/best_loss.ckpt
   test_cfg: configs/test/fg_net/seitzer.yaml
