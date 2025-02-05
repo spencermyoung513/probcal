@@ -2,7 +2,6 @@ import os
 from argparse import ArgumentParser
 from functools import partial
 from pathlib import Path
-from typing import Type
 
 import lightning as L
 import torch
@@ -14,7 +13,6 @@ from probcal.evaluation.calibration_evaluator import CalibrationEvaluatorSetting
 from probcal.evaluation.calibration_evaluator import CCESettings
 from probcal.evaluation.calibration_evaluator import ECESettings
 from probcal.evaluation.kernels import rbf_kernel
-from probcal.models.probabilistic_regression_nn import ProbabilisticRegressionNN
 from probcal.utils.configs import EvaluationConfig
 from probcal.utils.experiment_utils import get_datamodule
 from probcal.utils.experiment_utils import get_model
@@ -34,7 +32,7 @@ def main(config_path: Path):
         config.num_workers,
     )
 
-    initializer: Type[ProbabilisticRegressionNN] = get_model(config, return_initializer=True)[1]
+    model, initializer = get_model(config, return_initializer=True)
     try:
         model = initializer.load_from_checkpoint(config.model_ckpt_path)
     except Exception as e:
