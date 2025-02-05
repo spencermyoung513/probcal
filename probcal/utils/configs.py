@@ -259,6 +259,7 @@ class EvaluationConfig(BaseConfig):
         ece_bins: int,
         ece_weights: Literal["uniform", "frequency"],
         ece_alpha: float,
+        num_bootstrap_samples: int,
     ):
         super(EvaluationConfig, self).__init__(
             experiment_name=experiment_name,
@@ -274,6 +275,7 @@ class EvaluationConfig(BaseConfig):
             log_dir=log_dir,
         )
         self.model_ckpt_path = model_ckpt_path
+        self.num_bootstrap_samples = num_bootstrap_samples
         self.cce_use_val_split_for_S = cce_use_val_split_for_S
         self.cce_num_trials = cce_num_trials
         self.cce_output_kernel = cce_output_kernel
@@ -310,6 +312,7 @@ class EvaluationConfig(BaseConfig):
         batch_size = config_dict.get("batch_size", 1)
         num_workers = config_dict.get("num_workers", 0)
         accelerator_type = AcceleratorType(config_dict.get("accelerator", "cpu"))
+        num_bootstrap_samples = config_dict.get("num_bootstrap_samples", 10)
 
         cce_settings: dict = config_dict.get("cce_settings", {})
         cce_use_val_split_for_S = cce_settings.get("use_val_split_for_S", False)
@@ -348,4 +351,5 @@ class EvaluationConfig(BaseConfig):
             ece_bins=ece_bins,
             ece_weights=ece_weights,
             ece_alpha=ece_alpha,
+            num_bootstrap_samples=num_bootstrap_samples,
         )

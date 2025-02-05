@@ -144,6 +144,7 @@ class CalibrationEvaluator:
         data_module.setup("")
 
         b = self.settings.num_bootstrap_samples
+        print(b)
         t = self.settings.cce_settings.num_trials
         n = len(data_module.test)
 

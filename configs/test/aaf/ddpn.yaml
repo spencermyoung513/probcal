@@ -2,11 +2,10 @@ experiment_name: aaf_ddpn
 random_seed: 1998
 head_type: double_poisson
 hidden_dim: 64
-log_dir: results/aaf
+log_dir: results/aaf/bootstrap_1
 model_ckpt_path: chkp/aaf/ddpn/version_0/best_loss.ckpt
 accelerator: gpu
 batch_size: 32
 dataset:
   type: image
   spec: aaf
-num_bootstrap_samples: 1

@@ -6,6 +6,6 @@ dataset:
   spec: aaf
 batch_size: 32
 accelerator: gpu
-log_dir: results/aaf
-model_ckpt_path: chkp/aaf_faithful_gaussian/version_0/best_loss.ckpt
+log_dir: results/aaf/bootstrap_1
+model_ckpt_path: chkp/aaf/faithful_gaussian/version_0/best_loss.ckpt
 num_bootstrap_samples: 1
