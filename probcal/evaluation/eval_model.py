@@ -74,7 +74,7 @@ def main(config_path: Path):
         device=torch.device("cuda" if config.accelerator_type.value == "gpu" else "cpu"),
         cce_settings=cce_settings,
         ece_settings=ece_settings,
-        num_bootstrap_samples=10,
+        num_bootstrap_samples=1,
     )
     calib_evaluator = CalibrationEvaluator(settings=prob_eval_settings)
     print("Evaluating calibration...")

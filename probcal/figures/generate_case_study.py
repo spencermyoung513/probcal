@@ -5,11 +5,11 @@ from matplotlib import pyplot as plt
 
 from probcal.custom_datasets import COCOPeopleDataset
 from probcal.custom_datasets import RotatedMNIST
+from probcal.custom_datasets.aaf_dataset import AAFDataset
 from probcal.custom_datasets.readability_dataset import ReadabilityDataset
 from probcal.enums import DatasetType
 from probcal.enums import ImageDatasetName
 from probcal.enums import TextDatasetName
-from probcal.evaluation.calibration_evaluator import CalibrationEvaluator
 from probcal.evaluation.calibration_evaluator import CalibrationResults
 
 
@@ -17,7 +17,7 @@ def generate_case_study_figures(dataset_type: DatasetType, dataset_name: str, he
     if dataset_type == DatasetType.IMAGE:
         dataset_name = ImageDatasetName(dataset_name)
         if dataset_name == ImageDatasetName.AAF:
-            raise NotImplementedError()
+            dataset = AAFDataset(root_dir="data/aaf", split="test")
         elif dataset_name == ImageDatasetName.COCO_PEOPLE:
             dataset = COCOPeopleDataset(root_dir="data/coco-people", split="test")
         elif dataset_name == ImageDatasetName.EVA:
@@ -40,14 +40,15 @@ def generate_case_study_figures(dataset_type: DatasetType, dataset_name: str, he
     suffix = f"{dataset.root_dir.stem}/{head_alias}"
     results_dir = Path(f"results/{suffix}")
     save_dir = Path(f"probcal/figures/artifacts/case-studies/{suffix}")
+    print(f"Saving case study figures to {save_dir}")
     save_dir.mkdir(parents=True, exist_ok=True)
 
     results = CalibrationResults.load(results_dir / "calibration_results.pt")
     cce_means = results.cce.expected_values
     cce_stdevs = results.cce.stdevs
 
-    fig = CalibrationEvaluator.plot_cce_results(results, show=False)
-    fig.savefig(save_dir / "cce_grid.pdf", dpi=150)
+    # fig = CalibrationEvaluator.plot_cce_results(results, show=False)
+    # fig.savefig(save_dir / "cce_grid.pdf", dpi=150)
 
     order = cce_means.argsort()
 
@@ -61,11 +62,12 @@ def generate_case_study_figures(dataset_type: DatasetType, dataset_name: str, he
         example, _ = dataset[idx]
         if dataset_type == DatasetType.IMAGE:
             ax.imshow(example)
-            ax.set_title(f"{mean_cce:.3f} ({std_cce:.3f})")
+            ax.set_title(f"{mean_cce:.4f} ({std_cce:.4f})")
         elif dataset_type == DatasetType.TEXT:
             pass
         ax.axis("off")
         fig.savefig(save_dir / f"cce_best_{i}.jpg", dpi=150)
+        print(f"Saved {save_dir / f'cce_best_{i}.jpg'}")
 
     # Plot examples with the highest CCE.
     for i in range(5):
@@ -77,11 +79,48 @@ def generate_case_study_figures(dataset_type: DatasetType, dataset_name: str, he
         example, _ = dataset[idx]
         if dataset_type == DatasetType.IMAGE:
             ax.imshow(example)
-            ax.set_title(f"{mean_cce:.3f} ({std_cce:.3f})")
+            ax.set_title(f"{mean_cce:.4f} ({std_cce:.4f})")
         elif dataset_type == DatasetType.TEXT:
             pass
         ax.axis("off")
         fig.savefig(save_dir / f"cce_worst_{i}.jpg", dpi=150)
+        print(f"Saved {save_dir / f'cce_worst_{i}.jpg'}")
+
+        # Plot examples with the lowest CCE.
+    fig, axes = plt.subplots(2, 5, figsize=(15, 6))
+    axes = axes.flatten()
+
+    # Plot examples with the lowest CCE.
+    for i in range(5):
+        ax = axes[i]
+        idx = order[i]
+        mean_cce = cce_means[idx]
+        std_cce = cce_stdevs[idx]
+        example, _ = dataset[idx]
+        if dataset_type == DatasetType.IMAGE:
+            ax.imshow(example)
+            ax.set_title(f"{mean_cce:.4f} ({std_cce:.4f})")
+        elif dataset_type == DatasetType.TEXT:
+            pass
+        ax.axis("off")
+
+    # Plot examples with the highest CCE.
+    for i in range(5):
+        ax = axes[i + 5]
+        idx = order[-(i + 1)]
+        mean_cce = cce_means[idx]
+        std_cce = cce_stdevs[idx]
+        example, _ = dataset[idx]
+        if dataset_type == DatasetType.IMAGE:
+            ax.imshow(example)
+            ax.set_title(f"{mean_cce:.4f} ({std_cce:.4f})")
+        elif dataset_type == DatasetType.TEXT:
+            pass
+        ax.axis("off")
+
+    fig.tight_layout()
+    fig.savefig(save_dir / "cce_grid.jpg", dpi=150)
+    print(f"Saved {save_dir / 'cce_grid.jpg'}")
 
 
 if __name__ == "__main__":

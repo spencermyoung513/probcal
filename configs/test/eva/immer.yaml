@@ -7,4 +7,4 @@ dataset:
 batch_size: 4
 accelerator: cpu
 log_dir: results/eva
-model_ckpt_path: chkp/eva/immer/version_0/best_loss.ckpt
+model_ckpt_path: chkp/eva/immer/best_loss.ckpt

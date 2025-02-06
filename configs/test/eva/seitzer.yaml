@@ -7,4 +7,4 @@ dataset:
 batch_size: 4
 accelerator: gpu
 log_dir: results/eva
-model_ckpt_path: chkp/eva/seitzer/version_0/best_loss.ckpt
+model_ckpt_path: chkp/eva/seitzer/best_loss.ckpt
