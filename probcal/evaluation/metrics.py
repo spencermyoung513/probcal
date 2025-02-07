@@ -237,3 +237,35 @@ def compute_mcmd_torch(
     third_term = torch.einsum("ij,jk,ki->i", k_X_prime.T, A_3, k_X_prime)
 
     return (first_term - second_term + third_term).sqrt()
+
+
+def compute_lce(
+    x: torch.Tensor,
+    X: torch.Tensor,
+    Y: torch.Tensor,
+    i_cdf: Callable[[torch.Tensor], torch.Tensor],
+    kernel: Callable[[torch.Tensor, torch.Tensor], torch.Tensor],
+    num_bins: int = 20,
+) -> torch.Tensor:
+    """Compute Marx et al's regression adaptation of Lao's "local calibration error" for the given inputs.
+
+    Args:
+        x (torch.Tensor): Points at which to compute the local calibration error. Shape: (m, d).
+        X (torch.Tensor): Reference inputs to use in LCE computation. Shape: (n, d).
+        Y (torch.Tensor): Reference outputs to use in LCE computation. Shape: (n,).
+        i_cdf (Callable[[torch.Tensor], torch.Tensor]): Inverse CDF function for the reference inputs X. Should take inputs of shape (k, 1) and return a (k,n) tensor of quantiles.
+        kernel (Callable[[torch.Tensor, torch.Tensor], torch.Tensor]): Kernel function for computing similarities between inputs.
+        num_bins (int, optional): Number of confidence bins to use for LCE computation. Defaults to 20.
+
+    Returns:
+        torch.Tensor: A (m,) tensor of LCE values for the specified points.
+    """
+    K_xX = kernel(x, X)  # (m, n)
+    K_xX_n = K_xX / K_xX.sum(dim=1, keepdim=True)  # (m, n)
+    C = torch.linspace(1 / num_bins, 1, steps=num_bins).reshape(-1, 1)  # (num_bins, 1)
+    quantiles = i_cdf(C).T  # (n, num_bins)
+    indicator = (Y.view(-1, 1) <= quantiles).float()  # (n, num_bins)
+    weighted_indicators = torch.matmul(K_xX_n, indicator)  # (m, num_bins)
+    bin_lce = weighted_indicators - C.squeeze(1)  # (m, num_bins)
+    lce_vals = (bin_lce**2).mean(dim=1)  # (m,)
+    return lce_vals
