@@ -1,9 +1,9 @@
 exp:
-  name: ood_blur_ddpn_2
+  name: ood_blur_fg_net_ddpn_2
   log_dir: logs/fg-net
 model:
   weights: chkp/fg-net/fg_net_ddpn/version_0/best_loss.ckpt
-  test_cfg: configs/test/fg-net/ddpn.yaml
+  test_cfg: configs/test/fg_net/ddpn.yaml
 data:
   test_examples:
   n_samples: 1

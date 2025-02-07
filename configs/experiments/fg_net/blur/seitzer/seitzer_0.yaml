@@ -1,13 +1,13 @@
 exp:
-  name: ood_blur_fg_net_seitzer_2
+  name: ood_blur_fg_net_seitzer_0
   log_dir: logs/fg-net
 model:
   weights: chkp/fg-net/seitzer/version_0/best_loss.ckpt
-  test_cfg: configs/test/fg-net/seitzer.yaml
+  test_cfg: configs/test/fg_net/ddpn.yaml
 data:
   test_examples:
   n_samples: 1
-  perturb: 5.0
+  perturb: 1.0
   module: ood_blur_fg_net
 hyperparams:
   lmbda: 100
