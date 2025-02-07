@@ -1,4 +1,5 @@
 experiment_name: coco_ddpn
+batch_size: 4
 random_seed: 1998
 head_type: double_poisson
 hidden_dim: 64
