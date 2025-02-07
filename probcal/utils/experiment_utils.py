@@ -19,6 +19,9 @@ from probcal.data_modules import OodLabelNoiseCocoPeopleDataModule
 from probcal.data_modules import OodMixupCocoPeopleDataModule
 from probcal.data_modules import RotatedMNISTDataModule
 from probcal.data_modules import TabularDataModule
+from probcal.data_modules.aaf_datamodule import OodBlurAAFDataModule
+from probcal.data_modules.aaf_datamodule import OodLabelNoiseAAFDataModule
+from probcal.data_modules.aaf_datamodule import OodMixupAAFDataModule
 from probcal.data_modules.eva_datamodule import OodBlurEVADataModule
 from probcal.data_modules.eva_datamodule import OodLabelNoiseEVADataModule
 from probcal.data_modules.eva_datamodule import OodMixupEVADataModule
@@ -173,6 +176,27 @@ def get_datamodule(
             )
         elif dataset_path_or_spec == ImageDatasetName.AAF:
             return AAFDataModule(
+                root_dir=os.path.join(GLOBAL_DATA_DIR, "aaf"),
+                batch_size=batch_size,
+                num_workers=num_workers,
+                persistent_workers=True if num_workers > 0 else False,
+            )
+        elif dataset_path_or_spec == ImageDatasetName.OOD_BLUR_AAF:
+            return OodBlurAAFDataModule(
+                root_dir=os.path.join(GLOBAL_DATA_DIR, "aaf"),
+                batch_size=batch_size,
+                num_workers=num_workers,
+                persistent_workers=True if num_workers > 0 else False,
+            )
+        elif dataset_path_or_spec == ImageDatasetName.OOD_MIXUP_AAF:
+            return OodMixupAAFDataModule(
+                root_dir=os.path.join(GLOBAL_DATA_DIR, "aaf"),
+                batch_size=batch_size,
+                num_workers=num_workers,
+                persistent_workers=True if num_workers > 0 else False,
+            )
+        elif dataset_path_or_spec == ImageDatasetName.OOD_LABEL_NOISE_AAF:
+            return OodLabelNoiseAAFDataModule(
                 root_dir=os.path.join(GLOBAL_DATA_DIR, "aaf"),
                 batch_size=batch_size,
                 num_workers=num_workers,

@@ -1,11 +1,11 @@
 exp:
   name: ood_mixup_aaf_gaussian_0
-  log_dir: logs/exp/aaf
+  log_dir: logs/aaf
 model:
   weights: chkp/aaf/gaussian/version_0/best_loss.ckpt
   test_cfg: configs/test/aaf/aaf_gaussian.yaml
 data:
-  test_examples: Null
+  test_examples:
   n_samples: 1
   perturb: 0.1
   module: ood_mixup_aaf
@@ -13,5 +13,5 @@ hyperparams:
   lmbda: 0.1
   y_kernel_gamma: 'auto' # {'auto', float}
 plot:
-  gen_fig: True
+  gen_fig: true
   num_img_to_plot: 4

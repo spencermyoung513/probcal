@@ -1,17 +1,17 @@
 exp:
   name: ood_baseline_aaf_poisson
-  log_dir: logs/exp/aaf
+  log_dir: logs/aaf
 model:
   weights: chkp/aaf/poisson/version_0/best_loss.ckpt
   test_cfg: configs/test/aaf/poisson.yaml
 data:
-  test_examples: Null
+  test_examples:
   n_samples: 1
-  perturb: Null
+  perturb:
   module: aaf
 hyperparams:
   lmbda: 0.1
   y_kernel_gamma: 'auto' # {'auto', float}
 plot:
-  gen_fig: True
+  gen_fig: true
   num_img_to_plot: 4
