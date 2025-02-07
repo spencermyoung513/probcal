@@ -3,7 +3,7 @@ random_seed: 1998
 head_type: poisson
 hidden_dim: 64
 log_dir: results/aaf
-model_ckpt_path: chkp/aaf/poisson/version_0/best_loss.ckpt
+model_ckpt_path: chkp/aaf/poisson/best_loss.ckpt
 accelerator: gpu
 dataset:
   type: image

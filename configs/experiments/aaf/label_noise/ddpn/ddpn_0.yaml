@@ -1,5 +1,5 @@
 exp:
-  name: ood_labelnoise_aaf_ddpn_0
+  name: ood_label_noise_aaf_ddpn_0
   log_dir: logs/aaf
 model:
   weights: chkp/aaf/ddpn/best_loss.ckpt
@@ -10,7 +10,7 @@ data:
   perturb: {'mean': 1.0, 'std': 1.0}
   module: ood_label_noise_aaf
 hyperparams:
-  lmbda: 0.1
+  lmbda: 100
   y_kernel_gamma: 'auto' # {'auto', float}
 plot:
   gen_fig: true

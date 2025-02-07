@@ -2,7 +2,7 @@ exp:
   name: ood_label_noise_aaf_seitzer_1
   log_dir: logs/aaf
 model:
-  weights: chkp/aaf/seitzer/version_0/best_loss.ckpt
+  weights: chkp/aaf/seitzer/best_loss.ckpt
   test_cfg: configs/test/aaf/seitzer.yaml
 data:
   test_examples:
@@ -10,7 +10,7 @@ data:
   perturb: {'mean': 2.0, 'std': 1.0}
   module: ood_label_noise_aaf
 hyperparams:
-  lmbda: 0.1
+  lmbda: 100
   y_kernel_gamma: 'auto' # {'auto', float}
 plot:
   gen_fig: true

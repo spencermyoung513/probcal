@@ -2,7 +2,7 @@ exp:
   name: ood_mixup_aaf_poisson_2
   log_dir: logs/aaf
 model:
-  weights: chkp/aaf/poisson/version_0/best_loss.ckpt
+  weights: chkp/aaf/poisson/best_loss.ckpt
   test_cfg: configs/test/aaf/poisson.yaml
 data:
   test_examples:
@@ -10,7 +10,7 @@ data:
   perturb: 0.3
   module: ood_mixup_aaf
 hyperparams:
-  lmbda: 0.1
+  lmbda: 100
   y_kernel_gamma: 'auto' # {'auto', float}
 plot:
   gen_fig: true

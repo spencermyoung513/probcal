@@ -16,6 +16,8 @@ from probcal.data_modules.probcal_datamodule import ProbcalDataModule
 class AAFDataModule(ProbcalDataModule):
 
     IMG_SIZE = 224
+    IMAGE_NET_MEAN = [0.485, 0.456, 0.406]
+    IMAGE_NET_STD = [0.229, 0.224, 0.225]
 
     def __init__(
         self,
@@ -65,7 +67,7 @@ class AAFDataModule(ProbcalDataModule):
             transform=inference_transforms,
             surface_image_path=self.surface_image_path,
         )
-    
+
     @classmethod
     def denormalize(cls, tensor):
         # Clone the tensor so the original stays unmodified
@@ -76,6 +78,7 @@ class AAFDataModule(ProbcalDataModule):
             t.mul_(s).add_(m)
 
         return tensor
+
 
 class OodBlurAAFDataModule(OodBlurDataModule, AAFDataModule):
     def __init__(
@@ -122,4 +125,3 @@ class OodLabelNoiseAAFDataModule(OodLabelNoiseDataModule, AAFDataModule):
 
     def _get_test_set(self, root_dir: str | Path, transform: Compose, surface_image_path: bool):
         return AAFDataset(root_dir, split="test", surface_image_path=surface_image_path)
-

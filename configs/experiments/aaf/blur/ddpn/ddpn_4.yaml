@@ -10,7 +10,7 @@ data:
   perturb: 10.0
   module: ood_blur_aaf
 hyperparams:
-  lmbda: 0.1
+  lmbda: 100
   y_kernel_gamma: 'auto'
 plot:
   gen_fig: true

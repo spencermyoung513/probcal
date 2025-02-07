@@ -134,7 +134,7 @@ class DoublePoissonNN(ProbabilisticRegressionNN):
         """
         dist = self.predictive_dist(y_hat, training)
         sample = dist.rvs((num_samples, dist.dimension))
-        if sample.isinstance(torch.Tensor):
+        if type(sample) is torch.Tensor:
             return sample.T
         else:
             return torch.Tensor(sample)

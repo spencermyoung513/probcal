@@ -16,6 +16,7 @@ from probcal.evaluation.kernels import polynomial_kernel
 from probcal.evaluation.kernels import rbf_kernel
 from probcal.evaluation.metrics import compute_mcmd_torch
 from probcal.models.probabilistic_regression_nn import ProbabilisticRegressionNN
+from probcal.random_variables.double_poisson import DoublePoisson
 from probcal.utils.configs import EvaluationConfig
 from probcal.utils.experiment_utils import from_yaml
 from probcal.utils.experiment_utils import get_datamodule
@@ -139,7 +140,10 @@ def main(cfg: dict) -> None:
 
         rv = model.predictive_dist(imgs_to_plot_preds[i], training=False)
         disc_support = torch.arange(0, imgs_to_plot_true.max() + 5)
-        dist_func = torch.exp(rv.log_prob(disc_support.to(device)))
+        if isinstance(rv, DoublePoisson):
+            dist_func = torch.exp(rv._logpmf(disc_support.to(device)))
+        else:
+            dist_func = torch.exp(rv.log_prob(disc_support.to(device)))
         axs[i, 1].plot(disc_support.cpu(), dist_func.cpu())
         axs[i, 1].scatter(imgs_to_plot_true[i], 0, color="black", marker="*", s=50, zorder=100)
 
@@ -170,6 +174,17 @@ def main(cfg: dict) -> None:
             y_kernel=get_y_kernel(Y_true, cfg["hyperparams"]["y_kernel_gamma"]),
             lmbda=cfg["hyperparams"]["lmbda"],
         )
+
+    # check if there are nan values
+    if torch.isnan(cce_vals).any():
+        logging.error("CCE values contain NaNs")
+        # count the number of NaNs
+        nans = torch.isnan(cce_vals).sum()
+        logging.error(f"Number of NaNs: {nans}")
+        # mask the NaNs
+        cce_vals = cce_vals[~torch.isnan(cce_vals)]
+    else:
+        logging.info(f"CCE values: {cce_vals}")
 
     print(cce_vals.mean())
     logging.info(f"Final CCE: {cce_vals.mean()}")

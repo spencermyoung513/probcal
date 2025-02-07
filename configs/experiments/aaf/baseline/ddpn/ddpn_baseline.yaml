@@ -2,7 +2,7 @@ exp:
   name: aaf_ddpn
   log_dir: logs/aaf
 model:
-  weights: chkp/aaf/ddpn/best_loss.ckpt
+  weights: chkp/aaf/
   test_cfg: configs/test/aaf/ddpn.yaml
 data:
   test_examples:
@@ -10,7 +10,7 @@ data:
   perturb:
   module: aaf
 hyperparams:
-  lmbda: 0.1
+  lmbda: 100
   y_kernel_gamma: 'auto' # {'auto', float}
 plot:
   gen_fig: true
