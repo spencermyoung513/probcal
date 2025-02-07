@@ -4,7 +4,7 @@ random_seed: 1998
 head_type: double_poisson
 hidden_dim: 64
 accelerator: gpu
-log_dir: results/coco-people
+log_dir: results/coco-people-no-bootstrap
 model_ckpt_path: weights/coco_people/ddpn/version_0/state_dict_best_loss.ckpt
 dataset:
   type: image
