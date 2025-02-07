@@ -157,7 +157,6 @@ class OodLabelNoiseFGNetDataModule(OodLabelNoiseDataModule, FGNetDataModule):
         return FGNetDataset(
             root_dir=root_dir,
             split="test",
-            transform=transform,
             surface_image_path=surface_image_path,
             ignore_grayscale=self.ignore_grayscale,
         )
