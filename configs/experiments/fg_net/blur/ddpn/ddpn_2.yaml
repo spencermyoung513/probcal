@@ -1,5 +1,5 @@
 exp:
-  name: ood_blur_ddpn_gaussian_2
+  name: ood_blur_ddpn_2
   log_dir: logs/fg-net
 model:
   weights: chkp/fg-net/fg_net_ddpn/version_0/best_loss.ckpt
