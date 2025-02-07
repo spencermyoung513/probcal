@@ -128,7 +128,9 @@ if __name__ == "__main__":
     parser.add_argument("--dataset-type", type=DatasetType)
     parser.add_argument("--dataset-name", type=str)
     parser.add_argument(
-        "--head", type=str, choices=["gaussian", "seitzer", "immer", "stirn", "poisson", "nbinom"]
+        "--head",
+        type=str,
+        choices=["gaussian", "seitzer", "immer", "stirn", "poisson", "nbinom", "ddpn"],
     )
     args = parser.parse_args()
     generate_case_study_figures(
