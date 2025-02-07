@@ -171,6 +171,17 @@ def main(cfg: dict) -> None:
             lmbda=cfg["hyperparams"]["lmbda"],
         )
 
+    # check if there is a nan value in the cce_vals
+    if torch.isnan(cce_vals).any():
+        logging.error("CCE values contain NaN values")
+        # count the number of NaN values
+        nans = torch.isnan(cce_vals).sum()
+        logging.error(f"Number of NaN values: {nans}")
+        # mask the NaN values
+        cce_vals = cce_vals[~torch.isnan(cce_vals)]
+    else:
+        logging.info("CCE values computed successfully")
+
     print(cce_vals.mean())
     logging.info(f"Final CCE: {cce_vals.mean()}")
 
