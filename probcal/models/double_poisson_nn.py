@@ -137,7 +137,7 @@ class DoublePoissonNN(ProbabilisticRegressionNN):
         if type(sample) is torch.Tensor:
             return sample.T
         else:
-            return torch.Tensor(sample)
+            return torch.Tensor([sample])
 
     def _rsample_impl(
         self, y_hat: torch.Tensor, training: bool = False, num_samples: int = 1, **kwargs

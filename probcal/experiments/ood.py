@@ -159,6 +159,7 @@ def main(cfg: dict) -> None:
 
     # compute CCE
     Y_prime = torch.cat(Y_prime, dim=0).to(device)
+    print(Y_prime.shape)
 
     with torch.inference_mode():
         x_prime = X.repeat_interleave(m, dim=0).to(device)

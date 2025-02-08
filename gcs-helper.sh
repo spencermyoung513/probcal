@@ -11,6 +11,7 @@ show_help() {
     echo "Commands:"
     echo "  cpm [dataset] [model]         - Copy model from bucket"
     echo "  cpd [dataset]                 - Copy dataset from bucket"
+    echo "  cpr [dataset]                 - Copy results from bucket"
     echo "  url               - Display the bucket URL"
     echo "  help              - Show this help message"
     echo ""
@@ -45,6 +46,14 @@ case "$1" in
             exit 1
         fi
         gsutil -m cp -r "$BUCKET_URL/hosted-datasets/$2/*" "data/$2"
+        ;;
+    "cpr")
+        if [ -z "$2" ]; then
+            echo "Error: cpr requires dataset argument"
+            show_help
+            exit 1
+        fi
+        gsutil -m cp -r "$BUCKET_URL/probcal/results/$2/*" "results/$2"
         ;;
     "url")
         echo "$BUCKET_URL"

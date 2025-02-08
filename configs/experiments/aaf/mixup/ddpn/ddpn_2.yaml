@@ -7,7 +7,7 @@ model:
 data:
   test_examples:
   n_samples: 1
-  perturb: 0.3
+  perturb: 0.25
   module: ood_mixup_aaf
 hyperparams:
   lmbda: 100

@@ -102,6 +102,9 @@ def main():
             new_value = False
         # Otherwise, keep it as a string
 
+    if new_value.lower() == "none":
+        new_value = None
+
     # Find all YAML files recursively
     yaml_files = list(directory.rglob("*.yaml")) + list(directory.rglob("*.yml"))
 
