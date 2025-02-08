@@ -16,6 +16,7 @@ from probcal.evaluation.kernels import polynomial_kernel
 from probcal.evaluation.kernels import rbf_kernel
 from probcal.evaluation.metrics import compute_mcmd_torch
 from probcal.models.probabilistic_regression_nn import ProbabilisticRegressionNN
+from probcal.random_variables.double_poisson import DoublePoisson
 from probcal.utils.configs import EvaluationConfig
 from probcal.utils.experiment_utils import from_yaml
 from probcal.utils.experiment_utils import get_datamodule
@@ -34,7 +35,7 @@ def mk_log_dir(log_dir, exp_name):
         None: This function does not return a value but creates directories as needed.
     """
     now = datetime.now()
-    ts = now.strftime("%Y-%m-%d %H:%M").replace(" ", "-")
+    ts = now.strftime("%Y-%m-%d %H:%M:%S").replace(" ", "-")
     log_dir = os.path.join(log_dir, exp_name + "_" + ts)
     log_file = os.path.join(log_dir, "log.txt")
     if not os.path.exists("logs"):
@@ -139,7 +140,10 @@ def main(cfg: dict) -> None:
 
         rv = model.predictive_dist(imgs_to_plot_preds[i], training=False)
         disc_support = torch.arange(0, imgs_to_plot_true.max() + 5)
-        dist_func = torch.exp(rv.log_prob(disc_support.to(device)))
+        if isinstance(rv, DoublePoisson):
+            dist_func = torch.exp(rv._logpmf(disc_support.to(device)))
+        else:
+            dist_func = torch.exp(rv.log_prob(disc_support.to(device)))
         axs[i, 1].plot(disc_support.cpu(), dist_func.cpu())
         axs[i, 1].scatter(imgs_to_plot_true[i], 0, color="black", marker="*", s=50, zorder=100)
 

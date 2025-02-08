@@ -17,6 +17,17 @@ if [ -z "$3" ]; then
     exit 1
 fi
 
+if [ -n "$4" ] && [ "$4" != "ignore" ]; then
+    echo "Usage: $0 <dataset-name> <experiment-name> <num-runs> [ignore]"
+    echo "Example: $0 coco blur 5 ignore"
+    exit 1
+fi
+
+if [ -n "$4" ] && [ "$4" == "ignore" ]; then
+    echo "=> Ignoring python warnings."
+    export PYTHONWARNINGS="ignore"
+fi
+
 dataset=$1
 experiment_name=$2
 num_runs=$3
