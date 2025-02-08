@@ -57,6 +57,7 @@ def generate_case_study_figures(dataset_type: DatasetType, dataset_name: str, he
         fig, ax = plt.subplots(1, 1, figsize=(3, 3))
         ax: plt.Axes
         idx = order[i]
+        idx = idx.item() if hasattr(idx, "item") else idx
         mean_cce = cce_means[idx]
         std_cce = cce_stdevs[idx]
         example, _ = dataset[idx]
@@ -74,6 +75,7 @@ def generate_case_study_figures(dataset_type: DatasetType, dataset_name: str, he
         fig, ax = plt.subplots(1, 1, figsize=(3, 3))
         ax: plt.Axes
         idx = order[-(i + 1)]
+        idx = idx.item() if hasattr(idx, "item") else idx
         mean_cce = cce_means[idx]
         std_cce = cce_stdevs[idx]
         example, _ = dataset[idx]
@@ -94,6 +96,7 @@ def generate_case_study_figures(dataset_type: DatasetType, dataset_name: str, he
     for i in range(5):
         ax = axes[i]
         idx = order[i]
+        idx = idx.item() if hasattr(idx, "item") else idx
         mean_cce = cce_means[idx]
         std_cce = cce_stdevs[idx]
         example, _ = dataset[idx]
@@ -108,6 +111,7 @@ def generate_case_study_figures(dataset_type: DatasetType, dataset_name: str, he
     for i in range(5):
         ax = axes[i + 5]
         idx = order[-(i + 1)]
+        idx = idx.item() if hasattr(idx, "item") else idx
         mean_cce = cce_means[idx]
         std_cce = cce_stdevs[idx]
         example, _ = dataset[idx]
