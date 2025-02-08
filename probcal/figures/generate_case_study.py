@@ -63,7 +63,7 @@ def generate_case_study_figures(dataset_type: DatasetType, dataset_name: str, he
         example, _ = dataset[idx]
         if dataset_type == DatasetType.IMAGE:
             ax.imshow(example)
-            ax.set_title(f"{mean_cce:.4f} ({std_cce:.4f})")
+            ax.set_title(f"{mean_cce:.4f} ({std_cce:.3f})")
         elif dataset_type == DatasetType.TEXT:
             pass
         ax.axis("off")
@@ -81,7 +81,7 @@ def generate_case_study_figures(dataset_type: DatasetType, dataset_name: str, he
         example, _ = dataset[idx]
         if dataset_type == DatasetType.IMAGE:
             ax.imshow(example)
-            ax.set_title(f"{mean_cce:.4f} ({std_cce:.4f})")
+            ax.set_title(f"{mean_cce:.4f} ({std_cce:.3f})")
         elif dataset_type == DatasetType.TEXT:
             pass
         ax.axis("off")
@@ -102,7 +102,7 @@ def generate_case_study_figures(dataset_type: DatasetType, dataset_name: str, he
         example, _ = dataset[idx]
         if dataset_type == DatasetType.IMAGE:
             ax.imshow(example)
-            ax.set_title(f"{mean_cce:.4f} ({std_cce:.4f})")
+            ax.set_title(f"{mean_cce:.4f} ({std_cce:.3f})")
         elif dataset_type == DatasetType.TEXT:
             pass
         ax.axis("off")
@@ -117,7 +117,7 @@ def generate_case_study_figures(dataset_type: DatasetType, dataset_name: str, he
         example, _ = dataset[idx]
         if dataset_type == DatasetType.IMAGE:
             ax.imshow(example)
-            ax.set_title(f"{mean_cce:.4f} ({std_cce:.4f})")
+            ax.set_title(f"{mean_cce:.4f} ({std_cce:.3f})")
         elif dataset_type == DatasetType.TEXT:
             pass
         ax.axis("off")
