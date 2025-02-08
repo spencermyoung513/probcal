@@ -1,7 +1,8 @@
 exp:
   name: ood_label_noise_fg_net_ddpn_4
+  log_dir: logs/fg-net
 model:
-  weights: chkp/fg_net/fg_net_ddpn/version_0/best_loss.ckpt
+  weights: chkp/fg_net/ddpn/best_loss.ckpt
   test_cfg: configs/test/fg_net/ddpn.yaml
 data:
   test_examples:
