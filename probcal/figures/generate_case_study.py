@@ -62,6 +62,7 @@ def generate_case_study_figures(dataset_type: DatasetType, dataset_name: str, he
         std_cce = cce_stdevs[idx]
         example, _ = dataset[idx]
         if dataset_type == DatasetType.IMAGE:
+            example = example.resize((224, 224))  # Resize image to 224x224
             ax.imshow(example)
         elif dataset_type == DatasetType.TEXT:
             pass
@@ -86,6 +87,7 @@ def generate_case_study_figures(dataset_type: DatasetType, dataset_name: str, he
         std_cce = cce_stdevs[idx]
         example, _ = dataset[idx]
         if dataset_type == DatasetType.IMAGE:
+            example = example.resize((224, 224))  # Resize image to 224x224
             ax.imshow(example)
         elif dataset_type == DatasetType.TEXT:
             pass
