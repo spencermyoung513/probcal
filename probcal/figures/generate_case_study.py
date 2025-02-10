@@ -63,12 +63,18 @@ def generate_case_study_figures(dataset_type: DatasetType, dataset_name: str, he
         example, _ = dataset[idx]
         if dataset_type == DatasetType.IMAGE:
             ax.imshow(example)
-            ax.set_title(f"{mean_cce:.4f} ({std_cce:.3f})")
         elif dataset_type == DatasetType.TEXT:
             pass
         ax.axis("off")
-        fig.savefig(save_dir / f"cce_best_{i}.jpg", dpi=150)
-        print(f"Saved {save_dir / f'cce_best_{i}.jpg'}")
+        fig.subplots_adjust(left=0, right=1, top=1, bottom=0)
+        fig.savefig(
+            save_dir / f"cce_best_{i}_{mean_cce:.4f}_{std_cce:.3f}.jpg",
+            dpi=150,
+            bbox_inches="tight",
+            pad_inches=0,
+        )
+        plt.close(fig)
+        print(f"Saved {save_dir / f'cce_best_{i}_{mean_cce:.4f}_{std_cce:.3f}.jpg'}")
 
     # Plot examples with the highest CCE.
     for i in range(5):
@@ -81,12 +87,18 @@ def generate_case_study_figures(dataset_type: DatasetType, dataset_name: str, he
         example, _ = dataset[idx]
         if dataset_type == DatasetType.IMAGE:
             ax.imshow(example)
-            ax.set_title(f"{mean_cce:.4f} ({std_cce:.3f})")
         elif dataset_type == DatasetType.TEXT:
             pass
         ax.axis("off")
-        fig.savefig(save_dir / f"cce_worst_{i}.jpg", dpi=150)
-        print(f"Saved {save_dir / f'cce_worst_{i}.jpg'}")
+        fig.subplots_adjust(left=0, right=1, top=1, bottom=0)
+        fig.savefig(
+            save_dir / f"cce_worst_{i}_{mean_cce:.4f}_{std_cce:.3f}.jpg",
+            dpi=150,
+            bbox_inches="tight",
+            pad_inches=0,
+        )
+        plt.close(fig)
+        print(f"Saved {save_dir / f'cce_worst_{i}_{mean_cce:.4f}_{std_cce:.3f}.jpg'}")
 
         # Plot examples with the lowest CCE.
     fig, axes = plt.subplots(2, 5, figsize=(15, 6))
