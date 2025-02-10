@@ -35,7 +35,7 @@ def mk_log_dir(log_dir, exp_name):
         None: This function does not return a value but creates directories as needed.
     """
     now = datetime.now()
-    ts = now.strftime("%Y-%m-%d %H:%M").replace(" ", "-")
+    ts = now.strftime("%Y-%m-%d %H:%M:%S").replace(" ", "-")
     log_dir = os.path.join(log_dir, exp_name + "_" + ts)
     log_file = os.path.join(log_dir, "log.txt")
     if not os.path.exists("logs"):

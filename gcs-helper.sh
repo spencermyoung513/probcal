@@ -36,6 +36,7 @@ case "$1" in
             show_help
             exit 1
         fi
+        mkdir -p chkp/$2/$3
         gsutil -m cp -r "$BUCKET_URL/probcal/$2/$3/best_loss.ckpt" "chkp/$2/$3/best_loss.ckpt"
         ;;
     "cpd")
@@ -44,6 +45,7 @@ case "$1" in
             show_help
             exit 1
         fi
+        mkdir -p data/eva
         gsutil -m cp -r "$BUCKET_URL/hosted-datasets/$2/*" "data/$2"
         ;;
     "url")
