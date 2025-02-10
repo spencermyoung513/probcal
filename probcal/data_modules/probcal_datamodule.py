@@ -6,10 +6,11 @@ import torch
 from torch.utils.data import DataLoader
 from torch.utils.data import Dataset
 
+from probcal.data_modules.active_learning_mixin import ActiveLearningMixin
 from probcal.data_modules.bootstrap_mixin import BootstrapMixin
 
 
-class ProbcalDataModule(L.LightningDataModule, BootstrapMixin):
+class ProbcalDataModule(L.LightningDataModule, BootstrapMixin, ActiveLearningMixin):
     train: Dataset | None = None
     val: Dataset | None = None
     test: Dataset | None = None
@@ -38,17 +39,19 @@ class ProbcalDataModule(L.LightningDataModule, BootstrapMixin):
 
     def set_bootstrap_indices(self, split: Literal["val", "test"]):
         """Randomly generate indices that define a new bootstrap sample of the given split.
-        
+
         Args:
             split (Literal["val", "test"]): The dataset split to sample from.
-        
+
         Raises:
             AttributeError: If the specified split has not yet been set in this data module (happens in the `setup` method).
             ValueError: If an invalid split name is passed.
         """
         if split == "val":
             if self.val is None:
-                raise AttributeError("The `val` attribute has not been set. Did you call `setup` yet?")
+                raise AttributeError(
+                    "The `val` attribute has not been set. Did you call `setup` yet?"
+                )
         elif split == "test":
             if self.test is None:
                 raise AttributeError(

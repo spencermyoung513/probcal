@@ -22,6 +22,7 @@ from probcal.data_modules import TabularDataModule
 from probcal.data_modules.eva_datamodule import OodBlurEVADataModule
 from probcal.data_modules.eva_datamodule import OodLabelNoiseEVADataModule
 from probcal.data_modules.eva_datamodule import OodMixupEVADataModule
+from probcal.data_modules.probcal_datamodule import ProbcalDataModule
 from probcal.data_modules.readability_datamodule import ReadabilityDataModule
 from probcal.enums import DatasetType
 from probcal.enums import HeadType
@@ -127,8 +128,9 @@ def get_datamodule(
     dataset_path_or_spec: Path | ImageDatasetName,
     batch_size: int,
     num_workers: Optional[int] = 8,
-) -> L.LightningDataModule:
+) -> ProbcalDataModule:
     if dataset_type == DatasetType.TABULAR:
+        # TODO: Make this a probcal datamodule.
         return TabularDataModule(
             dataset_path=dataset_path_or_spec,
             batch_size=batch_size,
@@ -223,11 +225,15 @@ def get_datamodule(
             )
 
 
-def fix_random_seed(random_seed: int | None):
-    if random_seed is not None:
-        random.seed(random_seed)
-        np.random.seed(random_seed)
-        torch.manual_seed(random_seed)
+def fix_random_seed(seed: int | None):
+    if seed is not None:
+        random.seed(seed)
+        np.random.seed(seed)
+        torch.manual_seed(seed)
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
 
 
 def get_chkp_callbacks(chkp_dir: Path, chkp_freq: int) -> list[ModelCheckpoint]:

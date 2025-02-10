@@ -4,8 +4,10 @@ from pathlib import Path
 from typing import Literal
 
 import yaml
+from pydantic import BaseModel
 
 from probcal.enums import AcceleratorType
+from probcal.enums import ActiveLearningStrategy
 from probcal.enums import BetaSchedulerType
 from probcal.enums import DatasetType
 from probcal.enums import HeadType
@@ -349,3 +351,11 @@ class EvaluationConfig(BaseConfig):
             ece_weights=ece_weights,
             ece_alpha=ece_alpha,
         )
+
+
+class ActiveLearningConfig(BaseModel):
+    init_n_train: int = 1000
+    num_cycles: int = 10
+    addl_labels_per_cycle: int = 1000
+    strategy: ActiveLearningStrategy
+    strategy_settings: dict

@@ -1,0 +1,16 @@
+Psuedo-code / process:
+
+1. Pass in configuration specifying how to train each model and how to run AL
+2. Select seed set (require an indices file for max reproducibility)
+3. Form train / val / test (val and test are constant, train is the seed set)
+4. Train model
+5. Use trained model on non-seed set (unlabeled pool) and select what to send to oracle. Update seed set and repeat 3-4.
+
+How do we specify that a given dataset has only limited access? We pass it indices, which further restrict it.
+    -> We just have to subset the original dataset.
+
+What settings would we want control of? 
+    - seed_size
+    - num_al_cycles
+    - new_labels_per_cycle
+    - al_strategy

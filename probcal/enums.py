@@ -54,3 +54,8 @@ class ImageDatasetName(Enum):
 
 class TextDatasetName(Enum):
     READABILITY = "readability"
+
+
+class ActiveLearningStrategy(Enum):
+    RANDOM = "random"
+    ENTROPY = "entropy"

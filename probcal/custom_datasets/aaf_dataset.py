@@ -14,13 +14,10 @@ class AAFDataset(Dataset):
     """The All-Age-Faces (AAF) Dataset contains 13'322 face images (mostly Asian)
     distributed across all ages (from 2 to 80), including 7381 females and 5941 males."""
 
-    # DATA_URL = "https://drive.google.com/uc?id=1wa5qOHUZn9O3Zp1efVoTwkK7PWZu8FJS"
-
     def __init__(
         self,
         root_dir: str | Path,
         split: Literal["train", "val", "test"],
-        limit: int | None = None,
         transform: Callable[[PILImage], PILImage] | None = None,
         target_transform: Callable[[int], int] | None = None,
         surface_image_path: bool = False,
@@ -29,7 +26,7 @@ class AAFDataset(Dataset):
 
         Args:
             root_dir (str | Path): Root directory where dataset files should be stored.
-            limit (int | None, optional): Max number of images to download/use for this dataset. Defaults to None.
+            split (str): The dataset split to load (train, val, or test).
             transform (Callable, optional): A function/transform that takes in a PIL image and returns a transformed version. e.g, `transforms.RandomCrop`. Defaults to None.
             target_transform (Callable, optional): A function/transform that takes in the target and transforms it. Defaults to None.
             surface_image_path (bool, optional): Whether/not to return the image path along with the image and age in __getitem__.
@@ -37,7 +34,6 @@ class AAFDataset(Dataset):
 
         self.root_dir = Path(root_dir)
         self.split = split
-        self.limit = limit
         self.image_dir = self.root_dir / "images"
         self.annotations_csv_path = self.root_dir / "annotations.csv"
         self.surface_image_path = surface_image_path
@@ -73,7 +69,7 @@ class AAFDataset(Dataset):
             row = self.instances.iloc[idx.item()]
         else:
             row = self.instances.iloc[idx]
-            
+
         image_path = self.image_dir / self.split / row["image_path"]
         image = Image.open(image_path)
         age = row["age"]
