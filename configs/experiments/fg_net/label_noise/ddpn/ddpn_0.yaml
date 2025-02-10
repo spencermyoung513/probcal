@@ -1,7 +1,8 @@
 exp:
   name: ood_label_noise_fg_net_ddpn_0
+  log_dir: logs/fg-net
 model:
-  weights: chkp/fg_net/fg_net_ddpn/version_0/best_loss.ckpt
+  weights: chkp/fg-net/ddpn/best_loss.ckpt
   test_cfg: configs/test/fg_net/ddpn.yaml
 data:
   test_examples:
@@ -9,7 +10,7 @@ data:
   perturb: {'mean': 1.0, 'std': 1.0}
   module: ood_label_noise_fg_net # {ood_blur_coco_people, ood_mixup_coco_people, coco_people}
 hyperparams:
-  lmbda: 100
+  lmbda: 0.01
   y_kernel_gamma: 'auto' # {'auto', float}
 plot:
   gen_fig: true

@@ -2,7 +2,7 @@ exp:
   name: ood_blur_fg_net_poisson_2
   log_dir: logs/fg-net
 model:
-  weights: chkp/fg-net/poisson/version_0/best_loss.ckpt
+  weights: chkp/fg-net/poisson/best_loss.ckpt
   test_cfg: configs/test/fg_net/ddpn.yaml
 data:
   test_examples:
@@ -10,7 +10,7 @@ data:
   perturb: 5.0
   module: ood_blur_fg_net
 hyperparams:
-  lmbda: 100
+  lmbda: 0.01
   y_kernel_gamma: 'auto' # {'auto', float}
 plot:
   gen_fig: true

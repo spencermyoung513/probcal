@@ -16,6 +16,7 @@ from probcal.evaluation.kernels import polynomial_kernel
 from probcal.evaluation.kernels import rbf_kernel
 from probcal.evaluation.metrics import compute_mcmd_torch
 from probcal.models.probabilistic_regression_nn import ProbabilisticRegressionNN
+from probcal.random_variables.double_poisson import DoublePoisson
 from probcal.utils.configs import EvaluationConfig
 from probcal.utils.experiment_utils import from_yaml
 from probcal.utils.experiment_utils import get_datamodule
@@ -139,7 +140,10 @@ def main(cfg: dict) -> None:
 
         rv = model.predictive_dist(imgs_to_plot_preds[i], training=False)
         disc_support = torch.arange(0, imgs_to_plot_true.max() + 5)
-        dist_func = torch.exp(rv.log_prob(disc_support.to(device)))
+        if isinstance(rv, DoublePoisson):
+            dist_func = torch.exp(rv._logpmf(disc_support.to(device)))
+        else:
+            dist_func = torch.exp(rv.log_prob(disc_support.to(device)))
         axs[i, 1].plot(disc_support.cpu(), dist_func.cpu())
         axs[i, 1].scatter(imgs_to_plot_true[i], 0, color="black", marker="*", s=50, zorder=100)
 

@@ -10,7 +10,7 @@ data:
   perturb:
   module: fg-net
 hyperparams:
-  lmbda: 100
+  lmbda: 0.01
   y_kernel_gamma: 'auto' # {'auto', float}
 plot:
   gen_fig: true

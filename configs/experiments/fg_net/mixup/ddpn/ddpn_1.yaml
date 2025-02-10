@@ -2,15 +2,15 @@ exp:
   name: ood_mixup_fg_net_ddpn_1
   log_dir: logs/fg-net
 model:
-  weights: chkp/fg_net/fg_net_ddpn/version_0/best_loss.ckpt
+  weights: chkp/fg-net/ddpn/best_loss.ckpt
   test_cfg: configs/test/fg_net/ddpn.yaml
 data:
   test_examples:
   n_samples: 1
-  perturb: 0.2
+  perturb: 0.17
   module: ood_mixup_fg_net
 hyperparams:
-  lmbda: 100
+  lmbda: 0.01
   y_kernel_gamma: 'auto' # {'auto', float}
 plot:
   gen_fig: true
