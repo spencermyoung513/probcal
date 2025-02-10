@@ -11,6 +11,7 @@ from probcal.enums import LRSchedulerType
 from probcal.enums import OptimizerType
 from probcal.evaluation.custom_torchmetrics import ContinuousRankedProbabilityScore
 from probcal.evaluation.custom_torchmetrics import MedianPrecision
+from probcal.evaluation.custom_torchmetrics import NLL
 from probcal.models.backbones import Backbone
 from probcal.models.probabilistic_regression_nn import ProbabilisticRegressionNN
 from probcal.training.beta_schedulers import CosineAnnealingBetaScheduler
@@ -79,6 +80,7 @@ class GaussianNN(ProbabilisticRegressionNN):
         )
         self.head = nn.Linear(self.backbone.output_dim, 2)
 
+        self.nll = BootStrapper(NLL())
         self.mp = BootStrapper(MedianPrecision())
         self.crps = BootStrapper(ContinuousRankedProbabilityScore(mode="gaussian"))
         self.save_hyperparameters()
@@ -190,12 +192,14 @@ class GaussianNN(ProbabilisticRegressionNN):
         var = var.flatten()
         precision = 1 / var
         targets = y.flatten()
+        dist = self.predictive_dist(y_hat, training=False)
 
+        self.nll.update(-dist.log_prob(targets))
         self.mp.update(precision)
         self.crps.update(y_hat, targets)
 
     def _log_addl_test_metrics(self):
-        for name, metric in zip(("mp", "crps"), (self.mp, self.crps)):
+        for name, metric in zip(("nll", "mp", "crps"), (self.nll, self.mp, self.crps)):
             result = metric.compute()
             self.log(f"{name}_mean", result["mean"])
             self.log(f"{name}_std", result["std"])
