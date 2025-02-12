@@ -1,9 +1,10 @@
-experiment_name: coco_gaussian
+experiment_name: coco_seitzer
+accelerator: gpu
 random_seed: 1998
 head_type: gaussian
 hidden_dim: 64
-log_dir: logs
-model_ckpt_path: weights/coco_people_seitzer/version_0/state_dict_best_mae.ckpt
+log_dir: results/coco-people-no-bootstrap
+model_ckpt_path: weights/coco_people/seitzer_0.5/version_0/state_dict_best_loss.ckpt
 dataset:
   type: image
   spec: coco_people

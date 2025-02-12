@@ -4,6 +4,7 @@ from typing import Callable
 from typing import Literal
 
 import pandas as pd
+import torch
 from PIL import Image
 from PIL.Image import Image as PILImage
 from torch.utils.data import Dataset
@@ -68,8 +69,15 @@ class COCOPeopleDataset(Dataset):
             instances["count"].append(count)
         return pd.DataFrame(instances)
 
-    def __getitem__(self, idx: int) -> tuple[PILImage, int] | tuple[PILImage, tuple[str, int]]:
-        row = self.instances.iloc[idx]
+    def __getitem__(
+        self, idx: int | torch.Tensor
+    ) -> tuple[PILImage, int] | tuple[PILImage, tuple[str, int]]:
+
+        if isinstance(idx, torch.Tensor):
+            row = self.instances.iloc[idx.item()]
+        else:
+            row = self.instances.iloc[idx]
+
         image_path = row["image_path"]
         image = Image.open(image_path)
         count = row["count"]

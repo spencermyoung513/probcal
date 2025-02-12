@@ -2,7 +2,6 @@ import os
 from argparse import ArgumentParser
 from functools import partial
 from pathlib import Path
-from typing import Type
 
 import lightning as L
 import torch
@@ -14,7 +13,6 @@ from probcal.evaluation.calibration_evaluator import CalibrationEvaluatorSetting
 from probcal.evaluation.calibration_evaluator import CCESettings
 from probcal.evaluation.calibration_evaluator import ECESettings
 from probcal.evaluation.kernels import rbf_kernel
-from probcal.models.probabilistic_regression_nn import ProbabilisticRegressionNN
 from probcal.utils.configs import EvaluationConfig
 from probcal.utils.experiment_utils import get_datamodule
 from probcal.utils.experiment_utils import get_model
@@ -34,8 +32,14 @@ def main(config_path: Path):
         config.num_workers,
     )
 
-    initializer: Type[ProbabilisticRegressionNN] = get_model(config, return_initializer=True)[1]
-    model = initializer.load_from_checkpoint(config.model_ckpt_path)
+    model, initializer = get_model(config, return_initializer=True)
+    try:
+        model = initializer.load_from_checkpoint(config.model_ckpt_path)
+    except Exception as e:
+        print(f"{e} loading model from checkpoint. Trying to load from state dict...")
+        model.load_state_dict(torch.load(config.model_ckpt_path))
+        print("Model loaded from state dict.")
+
     evaluator = L.Trainer(
         accelerator=config.accelerator_type.value,
         enable_model_summary=False,
