@@ -80,12 +80,10 @@ def produce_figure(
             mu = mu.flatten().detach().numpy()
             std = var.sqrt().flatten().detach().numpy()
             dist = norm(loc=mu, scale=std)
-            # nll = np.mean(-np.log(dist.cdf(y + 0.5) - dist.cdf(y - 0.5)))
 
         elif isinstance(model, PoissonNN):
             mu = y_hat.detach().numpy().flatten()
             dist = poisson(mu)
-            # nll = np.mean(-dist.logpmf(y))
 
         elif isinstance(model, NegBinomNN):
             mu, alpha = torch.split(y_hat, [1, 1], dim=-1)
@@ -97,14 +95,12 @@ def produce_figure(
             n = mu**2 / np.maximum(var - mu, eps)
             p = mu / np.maximum(var, eps)
             dist = nbinom(n=n, p=p)
-            # nll = np.mean(-dist.logpmf(y))
 
         elif isinstance(model, DoublePoissonNN):
             mu, phi = torch.split(y_hat, [1, 1], dim=-1)
             mu = mu.flatten().detach().numpy()
             phi = phi.flatten().detach().numpy()
             dist = DoublePoisson(mu, phi)
-            # nll = np.mean(-dist._logpmf(y))
 
         lower, upper = dist.ppf(0.025), dist.ppf(0.975)
         plot_posterior_predictive(
