@@ -8,6 +8,9 @@ from .eva_datamodule import OodBlurEVADataModule
 from .eva_datamodule import OodLabelNoiseEVADataModule
 from .eva_datamodule import OodMixupEVADataModule
 from .fg_net_datamodule import FGNetDataModule
+from .fg_net_datamodule import OodBlurFGNetDataModule
+from .fg_net_datamodule import OodLabelNoiseFGNetDataModule
+from .fg_net_datamodule import OodMixupFGNetDataModule
 from .readability_datamodule import ReadabilityDataModule
 from .rotated_mnist_datamodule import RotatedMNISTDataModule
 from .tabular_data_module import TabularDataModule
