@@ -21,7 +21,7 @@ extended_grid = torch.cat(
 )
 
 model = GaussianNN.load_from_checkpoint("weights/discrete-wave/gaussian.ckpt")
-y_hat = model.predict(X_val.view(-1, 1))
+y_hat = model.predict(X_test.view(-1, 1))
 l = 3
 
 x_samples = torch.repeat_interleave(
