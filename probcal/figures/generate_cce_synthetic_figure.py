@@ -32,6 +32,7 @@ def produce_figure(
     names: list[str],
     save_path: Path | str,
     dataset_path: Path | str,
+    x_kernel_gamma: float = 0.5,
 ):
     """Create a figure showcasing CCE's ability to identify calibrated models.
 
@@ -39,7 +40,7 @@ def produce_figure(
         models (list[ProbabilisticRegressionNN]): List of models to plot posterior predictive distributions of.
         names (list[str]): List of display names for each respective model in `models`.
         save_path (Path | str): Path to save figure to.
-        dataset_path (Path | str): Path with dataset models were fit on.
+        dataset_path (Path | str): Path with dataset models were fit on
     """
     plt.rc("text", usetex=False)
     plt.rc("font", family="serif")
@@ -55,7 +56,7 @@ def produce_figure(
     data: dict[str, np.ndarray] = np.load(dataset_path)
     X = data["X_test"].flatten()
     y = data["y_test"].flatten()
-    x_kernel = partial(rbf_kernel, gamma=0.5)
+    x_kernel = partial(rbf_kernel, gamma=x_kernel_gamma)
     data_module = TabularDataModule(
         dataset_path, batch_size=16, num_workers=0, persistent_workers=False
     )
@@ -170,8 +171,14 @@ def produce_figure(
 
 
 if __name__ == "__main__":
+    thin_x_kernel_gamma = 5.0
     save_path = "probcal/figures/artifacts/cce_in_practice.pdf"
+    save_path_thinned = (
+        f"probcal/figures/artifacts/cce_in_practice_thinned_gamma_{thin_x_kernel_gamma}.pdf"
+    )
     dataset_path = "data/discrete-wave/discrete_sine_wave.npz"
+    # Thin by dropping points in the [2.5, 4.0] range
+    dataset_path_thinned = "data/discrete-wave/discrete_sine_wave_thinned.npz"
     models = [
         PoissonNN.load_from_checkpoint("weights/discrete-wave/poisson.ckpt"),
         NegBinomNN.load_from_checkpoint("weights/discrete-wave/nbinom.ckpt"),
@@ -180,3 +187,4 @@ if __name__ == "__main__":
     ]
     names = ["Poisson NN", "NB NN", "Gaussian NN", "DDPN"]
     produce_figure(models, names, save_path, dataset_path)
+    produce_figure(models, names, save_path_thinned, dataset_path_thinned, thin_x_kernel_gamma)
