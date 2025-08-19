@@ -32,6 +32,7 @@ def produce_figure(
     names: list[str],
     save_path: Path | str,
     dataset_path: Path | str,
+    x_kernel_gamma: float = 0.5,
 ):
     """Create a figure showcasing CCE's ability to identify calibrated models.
 
@@ -39,23 +40,23 @@ def produce_figure(
         models (list[ProbabilisticRegressionNN]): List of models to plot posterior predictive distributions of.
         names (list[str]): List of display names for each respective model in `models`.
         save_path (Path | str): Path to save figure to.
-        dataset_path (Path | str): Path with dataset models were fit on.
+        dataset_path (Path | str): Path with dataset models were fit on
     """
     plt.rc("text", usetex=False)
     plt.rc("font", family="serif")
 
     fig, axs = plt.subplots(
-        2,
+        3,
         len(models),
-        figsize=(2.5 * len(models), 4),
+        figsize=(2.5 * len(models), 6),
         sharey="row",
         sharex="col",
-        gridspec_kw={"height_ratios": (2, 1)},
+        gridspec_kw={"height_ratios": (1, 1, 1)},
     )
     data: dict[str, np.ndarray] = np.load(dataset_path)
     X = data["X_test"].flatten()
     y = data["y_test"].flatten()
-    x_kernel = partial(rbf_kernel, gamma=0.5)
+    x_kernel = partial(rbf_kernel, gamma=x_kernel_gamma)
     data_module = TabularDataModule(
         dataset_path, batch_size=16, num_workers=0, persistent_workers=False
     )
@@ -72,7 +73,8 @@ def produce_figure(
     for i, (model, model_name) in enumerate(zip(models, names)):
         print(model_name)
         posterior_ax: plt.Axes = axs[0, i]
-        cce_ax: plt.Axes = axs[1, i]
+        nll_ax: plt.Axes = axs[1, i]
+        cce_ax: plt.Axes = axs[2, i]
         y_hat = model.predict(torch.tensor(X).unsqueeze(1))
 
         if isinstance(model, GaussianNN):
@@ -143,8 +145,7 @@ def produce_figure(
         nll_std = eval_results_dict["nll_std"]
 
         posterior_ax.set_title(model_name)
-        posterior_ax.annotate(f"NLL: {nll_mean:.3f} ({nll_std:.3f})", (0.2, 41))
-        posterior_ax.annotate(f"ECE: {ece_mean:.3f} ({ece_std:.3f})", (0.2, 38))
+        posterior_ax.annotate(f"ECE: {ece_mean:.3f} ({ece_std:.3f})", (0.2, 41))
         posterior_ax.xaxis.set_major_locator(MultipleLocator(np.pi))
         posterior_ax.xaxis.set_major_formatter(FuncFormatter(multiple_formatter()))
         posterior_ax.set_xlabel(None)
@@ -164,13 +165,36 @@ def produce_figure(
             rf"$\overline{{\mathrm{{CCE}}}}$: {results.cce.mean_cce_bar:.3f} ({results.cce.std_cce_bar:.3f})",
             (X.min() + 0.1, cce_ax.get_ylim()[1] * 0.8),
         )
+        data: dict[str, np.ndarray] = np.load(dataset_path)
+        X = data["X_test"].flatten()
+        y = data["y_test"].flatten()
+        print("Plotting NLL")
+
+        if isinstance(model, DoublePoissonNN):
+            with torch.inference_mode():
+                y_hat = model.predict(torch.tensor(X).unsqueeze(1).to(model.device))
+                nlls = (
+                    -model.predictive_dist(y_hat)._logpmf(torch.Tensor(y).to(model.device)).cpu()
+                )
+        else:
+            with torch.inference_mode():
+                y_hat = model.predict(torch.tensor(X).unsqueeze(1).to(model.device))
+                nlls = (
+                    -model.predictive_dist(y_hat).log_prob(torch.Tensor(y).to(model.device)).cpu()
+                )
+
+        nll_ax.plot(X[sorted_indices], nlls[sorted_indices])
+        nll_ax.set_ylim(-1, 7.0)
+        nll_ax.annotate(f"NLL: {nll_mean:.3f} ({nll_std:.3f})", (X.min() + 0.1, 6.0))
 
     fig.tight_layout()
     fig.savefig(save_path, format="pdf", dpi=150)
 
 
 if __name__ == "__main__":
+    thin_x_kernel_gamma = 2.5
     save_path = "probcal/figures/artifacts/cce_in_practice.pdf"
+
     dataset_path = "data/discrete-wave/discrete_sine_wave.npz"
     models = [
         PoissonNN.load_from_checkpoint("weights/discrete-wave/poisson.ckpt"),
