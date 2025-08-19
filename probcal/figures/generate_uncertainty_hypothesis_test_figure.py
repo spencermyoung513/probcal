@@ -43,9 +43,9 @@ def _get_kde_plot(
     plt.close()
 
 
-def main(boostrap_results_path: str, no_boostrap_results_path: str):
+def main(bootstrap_results_path: str):
 
-    df_bs = pd.read_csv(boostrap_results_path)
+    df_bs = pd.read_csv(bootstrap_results_path)
     df_bs = _transform_df(df_bs)
 
     p_value_cce_ece = _hyp_test(df_bs["coef_var_cce"].values, df_bs["coef_var_ece"].values)
@@ -121,6 +121,5 @@ def main(boostrap_results_path: str, no_boostrap_results_path: str):
 if __name__ == "__main__":
 
     main(
-        boostrap_results_path="./all_results_bootstrap.csv",
-        no_boostrap_results_path="./all_results_no_bootstrap.csv",
+        bootstrap_results_path="./all_results_bootstrap.csv",
     )
