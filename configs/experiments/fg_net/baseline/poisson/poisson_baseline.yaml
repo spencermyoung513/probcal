@@ -1,0 +1,17 @@
+exp:
+  name: ood_baseline_fg-net_poisson
+  log_dir: logs/fg-net
+model:
+  weights: chkp/fg_net/fg_net_poisson/version_0/best_loss.ckpt
+  test_cfg: configs/test/fg-net/poisson.yaml
+data:
+  test_examples:
+  n_samples: 1
+  perturb:
+  module: fg-net
+hyperparams:
+  lmbda: 0.01
+  y_kernel_gamma: 'auto' # {'auto', float}
+plot:
+  gen_fig: true
+  num_img_to_plot: 4

@@ -50,6 +50,9 @@ class ImageDatasetName(Enum):
     OOD_MIXUP_COCO_PEOPLE = "ood_mixup_coco_people"
     OOD_LABEL_NOISE_COCO_PEOPLE = "ood_label_noise_coco_people"
     FG_NET = "fg_net"
+    OOD_BLUR_FG_NET = "ood_blur_fg_net"
+    OOD_MIXUP_FG_NET = "ood_mixup_fg_net"
+    OOD_LABEL_NOISE_FG_NET = "ood_label_noise_fg_net"
 
 
 class TextDatasetName(Enum):

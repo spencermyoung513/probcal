@@ -1,0 +1,9 @@
+experiment_name: fg_net_seitzer_eval
+random_seed: 1998
+head_type: gaussian
+log_dir: logs
+model_ckpt_path: chkp/fg_net/seitzer/best_loss.ckpt
+dataset:
+  type: image
+  spec: fg_net
+accelerator: gpu
