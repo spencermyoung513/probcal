@@ -126,7 +126,7 @@ See existing model classes like `GaussianNN` (found [here](probcal/models/gaussi
 If you find our work useful, please consider citing our paper:
 
 ```bibtex
-@inproceedings{young2025ddpn,
+@inproceedings{young2025cce,
   title={Assessing the Probabilistic Fit of Neural Regressors via Conditional Congruence},
   author={Young, Spencer and Sinema, Riley and Edgren, Cole and Hall, Andrew and Dong, Nathan and Jenkins, Porter},
   booktitle={28th European Conference on Artificial Intelligence},
