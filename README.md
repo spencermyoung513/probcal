@@ -1,6 +1,6 @@
 # Assessing the Probabilistic Fit of Neural Regressors
 
-This repository contains the official implementation of the ECAI 2025 paper "Assessing the Probabilistic Fit of Neural Regressors via Conditional Congruence".
+This repository contains the official implementation of the ECAI 2025 paper [Assessing the Probabilistic Fit of Neural Regressors via Conditional Congruence](https://arxiv.org/abs/2405.12412).
 
 Authors: [Spencer Young*](https://spencermyoung513.github.io/), [Riley Sinema](https://www.linkedin.com/in/rileysinema), [Cole Edgren](https://www.linkedin.com/in/cole-edgren-464b96239), [Andrew Hall](https://www.linkedin.com/in/andrewhall1124), [Nathan Dong](https://www.linkedin.com/in/nathan-dong-3aaa61b3), and [Porter Jenkins](https://science.byu.edu/directory/porter-jenkins).
 
