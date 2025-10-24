@@ -8,7 +8,7 @@ Authors: [Spencer Young*](https://spencermyoung513.github.io/), [Riley Sinema](h
 
 ## Overview
 
-We introduce **Conditional Congruence Error** (CCE), a novel metric for evaluating the fit of a probabilistic regression model. CCE uses conditional kernel mean embeddings to estimate the distance, at any point, between a model's learned predictive distribution and the true data-generating distribution at any point in the input space. CCE can even be evaluated on *unlabeled inputs*, enabling robust assessment of a model's reliability on novel, unseen data.
+We introduce **Conditional Congruence Error** (CCE), a novel metric for evaluating the fit of a probabilistic regression model. CCE uses conditional kernel mean embeddings to estimate the distance, at any point, between a model's learned predictive distribution and the true data-generating distribution. CCE can even be evaluated on *unlabeled inputs*, enabling robust assessment of a model's reliability on novel, unseen data.
 
 ![Example high/low CCE values on unlabeled inputs](probcal/figures/artifacts/main_figure.png)
 
