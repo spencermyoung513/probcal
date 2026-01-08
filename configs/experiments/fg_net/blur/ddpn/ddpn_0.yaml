@@ -1,0 +1,17 @@
+exp:
+  name: ood_blur_fg_net_ddpn_0
+  log_dir: logs/fg-net
+model:
+  weights: chkp/fg-net/ddpn/best_loss.ckpt
+  test_cfg: configs/test/fg_net/ddpn.yaml
+data:
+  test_examples:
+  n_samples: 1
+  perturb: 1.0
+  module: ood_blur_fg_net
+hyperparams:
+  lmbda: 0.01
+  y_kernel_gamma: 'auto' # {'auto', float}
+plot:
+  gen_fig: true
+  num_img_to_plot: 4
